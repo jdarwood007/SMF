@@ -360,4 +360,8 @@ $txt['select_boards_from_list'] = 'Select boards which apply';
 
 $txt['topic_move_any'] = 'Allow moving of topics to read-only boards';
 
+$txt['setting_proxy_ip_header'] = 'Reverse Proxy IP Header';
+$txt['setting_proxy_ip_header_disabled'] = 'Do not allow any Proxy IP Headers';
+$txt['setting_proxy_ip_header_autodetect'] = 'Auto-detect Proxy IP header';
+$txt['setting_proxy_ip_servers'] = 'Reverse Proxy Servers IPs';
 ?>

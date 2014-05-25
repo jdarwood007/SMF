@@ -376,16 +376,18 @@ $helptxt['secureCookies'] = 'Enabling this option will force the cookies created
 $helptxt['securityDisable'] = 'This <em>disables</em> the additional password check for the administration section. This is not recommended!';
 $helptxt['securityDisable_why'] = 'This is your current password. (the same one you use to login.)<br><br>Having to type this helps ensure that you want to do whatever administration you are doing, and that it is <strong>you</strong> doing it.';
 $helptxt['securityDisable_moderate'] = 'This <em>disables</em> the additional password check for the moderation section. This is not recommended!';
-$helptxt['securityDisable_moderate_why'] = 'This is your current password. (the same one you use to login.)<br><br>Having to type this helps ensure that you want to do whatever moderation you are doing, and that it is <strong>you</strong> doing it.';
-$helptxt['email_members'] = 'In this message you can use a few &quot;variables&quot;.  These are:<br>
-	{$board_url} - The URL to your forum.<br>
-	{$current_time} - The current time.<br>
-	{$member.email} - The current member\'s email.<br>
-	{$member.link} - The current member\'s link.<br>
-	{$member.id} - The current member\'s id.<br>
-	{$member.name} - The current member\'s name.  (for personalization.)<br>
-	{$latest_member.link} - The most recently registered member\'s link.<br>
-	{$latest_member.id} - The most recently registered member\'s id.<br>
+$helptxt['securityDisable_moderate_why'] = 'This is your current password. (the same one you use to login.)<br /><br />Having to type this helps ensure that you want to do whatever moderation you are doing, and that it is <strong>you</strong> doing it.';
+$helptxt['frame_security'] = 'Modern browsers now understand a security header presented by servers called X-Frame-Options.  By setting this option you specify how you want to allow your site to be framed inside a frameset or a iframe.  Disable will not send any header and is the most unsecure, however allows the most freedom.  Deny will prevent all frames completely and is the most restrictive and secure.  Allowing the Same Origin will only allow your domain to issue any frames and provides a middle ground for the previous two options.';
+$helptxt['proxy_ip_header'] = 'This is the server header that will be trusted by SMF for containing the actual users IP address. Changing this setting can cause unexpected IP results on members.  Please check with your server administrator, CDN provider or proxy administrator prior to changing these settings.  Most providers will understand and use HTTP_X_FORWARDED_FOR.  You should fill out the list of Servers sending the reverse proxy headers for security to ensure these headers only come from valid sources.';
+$helptxt['emailmembers'] = 'In this message you can use a few &quot;variables&quot;.  These are:<br />
+	{$board_url} - The URL to your forum.<br />
+	{$current_time} - The current time.<br />
+	{$member.email} - The current member\'s email.<br />
+	{$member.link} - The current member\'s link.<br />
+	{$member.id} - The current member\'s id.<br />
+	{$member.name} - The current member\'s name.  (for personalization.)<br />
+	{$latest_member.link} - The most recently registered member\'s link.<br />
+	{$latest_member.id} - The most recently registered member\'s id.<br />
 	{$latest_member.name} - The most recently registered member\'s name.';
 
 $helptxt['failed_login_threshold'] = 'Set the number of failed login attempts before directing the user to the password reminder screen.';
