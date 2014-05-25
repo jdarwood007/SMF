@@ -8,7 +8,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -33,7 +33,7 @@ function Post($post_errors = array())
 {
 	global $txt, $scripturl, $topic, $modSettings, $board;
 	global $user_info, $sc, $board_info, $context, $settings;
-	global $sourcedir, $options, $smcFunc, $language;
+	global $sourcedir, $smcFunc, $language;
 
 	loadLanguage('Post');
 
@@ -83,7 +83,7 @@ function Post($post_errors = array())
 		$request = $smcFunc['db_query']('', '
 			SELECT
 				t.locked, IFNULL(ln.id_topic, 0) AS notify, t.is_sticky, t.id_poll, t.id_last_msg, mf.id_member,
-				t.id_first_msg, mf.subject,
+				t.id_first_msg, mf.subject, ml.modified_reason,
 				CASE WHEN ml.poster_time > ml.modified_time THEN ml.poster_time ELSE ml.modified_time END AS last_post_time
 			FROM {db_prefix}topics AS t
 				LEFT JOIN {db_prefix}log_notify AS ln ON (ln.id_topic = t.id_topic AND ln.id_member = {int:current_member})
@@ -96,7 +96,7 @@ function Post($post_errors = array())
 				'current_topic' => $topic,
 			)
 		);
-		list ($locked, $context['notify'], $sticky, $pollID, $context['topic_last_message'], $id_member_poster, $id_first_msg, $first_subject, $lastPostTime) = $smcFunc['db_fetch_row']($request);
+		list ($locked, $context['notify'], $sticky, $pollID, $context['topic_last_message'], $id_member_poster, $id_first_msg, $first_subject, $editReason, $lastPostTime) = $smcFunc['db_fetch_row']($request);
 		$smcFunc['db_free_result']($request);
 
 		// If this topic already has a poll, they sure can't add another.
@@ -129,7 +129,7 @@ function Post($post_errors = array())
 			$context['becomes_approved'] = true;
 
 		$context['can_lock'] = allowedTo('lock_any') || ($user_info['id'] == $id_member_poster && allowedTo('lock_own'));
-		$context['can_sticky'] = allowedTo('make_sticky') && !empty($modSettings['enableStickyTopics']);
+		$context['can_sticky'] = allowedTo('make_sticky');
 
 		$context['notify'] = !empty($context['notify']);
 		$context['sticky'] = isset($_REQUEST['sticky']) ? !empty($_REQUEST['sticky']) : $sticky;
@@ -153,14 +153,14 @@ function Post($post_errors = array())
 
 		// @todo These won't work if you're making an event.
 		$context['can_lock'] = allowedTo(array('lock_any', 'lock_own'));
-		$context['can_sticky'] = allowedTo('make_sticky') && !empty($modSettings['enableStickyTopics']);
+		$context['can_sticky'] = allowedTo('make_sticky');
 
 		$context['notify'] = !empty($context['notify']);
 		$context['sticky'] = !empty($_REQUEST['sticky']);
 	}
 
 	// @todo These won't work if you're posting an event!
-	$context['can_notify'] = allowedTo('mark_any_notify');
+	$context['can_notify'] = !$context['user']['is_guest'];
 	$context['can_move'] = allowedTo('move_any');
 	$context['move'] = !empty($_REQUEST['move']);
 	$context['announce'] = !empty($_REQUEST['announce']);
@@ -223,7 +223,7 @@ function Post($post_errors = array())
 
 		// Start loading up the event info.
 		$context['event'] = array();
-		$context['event']['title'] = isset($_REQUEST['evtitle']) ? htmlspecialchars(stripslashes($_REQUEST['evtitle'])) : '';
+		$context['event']['title'] = isset($_REQUEST['evtitle']) ? $smcFunc['htmlspecialchars'](stripslashes($_REQUEST['evtitle'])) : '';
 
 		$context['event']['id'] = isset($_REQUEST['eventid']) ? (int) $_REQUEST['eventid'] : -1;
 		$context['event']['new'] = $context['event']['id'] == -1;
@@ -309,6 +309,7 @@ function Post($post_errors = array())
 		$context['event']['last_day'] = (int) strftime('%d', mktime(0, 0, 0, $context['event']['month'] == 12 ? 1 : $context['event']['month'] + 1, 0, $context['event']['month'] == 12 ? $context['event']['year'] + 1 : $context['event']['year']));
 
 		$context['event']['board'] = !empty($board) ? $board : $modSettings['cal_defaultboard'];
+		$context['event']['topic'] = !empty($topic) ? $topic : 0;
 	}
 
 	// See if any new replies have come along.
@@ -316,7 +317,7 @@ function Post($post_errors = array())
 	// only at preview
 	if (empty($_REQUEST['msg']) && !empty($topic))
 	{
-		if (empty($options['no_new_reply_warning']) && isset($_REQUEST['last_msg']) && $context['topic_last_message'] > $_REQUEST['last_msg'])
+		if (isset($_REQUEST['last_msg']) && $context['topic_last_message'] > $_REQUEST['last_msg'])
 		{
 			$request = $smcFunc['db_query']('', '
 				SELECT COUNT(*)
@@ -446,9 +447,9 @@ function Post($post_errors = array())
 			$_REQUEST['guestname'] = !isset($_REQUEST['guestname']) ? '' : trim($_REQUEST['guestname']);
 			$_REQUEST['email'] = !isset($_REQUEST['email']) ? '' : trim($_REQUEST['email']);
 
-			$_REQUEST['guestname'] = htmlspecialchars($_REQUEST['guestname']);
+			$_REQUEST['guestname'] = $smcFunc['htmlspecialchars']($_REQUEST['guestname']);
 			$context['name'] = $_REQUEST['guestname'];
-			$_REQUEST['email'] = htmlspecialchars($_REQUEST['email']);
+			$_REQUEST['email'] = $smcFunc['htmlspecialchars']($_REQUEST['email']);
 			$context['email'] = $_REQUEST['email'];
 
 			$user_info['name'] = $_REQUEST['guestname'];
@@ -565,7 +566,7 @@ function Post($post_errors = array())
 					if ($row['filesize'] <= 0)
 						continue;
 					$context['current_attachments'][] = array(
-						'name' => htmlspecialchars($row['filename']),
+						'name' => $smcFunc['htmlspecialchars']($row['filename']),
 						'size' => $row['filesize'],
 						'id' => $row['id_attach'],
 						'approved' => $row['approved'],
@@ -593,8 +594,8 @@ function Post($post_errors = array())
 
 				if (empty($row['id_member']))
 				{
-					$context['name'] = htmlspecialchars($row['poster_name']);
-					$context['email'] = htmlspecialchars($row['poster_email']);
+					$context['name'] = $smcFunc['htmlspecialchars']($row['poster_name']);
+					$context['email'] = $smcFunc['htmlspecialchars']($row['poster_email']);
 				}
 			}
 		}
@@ -605,12 +606,14 @@ function Post($post_errors = array())
 	// Editing a message...
 	elseif (isset($_REQUEST['msg']) && !empty($topic))
 	{
+		$context['editing'] = true;
+
 		$_REQUEST['msg'] = (int) $_REQUEST['msg'];
 
 		// Get the existing message. Editing.
 		$request = $smcFunc['db_query']('', '
 			SELECT
-				m.id_member, m.modified_time, m.modified_name, m.smileys_enabled, m.body,
+				m.id_member, m.modified_time, m.modified_name, m.modified_reason, m.smileys_enabled, m.body,
 				m.poster_name, m.poster_email, m.subject, m.icon, m.approved,
 				IFNULL(a.size, -1) AS filesize, a.filename, a.id_attach,
 				a.approved AS attachment_approved, t.id_member_started AS id_member_poster,
@@ -663,7 +666,8 @@ function Post($post_errors = array())
 		if (!empty($row['modified_time']))
 		{
 			$context['last_modified'] = timeformat($row['modified_time']);
-			$context['last_modified_text'] = sprintf($txt['last_edit_by'], $context['last_modified'], $row['modified_name']);
+			$context['last_modified_reason'] = censorText($row['modified_reason']);
+			$context['last_modified_text'] = sprintf($txt['last_edit_by'], $context['last_modified'], $row['modified_name']) . empty($row['modified_reason']) ? '' : '&nbsp;' . $txt['last_edit_reason'] . ':&nbsp;' . $row['modified_reason'];
 		}
 
 		// Get the stuff ready for the form.
@@ -694,7 +698,7 @@ function Post($post_errors = array())
 		foreach ($temp as $attachment)
 		{
 			$context['current_attachments'][] = array(
-				'name' => htmlspecialchars($attachment['filename']),
+				'name' => $smcFunc['htmlspecialchars']($attachment['filename']),
 				'size' => $attachment['filesize'],
 				'id' => $attachment['id_attach'],
 				'approved' => $attachment['attachment_approved'],
@@ -704,8 +708,8 @@ function Post($post_errors = array())
 		// Allow moderators to change names....
 		if (allowedTo('moderate_forum') && empty($row['id_member']))
 		{
-			$context['name'] = htmlspecialchars($row['poster_name']);
-			$context['email'] = htmlspecialchars($row['poster_email']);
+			$context['name'] = $smcFunc['htmlspecialchars']($row['poster_name']);
+			$context['email'] = $smcFunc['htmlspecialchars']($row['poster_email']);
 		}
 
 		// Set the destinaton.
@@ -766,7 +770,7 @@ function Post($post_errors = array())
 				{
 					// It goes 0 = outside, 1 = begin tag, 2 = inside, 3 = close tag, repeat.
 					if ($i % 4 == 0)
-						$parts[$i] = preg_replace_callback('~\[html\](.+?)\[/html\]~is', create_function('$m', ' return \'[html]\' . preg_replace(\'~<br\s?/?' . '>~i\', \'&lt;br /&gt;<br />\', "$m[1]") . \'[/html]\';'), $parts[$i]);
+						$parts[$i] = preg_replace_callback('~\[html\](.+?)\[/html\]~is', create_function('$m', ' return \'[html]\' . preg_replace(\'~<br\s?/?' . '>~i\', \'&lt;br /&gt;<br>\', "$m[1]") . \'[/html]\';'), $parts[$i]);
 				}
 				$form_message = implode('', $parts);
 			}
@@ -871,7 +875,7 @@ function Post($post_errors = array())
 							$file_list[] =  $attachment['name'];
 
 					$_SESSION['temp_attachments']['post']['files'] = $file_list;
-					$file_list = '<div class="attachments">' . implode('<br />', $file_list) . '</div>';
+					$file_list = '<div class="attachments">' . implode('<br>', $file_list) . '</div>';
 
 					if (!empty($_SESSION['temp_attachments']['post']['msg']))
 					{
@@ -911,10 +915,10 @@ function Post($post_errors = array())
 				// Show any errors which might of occured.
 				if (!empty($attachment['errors']))
 				{
-					$txt['error_attach_errors'] = empty($txt['error_attach_errors']) ? '<br />' : '';
+					$txt['error_attach_errors'] = empty($txt['error_attach_errors']) ? '<br>' : '';
 					$txt['error_attach_errors'] .= vsprintf($txt['attach_warning'], $attachment['name']) . '<div style="padding: 0 1em;">';
 					foreach ($attachment['errors'] as $error)
-						$txt['error_attach_errors'] .= (is_array($error) ? vsprintf($txt[$error[0]], $error[1]) : $txt[$error]) . '<br  />';
+						$txt['error_attach_errors'] .= (is_array($error) ? vsprintf($txt[$error[0]], $error[1]) : $txt[$error]) . '<br >';
 					$txt['error_attach_errors'] .= '</div>';
 					$post_errors[] = 'attach_errors';
 
@@ -938,7 +942,7 @@ function Post($post_errors = array())
 					$context['files_in_session_warning'] = $txt['attached_files_in_session'];
 
 				$context['current_attachments'][] = array(
-					'name' => '<u>' . htmlspecialchars($attachment['name']) . '</u>',
+					'name' => '<u>' . $smcFunc['htmlspecialchars']($attachment['name']) . '</u>',
 					'size' => $attachment['size'],
 					'id' => $attachID,
 					'unchecked' => false,
@@ -1022,8 +1026,8 @@ function Post($post_errors = array())
 		$context['linktree'][] = array(
 			'url' => $scripturl . '?topic=' . $topic . '.' . $_REQUEST['start'],
 			'name' => $form_subject,
-			'extra_before' => '<span><strong class="nav">' . $context['page_title'] . ' ( </strong></span>',
-			'extra_after' => '<span><strong class="nav"> )</strong></span>'
+			'extra_before' => '<span><strong class="nav">' . $context['page_title'] . ' (</strong></span>',
+			'extra_after' => '<span><strong class="nav">)</strong></span>'
 		);
 
 	// Give wireless a linktree url to the post screen, so that they can switch to full version.
@@ -1059,6 +1063,7 @@ function Post($post_errors = array())
 		'width' => '100%',
 		// We do XML preview here.
 		'preview_type' => 2,
+		'required' => true,
 	);
 	create_control_richedit($editorOptions);
 
@@ -1122,12 +1127,12 @@ function Post($post_errors = array())
 		foreach ($attachmentRestrictionTypes as $type)
 			if (!empty($modSettings[$type]))
 			{
-				$context['attachment_restrictions'][] = sprintf($txt['attach_restrict_' . $type], comma_format($modSettings[$type], 0));
+				$context['attachment_restrictions'][] = sprintf($txt['attach_restrict_' . $type . ($modSettings[$type] >= 1024 ? '_MB' : '')], comma_format($modSettings[$type], 0));
 				// Show some numbers. If they exist.
 				if ($type == 'attachmentNumPerPostLimit' && $context['attachments']['quantity'] > 0)
 					$context['attachment_restrictions'][] = sprintf($txt['attach_remaining'], $modSettings['attachmentNumPerPostLimit'] - $context['attachments']['quantity']);
 				elseif ($type == 'attachmentPostLimit' && $context['attachments']['total_size'] > 0)
-					$context['attachment_restrictions'][] = sprintf($txt['attach_available'], comma_format(round(max($modSettings['attachmentPostLimit'] - ($context['attachments']['total_size'] / 1028), 0)), 0));
+					$context['attachment_restrictions'][] = sprintf($txt['attach_available'], comma_format(round(max($modSettings['attachmentPostLimit'] - ($context['attachments']['total_size'] / 1024), 0)), 0));
 			}
 	}
 
@@ -1162,7 +1167,7 @@ function Post($post_errors = array())
 function Post2()
 {
 	global $board, $topic, $txt, $modSettings, $sourcedir, $context;
-	global $user_info, $board_info, $options, $smcFunc;
+	global $user_info, $board_info, $smcFunc;
 
 	// Sneaking off, are we?
 	if (empty($_POST) && empty($topic))
@@ -1327,7 +1332,7 @@ function Post2()
 		}
 
 		// So you wanna (un)sticky this...let's see.
-		if (isset($_POST['sticky']) && (empty($modSettings['enableStickyTopics']) || $_POST['sticky'] == $topic_info['is_sticky'] || !allowedTo('make_sticky')))
+		if (isset($_POST['sticky']) && ($_POST['sticky'] == $topic_info['is_sticky'] || !allowedTo('make_sticky')))
 			unset($_POST['sticky']);
 
 		// If drafts are enabled, then pass this off
@@ -1338,7 +1343,7 @@ function Post2()
 		}
 
 		// If the number of replies has changed, if the setting is enabled, go back to Post() - which handles the error.
-		if (empty($options['no_new_reply_warning']) && isset($_POST['last_msg']) && $topic_info['id_last_msg'] > $_POST['last_msg'])
+		if (isset($_POST['last_msg']) && $topic_info['id_last_msg'] > $_POST['last_msg'])
 		{
 			$_REQUEST['preview'] = true;
 			return Post();
@@ -1372,7 +1377,7 @@ function Post2()
 				$_POST['lock'] = allowedTo('lock_any') ? 1 : 2;
 		}
 
-		if (isset($_POST['sticky']) && (empty($modSettings['enableStickyTopics']) || empty($_POST['sticky']) || !allowedTo('make_sticky')))
+		if (isset($_POST['sticky']) && (empty($_POST['sticky']) || !allowedTo('make_sticky')))
 			unset($_POST['sticky']);
 
 		// Saving your new topic as a draft first?
@@ -1613,12 +1618,17 @@ function Post2()
 
 	// Add special html entities to the subject, name, and email.
 	$_POST['subject'] = strtr($smcFunc['htmlspecialchars']($_POST['subject']), array("\r" => '', "\n" => '', "\t" => ''));
-	$_POST['guestname'] = htmlspecialchars($_POST['guestname']);
-	$_POST['email'] = htmlspecialchars($_POST['email']);
+	$_POST['guestname'] = $smcFunc['htmlspecialchars']($_POST['guestname']);
+	$_POST['email'] = $smcFunc['htmlspecialchars']($_POST['email']);
+	$_POST['modify_reason'] = empty($_POST['modify_reason']) ? '' : strtr($smcFunc['htmlspecialchars']($_POST['modify_reason']), array("\r" => '', "\n" => '', "\t" => ''));
 
 	// At this point, we want to make sure the subject isn't too long.
 	if ($smcFunc['strlen']($_POST['subject']) > 100)
 		$_POST['subject'] = $smcFunc['substr']($_POST['subject'], 0, 100);
+
+	// Same with the "why did you edit this" text.
+	if ($smcFunc['strlen']($_POST['modify_reason']) > 100)
+		$_POST['modify_reason'] = $smcFunc['substr']($_POST['modify_reason'], 0, 100);
 
 	// Make the poll...
 	if (isset($_REQUEST['poll']))
@@ -1659,7 +1669,7 @@ function Post2()
 			$_POST['poll_hide'] = 1;
 
 		// Clean up the question and answers.
-		$_POST['question'] = htmlspecialchars($_POST['question']);
+		$_POST['question'] = $smcFunc['htmlspecialchars']($_POST['question']);
 		$_POST['question'] = $smcFunc['truncate']($_POST['question'], 255);
 		$_POST['question'] = preg_replace('~&amp;#(\d{4,5}|[2-9]\d{2,4}|1[2-9]\d);~', '&#$1;', $_POST['question']);
 		$_POST['options'] = htmlspecialchars__recursive($_POST['options']);
@@ -1671,7 +1681,7 @@ function Post2()
 		$attachIDs = array();
 		$attach_errors = array();
 		if (!empty($context['we_are_history']))
-			$attach_errors[] = '<dd>' . $txt['error_temp_attachments_flushed'] . '<br /><br /></dd>';
+			$attach_errors[] = '<dd>' . $txt['error_temp_attachments_flushed'] . '<br><br></dd>';
 
 		foreach ($_SESSION['temp_attachments'] as  $attachID => $attachment)
 		{
@@ -1794,7 +1804,7 @@ function Post2()
 		'board' => $board,
 		'poll' => isset($_REQUEST['poll']) ? $id_poll : null,
 		'lock_mode' => isset($_POST['lock']) ? (int) $_POST['lock'] : null,
-		'sticky_mode' => isset($_POST['sticky']) && !empty($modSettings['enableStickyTopics']) ? (int) $_POST['sticky'] : null,
+		'sticky_mode' => isset($_POST['sticky']) ? (int) $_POST['sticky'] : null,
 		'mark_as_read' => true,
 		'is_approved' => !$modSettings['postmod_active'] || empty($topic) || !empty($board_info['cur_topic_approved']),
 	);
@@ -1813,6 +1823,7 @@ function Post2()
 		{
 			$msgOptions['modify_time'] = time();
 			$msgOptions['modify_name'] = $user_info['name'];
+			$msgOptions['modify_reason'] = $_POST['modify_reason'];
 		}
 
 		// This will save some time...
@@ -1892,26 +1903,18 @@ function Post2()
 		// ... or just update it?
 		else
 		{
-			$span = !empty($modSettings['cal_allowspan']) && !empty($_REQUEST['span']) ? min((int) $modSettings['cal_maxspan'], (int) $_REQUEST['span'] - 1) : 0;
-			$start_time = mktime(0, 0, 0, (int) $_REQUEST['month'], (int) $_REQUEST['day'], (int) $_REQUEST['year']);
-
-			$smcFunc['db_query']('', '
-				UPDATE {db_prefix}calendar
-				SET end_date = {date:end_date},
-					start_date = {date:start_date},
-					title = {string:title}
-				WHERE id_event = {int:id_event}',
-				array(
-					'end_date' => strftime('%Y-%m-%d', $start_time + $span * 86400),
-					'start_date' => strftime('%Y-%m-%d', $start_time),
-					'id_event' => $_REQUEST['eventid'],
-					'title' => $smcFunc['htmlspecialchars']($_REQUEST['evtitle'], ENT_QUOTES),
-				)
+			// Set up our options
+			$eventOptions = array(
+				'board' => $board,
+				'topic' => $topic,
+				'title' => $_POST['evtitle'],
+				'member' => $user_info['id'],
+				'start_date' => sprintf('%04d-%02d-%02d', $_POST['year'], $_POST['month'], $_POST['day']),
+				'span' => isset($_POST['span']) && $_POST['span'] > 0 ? min((int) $modSettings['cal_maxspan'], (int) $_POST['span'] - 1) : 0,
 			);
+
+			modifyEvent($_REQUEST['eventid'], $eventOptions);
 		}
-		updateSettings(array(
-			'calendar_updated' => time(),
-		));
 	}
 
 	// Marking read should be done even for editing messages....
@@ -1932,7 +1935,7 @@ function Post2()
 	}
 
 	// Turn notification on or off.  (note this just blows smoke if it's already on or off.)
-	if (!empty($_POST['notify']) && allowedTo('mark_any_notify'))
+	if (!empty($_POST['notify']) && !$context['user']['is_guest'])
 	{
 		$smcFunc['db_insert']('ignore',
 			'{db_prefix}log_notify',
@@ -1959,8 +1962,8 @@ function Post2()
 	if (isset($_POST['lock']) && $_POST['lock'] != 2)
 		logAction(empty($_POST['lock']) ? 'unlock' : 'lock', array('topic' => $topicOptions['id'], 'board' => $topicOptions['board']));
 
-	if (isset($_POST['sticky']) && !empty($modSettings['enableStickyTopics']))
-		logAction('sticky', array('topic' => $topicOptions['id'], 'board' => $topicOptions['board']));
+	if (isset($_POST['sticky']))
+		logAction(empty($_POST['sticky']) ? 'unsticky' : 'sticky', array('topic' => $topicOptions['id'], 'board' => $topicOptions['board']));
 
 	// Notify any members who have notification turned on for this topic - only do this if it's going to be approved(!)
 	if ($becomesApproved)
@@ -2031,7 +2034,7 @@ function Post2()
 		$context['linktree'][] = array(
 			'url' => $scripturl . '?topic=' . $topic . '.0',
 			'name' => $_POST['subject'],
-			'extra_before' => !empty($settings['linktree_inline']) ? $txt['topic'] . ': ' : ''
+			'extra_before' => !empty($settings['linktree_inline']) ? $txt['topic'] . ':' : ''
 		);
 
 		if (isset($_REQUEST['msg']))
@@ -2177,7 +2180,7 @@ function AnnouncementSelectMembergroup()
 function AnnouncementSend()
 {
 	global $topic, $board, $board_info, $context, $modSettings;
-	global $language, $scripturl, $txt, $user_info, $sourcedir, $smcFunc;
+	global $language, $scripturl, $txt, $sourcedir, $smcFunc;
 
 	checkSession();
 
@@ -2211,7 +2214,7 @@ function AnnouncementSend()
 	censorText($context['topic_subject']);
 	censorText($message);
 
-	$message = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($message, false, $id_msg), array('<br />' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
+	$message = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($message, false, $id_msg), array('<br>' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
 
 	// We need this in order to be able send emails.
 	require_once($sourcedir . '/Subs-Post.php');
@@ -2233,7 +2236,7 @@ function AnnouncementSend()
 			'start' => $context['start'],
 			'additional_group_list' => implode(', mem.additional_groups) != 0 OR FIND_IN_SET(', $_POST['who']),
 			// @todo Might need an interface?
-			'chunk_size' => empty($modSettings['mail_queue']) ? 50 : 500,
+			'chunk_size' => 500,
 		)
 	);
 
@@ -2280,7 +2283,7 @@ function AnnouncementSend()
 
 	// For each language send a different mail - low priority...
 	foreach ($announcements as $lang => $mail)
-		sendmail($mail['recipients'], $mail['subject'], $mail['body'], null, null, false, 5);
+		sendmail($mail['recipients'], $mail['subject'], $mail['body'], null, 'ann-' . $lang, false, 5);
 
 	$context['percentage_done'] = round(100 * $context['start'] / $modSettings['latestMember'], 1);
 
@@ -2330,7 +2333,7 @@ function notifyMembersBoard(&$topicData)
 		censorText($topicData[$key]['body']);
 
 		$topicData[$key]['subject'] = un_htmlspecialchars($topicData[$key]['subject']);
-		$topicData[$key]['body'] = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($topicData[$key]['body'], false), array('<br />' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
+		$topicData[$key]['body'] = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($topicData[$key]['body'], false), array('<br>' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
 	}
 
 	// Just the board numbers.
@@ -2428,7 +2431,7 @@ function notifyMembersBoard(&$topicData)
 			{
 				$emailtype .= $send_body ? '_body' : '';
 				$emaildata = loadEmailTemplate($emailtype, $replacements, $langloaded);
-				sendmail($rowmember['email_address'], $emaildata['subject'], $emaildata['body'], null, null, false, 3);
+				sendmail($rowmember['email_address'], $emaildata['subject'], $emaildata['body'], null, 'notbrd', false, 3);
 			}
 
 			$sentOnceAlready = 1;
@@ -2521,7 +2524,7 @@ function getTopic()
  */
 function QuoteFast()
 {
-	global $modSettings, $user_info, $txt, $settings, $context;
+	global $modSettings, $user_info, $txt, $context;
 	global $sourcedir, $smcFunc;
 
 	loadLanguage('Post');
@@ -2638,7 +2641,7 @@ function JavaScriptModify()
 		SELECT
 			t.locked, t.num_replies, t.id_member_started, t.id_first_msg,
 			m.id_msg, m.id_member, m.poster_time, m.subject, m.smileys_enabled, m.body, m.icon,
-			m.modified_time, m.modified_name, m.approved
+			m.modified_time, m.modified_name, m.modified_reason, m.approved
 		FROM {db_prefix}messages AS m
 			INNER JOIN {db_prefix}topics AS t ON (t.id_topic = {int:current_topic})
 		WHERE m.id_msg = {raw:id_msg}
@@ -2744,6 +2747,15 @@ function JavaScriptModify()
 	if (isset($_POST['sticky']) && !allowedTo('make_sticky'))
 		unset($_POST['sticky']);
 
+	if (isset($_POST['modify_reason']))
+	{
+		$_POST['modify_reason'] = strtr($smcFunc['htmlspecialchars']($_POST['modify_reason']), array("\r" => '', "\n" => '', "\t" => ''));
+
+		// Maximum number of characters.
+		if ($smcFunc['strlen']($_POST['modify_reason']) > 100)
+			$_POST['modify_reason'] = $smcFunc['substr']($_POST['modify_reason'], 0, 100);
+	}
+
 	if (empty($post_errors))
 	{
 		$msgOptions = array(
@@ -2756,7 +2768,7 @@ function JavaScriptModify()
 			'id' => $topic,
 			'board' => $board,
 			'lock_mode' => isset($_POST['lock']) ? (int) $_POST['lock'] : null,
-			'sticky_mode' => isset($_POST['sticky']) && !empty($modSettings['enableStickyTopics']) ? (int) $_POST['sticky'] : null,
+			'sticky_mode' => isset($_POST['sticky']) ? (int) $_POST['sticky'] : null,
 			'mark_as_read' => true,
 		);
 		$posterOptions = array();
@@ -2769,6 +2781,7 @@ function JavaScriptModify()
 			{
 				$msgOptions['modify_time'] = time();
 				$msgOptions['modify_name'] = $user_info['name'];
+				$msgOptions['modify_reason'] = isset($_POST['modify_reason']) ? $_POST['modify_reason'] : '';
 			}
 		}
 		// If nothing was changed there's no need to add an entry to the moderation log.
@@ -2782,6 +2795,7 @@ function JavaScriptModify()
 		{
 			$msgOptions['modify_time'] = $row['modified_time'];
 			$msgOptions['modify_name'] = $row['modified_name'];
+			$msgOptions['modify_reason'] = $row['modified_reason'];
 		}
 
 		// Changing the first subject updates other subjects to 'Re: new_subject'.

@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -35,12 +35,25 @@ function getServerVersions($checkFor)
 		$versions['gd'] = array('title' => $txt['support_versions_gd'], 'version' => $temp['GD Version']);
 	}
 
-	// Why not have a look at ImageMagick? If it is, we should show version information for it too.
-	if (in_array('imagick', $checkFor) && class_exists('Imagick'))
+	// Why not have a look at ImageMagick? If it's installed, we should show version information for it too.
+	if (in_array('imagemagick', $checkFor) && (class_exists('Imagick') || function_exists('MagickGetVersionString')))
 	{
-		$temp = New Imagick;
-		$temp2 = $temp->getVersion();
-		$versions['imagick'] = array('title' => $txt['support_versions_imagick'], 'version' => $temp2['versionString']);
+		if (class_exists('Imagick'))
+		{
+			$temp = New Imagick;
+			$temp2 = $temp->getVersion();
+			$im_version = $temp2['versionString'];
+			$extension_version = 'Imagick ' . phpversion('Imagick');
+		}
+		else
+		{
+			$im_version = MagickGetVersionString();
+			$extension_version = 'MagickWand ' . phpversion('MagickWand');
+		}
+
+		// We already know it's ImageMagick and the website isn't needed...
+		$im_version = str_replace(array('ImageMagick ', ' http://www.imagemagick.org'), '', $im_version);
+		$versions['imagemagick'] = array('title' => $txt['support_versions_imagemagick'], 'version' => $im_version . ' (' . $extension_version . ')');
 	}
 
 	// Now lets check for the Database.
@@ -61,10 +74,6 @@ function getServerVersions($checkFor)
 		get_memcached_server();
 
 	// Check to see if we have any accelerators installed...
-	if (in_array('mmcache', $checkFor) && defined('MMCACHE_VERSION'))
-		$versions['mmcache'] = array('title' => 'Turck MMCache', 'version' => MMCACHE_VERSION);
-	if (in_array('eaccelerator', $checkFor) && defined('EACCELERATOR_VERSION'))
-		$versions['eaccelerator'] = array('title' => 'eAccelerator', 'version' => EACCELERATOR_VERSION);
 	if (in_array('phpa', $checkFor) && isset($_PHPA))
 		$versions['phpa'] = array('title' => 'ionCube PHP-Accelerator', 'version' => $_PHPA['VERSION']);
 	if (in_array('apc', $checkFor) && extension_loaded('apc'))
@@ -383,6 +392,11 @@ function updateSettingsFile($config_vars)
 				@copy($boarddir . '/Settings_bak.php', $boarddir . '/Settings.php');
 		}
 	}
+
+	// Even though on normal installations the filemtime should prevent this being used by the installer incorrectly
+	// it seems that there are times it might not. So let's MAKE it dump the cache.
+	if (function_exists('opcache_invalidate'))
+		opcache_invalidate($boarddir . '/Settings.php', true);
 }
 
 /**
@@ -497,7 +511,7 @@ function emailAdmins($template, $replacements = array(), $additional_recipients 
 		$emaildata = loadEmailTemplate($template, $replacements, empty($row['lngfile']) || empty($modSettings['userLanguage']) ? $language : $row['lngfile']);
 
 		// Then send the actual email.
-		sendmail($row['email_address'], $emaildata['subject'], $emaildata['body'], null, null, false, 1);
+		sendmail($row['email_address'], $emaildata['subject'], $emaildata['body'], null, $template, false, 1);
 
 		// Track who we emailed so we don't do it twice.
 		$emails_sent[] = $row['email_address'];
@@ -519,7 +533,7 @@ function emailAdmins($template, $replacements = array(), $additional_recipients 
 			$emaildata = loadEmailTemplate($template, $replacements, empty($recipient['lang']) || empty($modSettings['userLanguage']) ? $language : $recipient['lang']);
 
 			// Send off the email.
-			sendmail($recipient['email'], $emaildata['subject'], $emaildata['body'], null, null, false, 1);
+			sendmail($recipient['email'], $emaildata['subject'], $emaildata['body'], null, $template, false, 1);
 		}
 }
 

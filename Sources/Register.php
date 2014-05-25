@@ -9,7 +9,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -25,8 +25,8 @@ if (!defined('SMF'))
  */
 function Register($reg_errors = array())
 {
-	global $txt, $boarddir, $context, $settings, $modSettings, $user_info;
-	global $language, $scripturl, $smcFunc, $sourcedir, $smcFunc, $cur_profile;
+	global $txt, $boarddir, $context, $modSettings, $user_info;
+	global $language, $scripturl, $smcFunc, $sourcedir, $cur_profile;
 
 	// Is this an incoming AJAX check?
 	if (isset($_GET['sa']) && $_GET['sa'] == 'usernamecheck')
@@ -88,6 +88,10 @@ function Register($reg_errors = array())
 	// Show the user the right form.
 	$context['sub_template'] = $current_step == 1 ? 'registration_agreement' : 'registration_form';
 	$context['page_title'] = $current_step == 1 ? $txt['registration_agreement'] : $txt['registration_form'];
+
+	// Kinda need this.
+	if ($context['sub_template'] == 'registration_form')
+		loadJavascriptFile('register.js', array('default_theme' => true, 'defer' => false), 'smf_register');
 
 	// Add the register chain to the link tree.
 	$context['linktree'][] = array(
@@ -159,7 +163,7 @@ function Register($reg_errors = array())
 		$context['user']['is_owner'] = true;
 
 		// Here, and here only, emulate the permissions the user would have to do this.
-		$user_info['permissions'] = array_merge($user_info['permissions'], array('profile_account_own', 'profile_extra_own'));
+		$user_info['permissions'] = array_merge($user_info['permissions'], array('profile_account_own', 'profile_extra_own', 'profile_other_own', 'profile_password_own'));
 		$reg_fields = explode(',', $modSettings['registration_fields']);
 
 		// We might have had some submissions on this front - go check.
@@ -192,7 +196,7 @@ function Register($reg_errors = array())
 		$context['username'] = $smcFunc['htmlspecialchars'](!empty($_POST['user']) ? $_POST['user'] : $_SESSION['openid']['nickname']);
 		$context['email'] = $smcFunc['htmlspecialchars'](!empty($_POST['email']) ? $_POST['email'] : $_SESSION['openid']['email']);
 	}
-	// See whether we have some prefiled values.
+	// See whether we have some pre-filled values.
 	else
 	{
 		$context += array(
@@ -202,12 +206,10 @@ function Register($reg_errors = array())
 		);
 	}
 
-	// @todo Why isn't this a simple set operation?
 	// Were there any errors?
 	$context['registration_errors'] = array();
 	if (!empty($reg_errors))
-		foreach ($reg_errors as $error)
-			$context['registration_errors'][] = $error;
+		$context['registration_errors'] = $reg_errors;
 
 	createToken('register');
 }
@@ -220,7 +222,7 @@ function Register($reg_errors = array())
 function Register2($verifiedOpenID = false)
 {
 	global $scripturl, $txt, $modSettings, $context, $sourcedir;
-	global $user_info, $options, $settings, $smcFunc;
+	global $smcFunc;
 
 	checkSession();
 	validateToken('register');
@@ -256,8 +258,7 @@ function Register2($verifiedOpenID = false)
 		// Are they under age, and under age users are banned?
 		if (!empty($modSettings['coppaAge']) && empty($modSettings['coppaType']) && empty($_SESSION['skip_coppa']))
 		{
-			// @todo This should be put in Errors, imho.
-			loadLanguage('Login');
+			loadLanguage('Errors');
 			fatal_lang_error('under_age_registration_prohibited', false, array($modSettings['coppaAge']));
 		}
 
@@ -267,8 +268,7 @@ function Register2($verifiedOpenID = false)
 		// Failing that, check the time on it.
 		if (time() - $_SESSION['register']['timenow'] < $_SESSION['register']['limit'])
 		{
-			// @todo This too should be put in Errors, imho.
-			loadLanguage('Login');
+			loadLanguage('Errors');
 			$reg_errors[] = $txt['error_too_quickly'];
 		}
 
@@ -298,22 +298,18 @@ function Register2($verifiedOpenID = false)
 
 	// Collect all extra registration fields someone might have filled in.
 	$possible_strings = array(
-		'website_url', 'website_title',
-		'aim', 'yim', 'skype',
-		'location', 'birthdate',
+		'birthdate',
 		'time_format',
 		'buddy_list',
 		'pm_ignore_list',
 		'smiley_set',
-		'signature', 'personal_text', 'avatar',
+		'personal_text', 'avatar',
 		'lngfile',
 		'secret_question', 'secret_answer',
 	);
 	$possible_ints = array(
 		'pm_email_notify',
 		'notify_types',
-		'icq',
-		'gender',
 		'id_theme',
 	);
 	$possible_floats = array(
@@ -321,8 +317,18 @@ function Register2($verifiedOpenID = false)
 	);
 	$possible_bools = array(
 		'notify_announcements', 'notify_regularity', 'notify_send_body',
-		'hide_email', 'show_online',
+		'show_online',
 	);
+
+	// We may want to add certain things to these if selected in the admin panel.
+	if (!empty($modSettings['registration_fields']))
+	{
+		$reg_fields = explode(',', $modSettings['registration_fields']);
+
+		// Website is a little different
+		if (in_array('website', $reg_fields))
+			$possible_strings += array('website_url', 'website_title');
+	}
 
 	if (isset($_POST['secret_answer']) && $_POST['secret_answer'] != '')
 		$_POST['secret_answer'] = md5($_POST['secret_answer']);
@@ -331,9 +337,9 @@ function Register2($verifiedOpenID = false)
 	require_once($sourcedir . '/Subs-Members.php');
 
 	// Validation... even if we're not a mall.
-	if (isset($_POST['real_name']) && (!empty($modSettings['allow_editDisplayName']) || allowedTo('moderate_forum')))
+	if (isset($_POST['real_name']) && (allowedTo('profile_displayed_name') || allowedTo('moderate_forum')))
 	{
-		$_POST['real_name'] = trim(preg_replace('~[\s]~' . ($context['utf8'] ? 'u' : ''), ' ', $_POST['real_name']));
+		$_POST['real_name'] = trim(preg_replace('~[\t\n\r \x0B\0' . ($context['utf8'] ? '\x{A0}\x{AD}\x{2000}-\x{200F}\x{201F}\x{202F}\x{3000}\x{FEFF}' : '\x00-\x08\x0B\x0C\x0E-\x19\xA0') . ']+~' . ($context['utf8'] ? 'u' : ''), ' ', $_POST['real_name']));
 		if (trim($_POST['real_name']) != '' && !isReservedName($_POST['real_name']) && $smcFunc['strlen']($_POST['real_name']) < 60)
 			$possible_strings[] = 'real_name';
 	}
@@ -344,9 +350,6 @@ function Register2($verifiedOpenID = false)
 	// Or birthdate parts...
 	elseif (!empty($_POST['bday1']) && !empty($_POST['bday2']))
 		$_POST['birthdate'] = sprintf('%04d-%02d-%02d', empty($_POST['bday3']) ? 0 : (int) $_POST['bday3'], (int) $_POST['bday1'], (int) $_POST['bday2']);
-
-	// By default assume email is hidden, only show it if we tell it to.
-	$_POST['hide_email'] = !empty($_POST['allow_email']) ? 0 : 1;
 
 	// Validate the passed language file.
 	if (isset($_POST['lngfile']) && !empty($modSettings['userLanguage']))
@@ -408,7 +411,8 @@ function Register2($verifiedOpenID = false)
 	$request = $smcFunc['db_query']('', '
 		SELECT col_name, field_name, field_type, field_length, mask, show_reg
 		FROM {db_prefix}custom_fields
-		WHERE active = {int:is_active}',
+		WHERE active = {int:is_active}
+		ORDER BY field_order',
 		array(
 			'is_active' => 1,
 		)
@@ -437,12 +441,11 @@ function Register2($verifiedOpenID = false)
 			// Any masks to apply?
 			if ($row['field_type'] == 'text' && !empty($row['mask']) && $row['mask'] != 'none')
 			{
-				// @todo We never error on this - just ignore it at the moment...
 				if ($row['mask'] == 'email' && (preg_match('~^[0-9A-Za-z=_+\-/][0-9A-Za-z=_\'+\-/\.]*@[\w\-]+(\.[\w\-]+)*(\.[\w]{2,6})$~', $value) === 0 || strlen($value) > 255))
 					$custom_field_errors[] = array('custom_field_invalid_email', array($row['field_name']));
 				elseif ($row['mask'] == 'number' && preg_match('~[^\d]~', $value))
 					$custom_field_errors[] = array('custom_field_not_number', array($row['field_name']));
-				elseif (substr($row['mask'], 0, 5) == 'regex' && preg_match(substr($row['mask'], 5), $value) === 0)
+				elseif (substr($row['mask'], 0, 5) == 'regex' && trim($value) != '' && preg_match(substr($row['mask'], 5), $value) === 0)
 					$custom_field_errors[] = array('custom_field_inproper_format', array($row['field_name']));
 			}
 		}
@@ -536,7 +539,9 @@ function Register2($verifiedOpenID = false)
 }
 
 /**
- * @todo needs description
+ * Activate an users account.
+ *
+ * Checks for mail changes, resends password if needed.
  */
 function Activate()
 {
@@ -595,9 +600,8 @@ function Activate()
 		if (empty($modSettings['registration_method']) || $modSettings['registration_method'] == 3)
 			fatal_lang_error('no_access', false);
 
-		// @todo Separate the sprintf?
 		if (preg_match('~^[0-9A-Za-z=_+\-/][0-9A-Za-z=_\'+\-/\.]*@[\w\-]+(\.[\w\-]+)*(\.[\w]{2,6})$~', $_POST['new_email']) == 0)
-			fatal_error(sprintf($txt['valid_email_needed'], htmlspecialchars($_POST['new_email'])), false);
+			fatal_error(sprintf($txt['valid_email_needed'], $smcFunc['htmlspecialchars']($_POST['new_email'])), false);
 
 		// Make sure their email isn't banned.
 		isBannedEmail($_POST['new_email'], 'cannot_register', $txt['ban_register_prohibited']);
@@ -612,9 +616,9 @@ function Activate()
 				'email_address' => $_POST['new_email'],
 			)
 		);
-		// @todo Separate the sprintf?
+
 		if ($smcFunc['db_num_rows']($request) != 0)
-			fatal_lang_error('email_in_use', false, array(htmlspecialchars($_POST['new_email'])));
+			fatal_lang_error('email_in_use', false, array($smcFunc['htmlspecialchars']($_POST['new_email'])));
 		$smcFunc['db_free_result']($request);
 
 		updateMemberData($row['id_member'], array('email_address' => $_POST['new_email']));
@@ -639,7 +643,7 @@ function Activate()
 
 		$emaildata = loadEmailTemplate('resend_activate_message', $replacements, empty($row['lngfile']) || empty($modSettings['userLanguage']) ? $language : $row['lngfile']);
 
-		sendmail($row['email_address'], $emaildata['subject'], $emaildata['body'], null, null, false, 0);
+		sendmail($row['email_address'], $emaildata['subject'], $emaildata['body'], null, 'resendact', false, 0);
 
 		$context['page_title'] = $txt['invalid_activation_resend'];
 
@@ -691,6 +695,8 @@ function Activate()
 		'never_expire' => false,
 		'description' => $txt['activate_success']
 	);
+
+	loadJavascriptFile('sha1.js', array('default_theme' => true), 'smf_sha1');
 }
 
 /**
@@ -726,8 +732,8 @@ function CoppaForm()
 	if (isset($_GET['form']))
 	{
 		// Some simple contact stuff for the forum.
-		$context['forum_contacts'] = (!empty($modSettings['coppaPost']) ? $modSettings['coppaPost'] . '<br /><br />' : '') . (!empty($modSettings['coppaFax']) ? $modSettings['coppaFax'] . '<br />' : '');
-		$context['forum_contacts'] = !empty($context['forum_contacts']) ? $context['forum_name_html_safe'] . '<br />' . $context['forum_contacts'] : '';
+		$context['forum_contacts'] = (!empty($modSettings['coppaPost']) ? $modSettings['coppaPost'] . '<br><br>' : '') . (!empty($modSettings['coppaFax']) ? $modSettings['coppaFax'] . '<br>' : '');
+		$context['forum_contacts'] = !empty($context['forum_contacts']) ? $context['forum_name_html_safe'] . '<br>' . $context['forum_contacts'] : '';
 
 		// Showing template?
 		if (!isset($_GET['dl']))
@@ -746,7 +752,7 @@ function CoppaForm()
 			$ul = '                ';
 			$crlf = "\r\n";
 			$data = $context['forum_contacts'] . $crlf . $txt['coppa_form_address'] . ':' . $crlf . $txt['coppa_form_date'] . ':' . $crlf . $crlf . $crlf . $txt['coppa_form_body'];
-			$data = str_replace(array('{PARENT_NAME}', '{CHILD_NAME}', '{USER_NAME}', '<br>', '<br />'), array($ul, $ul, $username, $crlf, $crlf), $data);
+			$data = str_replace(array('{PARENT_NAME}', '{CHILD_NAME}', '{USER_NAME}', '<br>', '<br>'), array($ul, $ul, $username, $crlf, $crlf), $data);
 
 			// Send the headers.
 			header('Connection: close');
@@ -781,7 +787,7 @@ function CoppaForm()
  */
 function VerificationCode()
 {
-	global $sourcedir, $modSettings, $context, $scripturl;
+	global $sourcedir, $context, $scripturl;
 
 	$verification_id = isset($_GET['vid']) ? $_GET['vid'] : '';
 	$code = $verification_id && isset($_SESSION[$verification_id . '_vv']) ? $_SESSION[$verification_id . '_vv']['code'] : (isset($_SESSION['visual_verification_code']) ? $_SESSION['visual_verification_code'] : '');
@@ -858,12 +864,35 @@ function RegisterCheckUsername()
 	$context['valid_username'] = true;
 
 	// Clean it up like mother would.
-	$context['checked_username'] = preg_replace('~[\t\n\r\x0B\0' . ($context['utf8'] ? '\x{A0}' : '\xA0') . ']+~' . ($context['utf8'] ? 'u' : ''), ' ', $context['checked_username']);
+	$context['checked_username'] = preg_replace('~[\t\n\r \x0B\0' . ($context['utf8'] ? '\x{A0}\x{AD}\x{2000}-\x{200F}\x{201F}\x{202F}\x{3000}\x{FEFF}' : '\x00-\x08\x0B\x0C\x0E-\x19\xA0') . ']+~' . ($context['utf8'] ? 'u' : ''), ' ', $context['checked_username']);
 
 	require_once($sourcedir . '/Subs-Auth.php');
 	$errors = validateUsername(0, $context['checked_username'], true);
 
 	$context['valid_username'] = empty($errors);
+}
+
+/**
+ * It doesn't actually send anything, this action just shows a message for a guest.
+ *
+ */
+function SendActivation()
+{
+	global $context, $txt;
+
+	$context['user']['is_logged'] = false;
+	$context['user']['is_guest'] = true;
+
+	// Send them to the done-with-registration-login screen.
+	loadTemplate('Register');
+
+	$context['page_title'] = $txt['profile'];
+	$context['sub_template'] = 'after';
+	$context['title'] = $txt['activate_changed_email_title'];
+	$context['description'] = $txt['activate_changed_email_desc'];
+
+	// We're gone!
+	obExit();
 }
 
 ?>

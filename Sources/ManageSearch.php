@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -29,7 +29,7 @@ if (!defined('SMF'))
  */
 function ManageSearch()
 {
-	global $context, $txt, $scripturl;
+	global $context, $txt;
 
 	isAllowedTo('admin_forum');
 
@@ -94,7 +94,6 @@ function EditSearchSettings($return_config = false)
 			// Permission...
 			array('permissions', 'search_posts'),
 			// Some simple settings.
-			array('check', 'simpleSearch'),
 			array('check', 'search_dropdown'),
 			array('int', 'search_results_per_page'),
 			array('int', 'search_max_results', 'subtext' => $txt['search_max_results_disable']),
@@ -130,6 +129,7 @@ function EditSearchSettings($return_config = false)
 		if (empty($_POST['search_results_per_page']))
 			$_POST['search_results_per_page'] = !empty($modSettings['search_results_per_page']) ? $modSettings['search_results_per_page'] : $modSettings['defaultMaxMessages'];
 		saveDBSettings($config_vars);
+		$_SESSION['adm-save'] = true;
 		redirectexit('action=admin;area=managesearch;sa=settings;' . $context['session_var'] . '=' . $context['session_id']);
 	}
 
@@ -498,8 +498,8 @@ function CreateMessageIndex()
 		$context['start'] = isset($_REQUEST['start']) ? (int) $_REQUEST['start'] : 0;
 		$context['step'] = isset($_REQUEST['step']) ? (int) $_REQUEST['step'] : 0;
 
-		// admin timeouts are painful when building these long indexes
-		if ($_SESSION['admin_time'] + 3300 < time() && $context['step'] >= 1)
+		// admin timeouts are painful when building these long indexes - but only if we actually have such things enabled
+		if (empty($modSettings['securityDisable']) && $_SESSION['admin_time'] + 3300 < time() && $context['step'] >= 1)
 			$_SESSION['admin_time'] = time();
 	}
 

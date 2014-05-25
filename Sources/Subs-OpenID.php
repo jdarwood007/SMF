@@ -6,7 +6,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -237,7 +237,7 @@ function smf_openID_removeAssociation($handle)
 
 function smf_openID_return()
 {
-	global $smcFunc, $user_info, $user_profile, $sourcedir, $modSettings, $context, $sc, $user_settings;
+	global $smcFunc, $user_profile, $sourcedir, $modSettings, $context, $sc, $user_settings;
 
 	// Is OpenID even enabled?
 	if (empty($modSettings['enableOpenID']))

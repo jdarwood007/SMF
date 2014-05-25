@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -315,7 +315,7 @@ function UnapprovedPosts()
  */
 function UnapprovedAttachments()
 {
-	global $txt, $scripturl, $context, $user_info, $sourcedir, $smcFunc, $modSettings;
+	global $txt, $scripturl, $context, $sourcedir, $smcFunc, $modSettings;
 
 	$context['page_title'] = $txt['mc_unapproved_attachments'];
 
@@ -478,13 +478,13 @@ function UnapprovedAttachments()
 			),
 			'action' => array(
 				'header' => array(
-					'value' => '<input type="checkbox" class="input_check" onclick="invertAll(this, this.form);" checked="checked" />',
+					'value' => '<input type="checkbox" class="input_check" onclick="invertAll(this, this.form);" checked>',
 					'style' => 'width: 4%;',
 					'class' => 'centercol',
 				),
 				'data' => array(
 					'sprintf' => array(
-						'format' => '<input type="checkbox" name="item[]" value="%1$d" checked="checked" class="input_check" />',
+						'format' => '<input type="checkbox" name="item[]" value="%1$d" checked class="input_check">',
 						'params' => array(
 							'id' => false,
 						),
@@ -512,7 +512,7 @@ function UnapprovedAttachments()
 						<option value="approve">&nbsp;--&nbsp;' . $txt['approve'] . '</option>
 						<option value="delete">&nbsp;--&nbsp;' . $txt['delete'] . '</option>
 					</select>
-					<noscript><input type="submit" name="ml_go" value="' . $txt['go'] . '" class="button_submit" /></noscript>',
+					<noscript><input type="submit" name="ml_go" value="' . $txt['go'] . '" class="button_submit"></noscript>',
 				'align' => 'right',
 			),
 		),

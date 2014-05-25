@@ -99,7 +99,7 @@ dl.settings img {
 /* Styles for rounded headers.
 ------------------------------------------------------- */
 
-h3.catbg img.icon, h4.titlebg img.icon {
+h3.catbg .icon, h4.titlebg .icon {
 	vertical-align: middle;
 	margin: -2px 0 0 5px;
 }
@@ -107,7 +107,7 @@ h4.titlebg, h3.titlebg {
 	padding-right: 9px;
 	padding-left: 0;
 }
-h4.titlebg img.icon {
+h4.titlebg .icon {
 	float: right;
 	margin: 5px 0 0 8px;
 }
@@ -166,19 +166,6 @@ table.table_list a.collapse {
 	left: 2px;
 	right: auto;
 	background: url(../images/admin/subsection_rtl.png) no-repeat;
-}
-
-
-/* The dropdown menu toggle image */
-#menu_toggle {
-	float: left;
-	margin-right: 0;
-	margin-left: 10px;
-	padding-top: 3px;
-}
-#menu_toggle span {
-	position: relative;
-	left: 0;
 }
 
 li#collapse_button {
@@ -283,9 +270,6 @@ form#ic_login ul li {
 /* the small stats */
 #index_common_stats {
 	text-align: left;
-}
-img#upshrink_ic, img#newsupshrink {
-	float: left;
 }
 
 /* Styles for the message (topic) index.
@@ -487,10 +471,6 @@ ul.post_options li {
 #postAttachment dt, #postAttachment2 dt {
 	font-weight: bold;
 }
-#postAttachment3 {
-	margin-left: 0;
-	margin-left: 1em;
-}
 .post_verification #verification_control {
 	margin: .3em 1em .3em 0;
 }
@@ -607,20 +587,14 @@ div#admin_menu {
 }
 /* Styles for generic tables.
 ------------------------------------------------------- */
-.topic_table td.stickybg2 {
-	background: url(../images/icons/quick_sticky.png) no-repeat 2% 4px;
-}
-.topic_table td.lockedbg2 {
-	background: url(../images/icons/quick_lock.png) no-repeat 2% 4px;
-}
-.topic_table td.locked_sticky2 {
-	background: url(../images/icons/quick_sticky_lock.png) no-repeat 2% 4px;
-}
 .topic_table td.lastpost {
 	background: none;
 }
-#info_center .cat_bar, .table_grid tr.catbg th, #show_attachments th, #searchform .roundframe .title_bar {
+#info_center .cat_bar, .table_grid tr.catbg th {
 	text-align: right;
+}
+.message_index_title {
+	margin-left: 40px;
 }
 /* Styles for (fatal) errors.
 ------------------------------------------------- */
@@ -736,12 +710,6 @@ div#admin_menu {
 }
 /* Styles for the statistics center.
 ------------------------------------------------- */
-#stats_left, #top_posters, #top_topics_replies, #top_topics_starter {
-	float: right;
-}
-#stats_right, #top_boards, #top_topics_views, #most_online {
-	float: left;
-}
 dl.stats dt {
 	float: right;
 }
@@ -758,30 +726,8 @@ dl.stats dd {
 tr.windowbg2 th.stats_month, tr.windowbg2 td.stats_day {
 	text-align: right;
 }
-
-/* Styles for the calendar section.
-------------------------------------------------- */
-#main_grid .cat_bar {
-	margin: 0 0 0 2px;
-}
-#month_grid {
-	float: right;
-	margin: 0 0 0 1%;
-}
-#main_grid table.weeklist td.windowbg {
-
-	border-left: 2px solid #fff;
-	border-bottom: 2px solid #fff;
-}
-#main_grid img.calendar_icon {
-	float: right;
-	margin: 0 0 0 4px;
-}
-#main_grid table.weeklist td.weekdays {
-	text-align: left;
-	vertical-align: middle;
-	border-right: 2px solid #fff;
-	border-bottom: 2px solid #fff;
+#stats tr.windowbg2 th.lefttext, #stats tr.titlebg th.lefttext {
+	text-align: right;
 }
 
 /* Styles for the advanced search section.
@@ -799,18 +745,18 @@ tr.windowbg2 th.stats_month, tr.windowbg2 td.stats_day {
 	text-align: right;
 }
 /* Boards picker */
-#searchform fieldset div#searchBoardsExpand ul {
-	margin: 0 1em 0 0;
-}
-#searchform fieldset div#searchBoardsExpand li {
-	float: right;
-}
 #searchform fieldset p {
 	text-align: right;
 }
 
 .search_results_posts .buttons {
 	padding: 5px 0 0 1em;
+}
+
+/* Some icons need slight tweaks
+------------------------------------------------- */
+.generic_icons.move {
+	background-position: -112px -48px;
 }
 
 /* Styles for the help section.
@@ -833,16 +779,7 @@ tr.windowbg2 th.stats_month, tr.windowbg2 td.stats_day {
 #quick_search {
 	margin-left: 5px;
 }
-.features_image {
-	float: right;
-	margin: 0 1em 0.5em 2em;
-}
-.features_switch {
-	float: left;
-}
-.features h4 {
-	padding: 1em 0.5em 0.5em 0;
-}
+
 /* admin home */
 #live_news div.content dl {
 	padding: 0.5em 0.5em 0 0;
@@ -901,13 +838,6 @@ span.search_weight {
 }
 /* Styles for the moderation center.
 ------------------------------------------------- */
-.modblock_left {
-	float: right;
-	clear: left;
-}
-.modblock_right {
-	float: left;
-}
 ul.moderation_notes li {
 	padding: 4px 4px 4px 0;
 }
@@ -920,4 +850,10 @@ ul.moderation_notes li {
 .unread_links {
 	float: left !important;
 	padding-left: 0;
+}
+.children p {
+	margin-right: 18px;
+}
+h3 .collapse {
+	float: left;
 }

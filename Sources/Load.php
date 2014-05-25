@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -21,11 +21,10 @@ if (!defined('SMF'))
  *
  * @todo okay question of the day: why a function for loading settings is called reloadSettings()
  *
- * @global array $modSettings is a giant array of all of the forum-wide settings and statistics.
  */
 function reloadSettings()
 {
-	global $modSettings, $boarddir, $smcFunc, $txt, $db_character_set, $sourcedir;
+	global $modSettings, $boarddir, $smcFunc, $txt, $db_character_set, $sourcedir, $context;
 
 	// Most database systems have not set UTF-8 as their default input charset.
 	if (!empty($db_character_set))
@@ -161,19 +160,19 @@ function reloadSettings()
 			else
 				unset($modSettings['load_average']);
 
-			if (!empty($modSettings['load_average']))
+			if (!empty($modSettings['load_average']) || $modSettings['load_average'] === 0.0)
 				cache_put_data('loadavg', $modSettings['load_average'], 90);
 		}
 
-		if (!empty($modSettings['load_average']))
+		if (!empty($modSettings['load_average']) || $modSettings['load_average'] === 0.0)
 			call_integration_hook('integrate_load_average', array($modSettings['load_average']));
 
 		if (!empty($modSettings['loadavg_forum']) && !empty($modSettings['load_average']) && $modSettings['load_average'] >= $modSettings['loadavg_forum'])
 			display_loadavg_error();
 	}
 
-	// Is post moderation alive and well?
-	$modSettings['postmod_active'] = isset($modSettings['admin_features']) ? in_array('pm', explode(',', $modSettings['admin_features'])) : true;
+	// Is post moderation alive and well? Everywhere else assumes this has been defined, so let's make sure it is.
+	$modSettings['postmod_active'] = !empty($modSettings['postmod_active']);
 
 	// Here to justify the name of this function. :P
 	// It should be added to the install and upgrade scripts.
@@ -191,7 +190,7 @@ function reloadSettings()
 	{
 		$integration_settings = unserialize(SMF_INTEGRATION_SETTINGS);
 		foreach ($integration_settings as $hook => $function)
-			add_integration_function($hook, $function, false);
+			add_integration_function($hook, $function, '', false);
 	}
 
 	// Any files to pre include?
@@ -208,6 +207,20 @@ function reloadSettings()
 
 	// Call pre load integration functions.
 	call_integration_hook('integrate_pre_load');
+
+	// This determines the server... not used in many places, except for login fixing.
+	$context['server'] = array(
+		'is_iis' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'Microsoft-IIS') !== false,
+		'is_apache' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'Apache') !== false,
+		'is_litespeed' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'LiteSpeed') !== false,
+		'is_lighttpd' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'lighttpd') !== false,
+		'is_nginx' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'nginx') !== false,
+		'is_cgi' => isset($_SERVER['SERVER_SOFTWARE']) && strpos(php_sapi_name(), 'cgi') !== false,
+		'is_windows' => strpos(PHP_OS, 'WIN') === 0,
+		'iso_case_folding' => ord(strtolower(chr(138))) === 154,
+	);
+	// A bug in some versions of IIS under CGI (older ones) makes cookie setting not work with Location: headers.
+	$context['server']['needs_login_fix'] = $context['server']['is_cgi'] && $context['server']['is_iis'];
 }
 
 /**
@@ -247,7 +260,7 @@ function loadUserSettings()
 	if (empty($id_member) && isset($_COOKIE[$cookiename]))
 	{
 		// Fix a security hole in PHP 4.3.9 and below...
-		if (preg_match('~^a:[34]:\{i:0;(i:\d{1,6}|s:[1-8]:"\d{1,8}");i:1;s:(0|40):"([a-fA-F0-9]{40})?";i:2;[id]:\d{1,14};(i:3;i:\d;)?\}$~i', $_COOKIE[$cookiename]) == 1)
+		if (preg_match('~^a:[34]:\{i:0;i:\d{1,7};i:1;s:(0|40):"([a-fA-F0-9]{40})?";i:2;[id]:\d{1,14};(i:3;i:\d;)?\}$~i', $_COOKIE[$cookiename]) == 1)
 		{
 			list ($id_member, $password) = @unserialize($_COOKIE[$cookiename]);
 			$id_member = !empty($id_member) && strlen($password) > 0 ? (int) $id_member : 0;
@@ -433,6 +446,7 @@ function loadUserSettings()
 		'smiley_set' => isset($user_settings['smiley_set']) ? $user_settings['smiley_set'] : '',
 		'messages' => empty($user_settings['instant_messages']) ? 0 : $user_settings['instant_messages'],
 		'unread_messages' => empty($user_settings['unread_messages']) ? 0 : $user_settings['unread_messages'],
+		'alerts' => empty($user_settings['alerts']) ? 0 : $user_settings['alerts'],
 		'total_time_logged_in' => empty($user_settings['total_time_logged_in']) ? 0 : $user_settings['total_time_logged_in'],
 		'buddies' => !empty($modSettings['enable_buddylist']) && !empty($user_settings['buddy_list']) ? explode(',', $user_settings['buddy_list']) : array(),
 		'ignoreboards' => !empty($user_settings['ignore_boards']) && !empty($modSettings['allow_ignore_boards']) ? explode(',', $user_settings['ignore_boards']) : array(),
@@ -616,6 +630,7 @@ function loadBoard()
 				'override_theme' => !empty($row['override_theme']),
 				'profile' => $row['id_profile'],
 				'redirect' => $row['redirect'],
+				'recycle' => !empty($modSettings['recycle_enable']) && !empty($modSettings['recycle_board']) && $modSettings['recycle_board'] == $board,
 				'posts_count' => empty($row['count_posts']),
 				'cur_topic_approved' => empty($topic) || $row['approved'],
 				'cur_topic_starter' => empty($topic) ? 0 : $row['id_member_started'],
@@ -879,16 +894,24 @@ function loadPermissions()
 		}
 		else
 			$user_info['mod_cache'] = $_SESSION['mc'];
+
+		// This is a useful phantom permission added to the current user, and only the current user while they are logged in.
+		// For example this drastically simplifies certain changes to the profile area.
+		$user_info['permissions'][] = 'is_not_guest';
+		// And now some backwards compatibility stuff for mods and whatnot that aren't expecting the new permissions.
+		$user_info['permissions'][] = 'profile_view_own';
+		if (in_array('profile_view', $user_info['permissions']))
+			$user_info['permissions'][] = 'profile_view_any';
 	}
 }
 
 /**
  * Loads an array of users' data by ID or member_name.
  *
- * @param mixed $users An array of users by id or name
- * @param bool $is_name = false $users is by name or by id
- * @param string $set = 'normal' What kind of data to load (normal, profile, minimal)
- * @return array|bool The ids of the members loaded or false
+ * @param array|string $users An array of users by id or name or a single username/id
+ * @param bool $is_name Whether $users contains names
+ * @param string $set What kind of data to load (normal, profile, minimal)
+ * @return array|bool The ids of the members loaded or false if no data was loaded
  */
 function loadMemberData($users, $is_name = false, $set = 'normal')
 {
@@ -923,9 +946,9 @@ function loadMemberData($users, $is_name = false, $set = 'normal')
 	// Used by default
 	$select_columns = '
 			IFNULL(lo.log_time, 0) AS is_online, IFNULL(a.id_attach, 0) AS id_attach, a.filename, a.attachment_type,
-			mem.signature, mem.personal_text, mem.location, mem.gender, mem.avatar, mem.id_member, mem.member_name,
-			mem.real_name, mem.email_address, mem.hide_email, mem.date_registered, mem.website_title, mem.website_url,
-			mem.birthdate, mem.member_ip, mem.member_ip2, mem.icq, mem.aim, mem.yim, mem.skype, mem.posts, mem.last_login,
+			mem.signature, mem.personal_text, mem.avatar, mem.id_member, mem.member_name,
+			mem.real_name, mem.email_address, mem.date_registered, mem.website_title, mem.website_url,
+			mem.birthdate, mem.member_ip, mem.member_ip2, mem.posts, mem.last_login,
 			mem.karma_good, mem.id_post_group, mem.karma_bad, mem.lngfile, mem.id_group, mem.time_offset, mem.show_online,
 			mg.online_color AS member_group_color, IFNULL(mg.group_name, {string:blank_string}) AS member_group,
 			pg.online_color AS post_group_color, IFNULL(pg.group_name, {string:blank_string}) AS post_group,
@@ -951,7 +974,7 @@ function loadMemberData($users, $is_name = false, $set = 'normal')
 			break;
 		case 'minimal':
 			$select_columns = '
-			mem.id_member, mem.member_name, mem.real_name, mem.email_address, mem.hide_email, mem.date_registered,
+			mem.id_member, mem.member_name, mem.real_name, mem.email_address, mem.date_registered,
 			mem.posts, mem.last_login, mem.member_ip, mem.member_ip2, mem.lngfile, mem.id_group';
 			$select_tables = '';
 			break;
@@ -1067,9 +1090,9 @@ function loadMemberData($users, $is_name = false, $set = 'normal')
 /**
  * Loads the user's basic values... meant for template/theme usage.
  *
- * @param int $user
- * @param bool $display_custom_fields = false
- * @return boolean
+ * @param int $user The ID of a user previously loaded by {@link loadMemberData()}
+ * @param bool $display_custom_fields Whether or not to display custom profile fields
+ * @return boolean Whether or not the data was loaded successfully
  */
 function loadMemberContext($user, $display_custom_fields = false)
 {
@@ -1098,11 +1121,9 @@ function loadMemberContext($user, $display_custom_fields = false)
 	// Censor everything.
 	censorText($profile['signature']);
 	censorText($profile['personal_text']);
-	censorText($profile['location']);
 
 	// Set things up to be used before hand.
-	$gendertxt = $profile['gender'] == 2 ? $txt['female'] : ($profile['gender'] == 1 ? $txt['male'] : '');
-	$profile['signature'] = str_replace(array("\n", "\r"), array('<br />', ''), $profile['signature']);
+	$profile['signature'] = str_replace(array("\n", "\r"), array('<br>', ''), $profile['signature']);
 	$profile['signature'] = parse_bbc($profile['signature'], true, 'sig' . $profile['id_member']);
 
 	$profile['is_online'] = (!empty($profile['show_online']) || allowedTo('moderate_forum')) && $profile['is_online'] > 0;
@@ -1110,18 +1131,6 @@ function loadMemberContext($user, $display_custom_fields = false)
 	// Setup the buddy status here (One whole in_array call saved :P)
 	$profile['buddy'] = in_array($profile['id_member'], $user_info['buddies']);
 	$buddy_list = !empty($profile['buddy_list']) ? explode(',', $profile['buddy_list']) : array();
-
-	// If we're always html resizing, assume it's too large.
-	if ($modSettings['avatar_action_too_large'] == 'option_html_resize' || $modSettings['avatar_action_too_large'] == 'option_js_resize')
-	{
-		$avatar_width = !empty($modSettings['avatar_max_width_external']) ? ' width="' . $modSettings['avatar_max_width_external'] . '"' : '';
-		$avatar_height = !empty($modSettings['avatar_max_height_external']) ? ' height="' . $modSettings['avatar_max_height_external'] . '"' : '';
-	}
-	else
-	{
-		$avatar_width = '';
-		$avatar_height = '';
-	}
 
 	// These minimal values are always loaded
 	$memberContext[$user] = array(
@@ -1131,7 +1140,7 @@ function loadMemberContext($user, $display_custom_fields = false)
 		'href' => $scripturl . '?action=profile;u=' . $profile['id_member'],
 		'link' => '<a href="' . $scripturl . '?action=profile;u=' . $profile['id_member'] . '" title="' . $txt['profile_of'] . ' ' . $profile['real_name'] . '">' . $profile['real_name'] . '</a>',
 		'email' => $profile['email_address'],
-		'show_email' => showEmailAddress(!empty($profile['hide_email']), $profile['id_member']),
+		'show_email' => !$user_info['is_guest'] && ($user_info['id'] == $profile['id_member'] || allowedTo('moderate_forum')),
 		'registered' => empty($profile['date_registered']) ? $txt['not_applicable'] : timeformat($profile['date_registered']),
 		'registered_timestamp' => empty($profile['date_registered']) ? 0 : forum_time(true, $profile['date_registered']),
 	);
@@ -1147,48 +1156,19 @@ function loadMemberContext($user, $display_custom_fields = false)
 			'buddies' => $buddy_list,
 			'title' => !empty($modSettings['titlesEnable']) ? $profile['usertitle'] : '',
 			'blurb' => $profile['personal_text'],
-			'gender' => array(
-				'name' => $gendertxt,
-				'image' => !empty($profile['gender']) ? '<img class="gender" src="' . $settings['images_url'] . '/' . ($profile['gender'] == 1 ? 'Male' : 'Female') . '.png" alt="' . $gendertxt . '" />' : ''
-			),
 			'website' => array(
 				'title' => $profile['website_title'],
 				'url' => $profile['website_url'],
 			),
 			'birth_date' => empty($profile['birthdate']) || $profile['birthdate'] === '0001-01-01' ? '0000-00-00' : (substr($profile['birthdate'], 0, 4) === '0004' ? '0000' . substr($profile['birthdate'], 4) : $profile['birthdate']),
 			'signature' => $profile['signature'],
-			'location' => $profile['location'],
-			'icq' => $profile['icq'] != '' && (empty($modSettings['guest_hideContacts']) || !$user_info['is_guest']) ? array(
-				'name' => $profile['icq'],
-				'href' => 'http://www.icq.com/whitepages/about_me.php?uin=' . $profile['icq'],
-				'link' => '<a class="icq new_win" href="http://www.icq.com/whitepages/about_me.php?uin=' . $profile['icq'] . '" target="_blank" title="' . $txt['icq_title'] . ' - ' . $profile['icq'] . '"><img src="http://status.icq.com/online.png?img=5&amp;icq=' . $profile['icq'] . '" alt="' . $txt['icq_title'] . ' - ' . $profile['icq'] . '" width="18" height="18" /></a>',
-				'link_text' => '<a class="icq extern" href="http://www.icq.com/whitepages/about_me.php?uin=' . $profile['icq'] . '" title="' . $txt['icq_title'] . ' - ' . $profile['icq'] . '">' . $profile['icq'] . '</a>',
-			) : array('name' => '', 'add' => '', 'href' => '', 'link' => '', 'link_text' => ''),
-			'aim' => $profile['aim'] != '' && (empty($modSettings['guest_hideContacts']) || !$user_info['is_guest']) ? array(
-				'name' => $profile['aim'],
-				'href' => 'aim:goim?screenname=' . urlencode(strtr($profile['aim'], array(' ' => '%20'))) . '&amp;message=' . $txt['aim_default_message'],
-				'link' => '<a class="aim" href="aim:goim?screenname=' . urlencode(strtr($profile['aim'], array(' ' => '%20'))) . '&amp;message=' . $txt['aim_default_message'] . '" title="' . $txt['aim_title'] . ' - ' . $profile['aim'] . '"><img src="' . $settings['images_url'] . '/aim.png" alt="' . $txt['aim_title'] . ' - ' . $profile['aim'] . '" /></a>',
-				'link_text' => '<a class="aim" href="aim:goim?screenname=' . urlencode(strtr($profile['aim'], array(' ' => '%20'))) . '&amp;message=' . $txt['aim_default_message'] . '" title="' . $txt['aim_title'] . ' - ' . $profile['aim'] . '">' . $profile['aim'] . '</a>'
-			) : array('name' => '', 'href' => '', 'link' => '', 'link_text' => ''),
-			'yim' => $profile['yim'] != '' && (empty($modSettings['guest_hideContacts']) || !$user_info['is_guest']) ? array(
-				'name' => $profile['yim'],
-				'href' => 'http://edit.yahoo.com/config/send_webmesg?.target=' . urlencode($profile['yim']),
-				'link' => '<a class="yim" href="http://edit.yahoo.com/config/send_webmesg?.target=' . urlencode($profile['yim']) . '" title="' . $txt['yim_title'] . ' - ' . $profile['yim'] . '"><img src="http://opi.yahoo.com/online?u=' . urlencode($profile['yim']) . '&amp;m=g&amp;t=0" alt="' . $txt['yim_title'] . ' - ' . $profile['yim'] . '" /></a>',
-				'link_text' => '<a class="yim" href="http://edit.yahoo.com/config/send_webmesg?.target=' . urlencode($profile['yim']) . '" title="' . $txt['yim_title'] . ' - ' . $profile['yim'] . '">' . $profile['yim'] . '</a>'
-			) : array('name' => '', 'href' => '', 'link' => '', 'link_text' => ''),
-			'skype' => !empty($profile['skype']) && (empty($modSettings['guest_hideContacts']) || !$user_info['is_guest']) ? array(
-				'name' => $profile['skype'],
-				'href' => 'skype:' . $profile['skype'] . '?chat',
-				'link' => '<a class="skype new_win" href="skype:' . $profile['skype'] . '?chat" title="' . $txt['skype'] . ' - ' . $profile['skype'] . '"><img src="' . $settings['images_url'] . '/skype.png" alt="' . $txt['skype'] . ' - ' . $profile['skype'] . '" /></a>',
-				'link_text' => '<a class="skype new_win" href="skype:' . $profile['skype'] . '?chat" title="' . $txt['skype'] . ' - ' . $profile['skype'] . '">' . $profile['skype'] . '</a>',
-			) : array('name' => '', 'href' => '', 'link' => '', 'link_text' => '',),
 			'real_posts' => $profile['posts'],
 			'posts' => $profile['posts'] > 500000 ? $txt['geek'] : comma_format($profile['posts']),
 			'avatar' => array(
 				'name' => $profile['avatar'],
-				'image' => $profile['avatar'] == '' ? ($profile['id_attach'] > 0 ? '<img class="avatar" src="' . (empty($profile['attachment_type']) ? $scripturl . '?action=dlattach;attach=' . $profile['id_attach'] . ';type=avatar' : $modSettings['custom_avatar_url'] . '/' . $profile['filename']) . '" alt="" />' : '') : (stristr($profile['avatar'], 'http://') ? '<img class="avatar" src="' . $profile['avatar'] . '"' . $avatar_width . $avatar_height . ' alt="" />' : '<img class="avatar" src="' . $modSettings['avatar_url'] . '/' . htmlspecialchars($profile['avatar']) . '" alt="" />'),
-				'href' => $profile['avatar'] == '' ? ($profile['id_attach'] > 0 ? (empty($profile['attachment_type']) ? $scripturl . '?action=dlattach;attach=' . $profile['id_attach'] . ';type=avatar' : $modSettings['custom_avatar_url'] . '/' . $profile['filename']) : '') : (stristr($profile['avatar'], 'http://') ? $profile['avatar'] : $modSettings['avatar_url'] . '/' . $profile['avatar']),
-				'url' => $profile['avatar'] == '' ? '' : (stristr($profile['avatar'], 'http://') ? $profile['avatar'] : $modSettings['avatar_url'] . '/' . $profile['avatar'])
+				'image' => $profile['avatar'] == '' ? ($profile['id_attach'] > 0 ? '<img class="avatar" src="' . (empty($profile['attachment_type']) ? $scripturl . '?action=dlattach;attach=' . $profile['id_attach'] . ';type=avatar' : $modSettings['custom_avatar_url'] . '/' . $profile['filename']) . '" alt="">' : '') : (stristr($profile['avatar'], 'http://') || stristr($profile['avatar'], 'https://') ? '<img class="avatar" src="' . $profile['avatar'] . '" alt="">' : '<img class="avatar" src="' . $modSettings['avatar_url'] . '/' . $smcFunc['htmlspecialchars']($profile['avatar']) . '" alt="">'),
+				'href' => $profile['avatar'] == '' ? ($profile['id_attach'] > 0 ? (empty($profile['attachment_type']) ? $scripturl . '?action=dlattach;attach=' . $profile['id_attach'] . ';type=avatar' : $modSettings['custom_avatar_url'] . '/' . $profile['filename']) : '') : (stristr($profile['avatar'], 'http://') || stristr($profile['avatar'], 'https://') ? $profile['avatar'] : $modSettings['avatar_url'] . '/' . $profile['avatar']),
+				'url' => $profile['avatar'] == '' ? '' : (stristr($profile['avatar'], 'http://') || stristr($profile['avatar'], 'https://') ? $profile['avatar'] : $modSettings['avatar_url'] . '/' . $profile['avatar'])
 			),
 			'last_login' => empty($profile['last_login']) ? $txt['never'] : timeformat($profile['last_login']),
 			'last_login_timestamp' => empty($profile['last_login']) ? 0 : forum_time(0, $profile['last_login']),
@@ -1198,8 +1178,8 @@ function loadMemberContext($user, $display_custom_fields = false)
 				'allow' => !$user_info['is_guest'] && !empty($modSettings['karmaMode']) && $user_info['id'] != $user && allowedTo('karma_edit') &&
 				($user_info['posts'] >= $modSettings['karmaMinPosts'] || $user_info['is_admin']),
 			),
-			'ip' => htmlspecialchars($profile['member_ip']),
-			'ip2' => htmlspecialchars($profile['member_ip2']),
+			'ip' => $smcFunc['htmlspecialchars']($profile['member_ip']),
+			'ip2' => $smcFunc['htmlspecialchars']($profile['member_ip2']),
 			'online' => array(
 				'is_online' => $profile['is_online'],
 				'text' => $smcFunc['htmlspecialchars']($txt[$profile['is_online'] ? 'online' : 'offline']),
@@ -1219,22 +1199,11 @@ function loadMemberContext($user, $display_custom_fields = false)
 			'group_id' => $profile['id_group'],
 			'post_group' => $profile['post_group'],
 			'post_group_color' => $profile['post_group_color'],
-			'group_icons' => str_repeat('<img src="' . str_replace('$language', $context['user']['language'], isset($profile['icons'][1]) ? $settings['images_url'] . '/membericons/' . $profile['icons'][1] : '') . '" alt="*" />', empty($profile['icons'][0]) || empty($profile['icons'][1]) ? 0 : $profile['icons'][0]),
+			'group_icons' => str_repeat('<img src="' . str_replace('$language', $context['user']['language'], isset($profile['icons'][1]) ? $settings['images_url'] . '/membericons/' . $profile['icons'][1] : '') . '" alt="*">', empty($profile['icons'][0]) || empty($profile['icons'][1]) ? 0 : $profile['icons'][0]),
 			'warning' => $profile['warning'],
 			'warning_status' => !empty($modSettings['warning_mute']) && $modSettings['warning_mute'] <= $profile['warning'] ? 'mute' : (!empty($modSettings['warning_moderate']) && $modSettings['warning_moderate'] <= $profile['warning'] ? 'moderate' : (!empty($modSettings['warning_watch']) && $modSettings['warning_watch'] <= $profile['warning'] ? 'watch' : (''))),
 			'local_time' => timeformat(time() + ($profile['time_offset'] - $user_info['time_offset']) * 3600, false),
 		);
-
-	// First do a quick run through to make sure there is something to be shown.
-	$memberContext[$user]['has_messenger'] = false;
-	foreach (array('icq', 'skype', 'aim', 'yim') as $messenger)
-	{
-		if (!isset($context['disabled_fields'][$messenger]) && !empty($memberContext[$user][$messenger]['link']))
-		{
-			$memberContext[$user]['has_messenger'] = true;
-			break;
-		}
-	}
 
 	// Are we also loading the members custom fields into context?
 	if ($display_custom_fields && !empty($modSettings['displayFields']))
@@ -1282,9 +1251,9 @@ function loadMemberContext($user, $display_custom_fields = false)
 /**
  * Loads the user's custom profile fields
  *
- * @param mixed $users either an integer or an array of integers
- * @param mixed $param either a string or an array of strings with profile fields names
- * @return array
+ * @param integer|array $users A single user ID or an array of user IDs
+ * @param string|array $param Either a string or an array of strings with profile field names
+ * @return array|boolean An array of data about the fields and their values or false if nothing was loaded
  */
 function loadMemberCustomFields($users, $params)
 {
@@ -1300,12 +1269,13 @@ function loadMemberCustomFields($users, $params)
 	$return = array();
 
 	$request = $smcFunc['db_query']('', '
-		SELECT c.id_field, c.col_name, c.field_name, c.field_desc, c.field_type, c.field_length, c.field_options, c.mask, show_reg,
+		SELECT c.id_field, c.col_name, c.field_name, c.field_desc, c.field_type, c.field_order, c.field_length, c.field_options, c.mask, show_reg,
 		c.show_display, c.show_profile, c.private, c.active, c.bbc, c.can_search, c.default_value, c.enclose, c.placement, t.variable, t.value, t.id_member
 		FROM {db_prefix}themes AS t
 			LEFT JOIN {db_prefix}custom_fields AS c ON (c.col_name = t.variable)
 		WHERE id_member IN ({array_int:loaded_ids})
-			AND variable IN ({array_string:params})',
+			AND variable IN ({array_string:params})
+		ORDER BY field_order',
 		array(
 			'loaded_ids' => $users,
 			'params' => $params,
@@ -1361,7 +1331,7 @@ function detectBrowser()
  * Are we using this browser?
  *
  * Wrapper function for detectBrowser
- * @param $browser: browser we are checking for.
+ * @param string $browser The browser we are checking for.
 */
 function isBrowser($browser)
 {
@@ -1376,7 +1346,7 @@ function isBrowser($browser)
 			// Found it?
 			if (strpos($step['function'], 'query') === false && !in_array(substr($step['function'], 0, 7), array('smf_db_', 'preg_re', 'db_erro', 'call_us')) && strpos($step['function'], '__') !== 0)
 			{
-				$function = '<br />Function: ' . $step['function'];
+				$function = '<br>Function: ' . $step['function'];
 				break;
 			}
 
@@ -1400,14 +1370,14 @@ function isBrowser($browser)
 /**
  * Load a theme, by ID.
  *
- * @param int $id_theme = 0
- * @param bool $initialize = true
+ * @param int $id_theme The ID of the theme to load
+ * @param bool $initialize Whether or not to initialize a bunch of theme-related variables/settings
  */
 function loadTheme($id_theme = 0, $initialize = true)
 {
 	global $user_info, $user_settings, $board_info, $boarddir;
 	global $txt, $boardurl, $scripturl, $mbname, $modSettings;
-	global $context, $settings, $options, $sourcedir, $ssi_theme, $smcFunc;
+	global $context, $settings, $options, $sourcedir, $ssi_theme, $smcFunc, $language, $board;
 
 	// The theme was specified by parameter.
 	if (!empty($id_theme))
@@ -1422,7 +1392,7 @@ function loadTheme($id_theme = 0, $initialize = true)
 	elseif (!empty($_SESSION['id_theme']) && (!empty($modSettings['theme_allow']) || allowedTo('admin_forum')))
 		$id_theme = (int) $_SESSION['id_theme'];
 	// The theme is just the user's choice. (might use ?board=1;theme=0 to force board theme.)
-	elseif (!empty($user_info['theme']) && !isset($_REQUEST['theme']) && (!empty($modSettings['theme_allow']) || allowedTo('admin_forum')))
+	elseif (!empty($user_info['theme']) && !isset($_REQUEST['theme']))
 		$id_theme = $user_info['theme'];
 	// The theme was specified by the board.
 	elseif (!empty($board_info['theme']))
@@ -1438,9 +1408,9 @@ function loadTheme($id_theme = 0, $initialize = true)
 	// If they have specified a particular theme to use with SSI allow it to be used.
 	elseif (!empty($ssi_theme) && $id_theme == $ssi_theme)
 		$id_theme = (int) $id_theme;
-	elseif (!empty($modSettings['knownThemes']) && !allowedTo('admin_forum'))
+	elseif (!empty($modSettings['enableThemes']) && !allowedTo('admin_forum'))
 	{
-		$themes = explode(',', $modSettings['knownThemes']);
+		$themes = explode(',', $modSettings['enableThemes']);
 		if (!in_array($id_theme, $themes))
 			$id_theme = $modSettings['theme_guests'];
 		else
@@ -1609,27 +1579,44 @@ function loadTheme($id_theme = 0, $initialize = true)
 		}
 	}
 	// Set up the contextual user array.
-	$context['user'] = array(
-		'id' => $user_info['id'],
-		'is_logged' => !$user_info['is_guest'],
-		'is_guest' => &$user_info['is_guest'],
-		'is_admin' => &$user_info['is_admin'],
-		'is_mod' => &$user_info['is_mod'],
-		// A user can mod if they have permission to see the mod center, or they are a board/group/approval moderator.
-		'can_mod' => allowedTo('access_mod_center') || (!$user_info['is_guest'] && ($user_info['mod_cache']['gq'] != '0=1' || $user_info['mod_cache']['bq'] != '0=1' || ($modSettings['postmod_active'] && !empty($user_info['mod_cache']['ap'])))),
-		'username' => $user_info['username'],
-		'language' => $user_info['language'],
-		'email' => $user_info['email'],
-		'ignoreusers' => $user_info['ignoreusers'],
-	);
-	if (!$context['user']['is_guest'])
-		$context['user']['name'] = $user_info['name'];
-	elseif ($context['user']['is_guest'] && !empty($txt['guest_title']))
-		$context['user']['name'] = $txt['guest_title'];
+	if (!empty($user_info))
+	{
+		$context['user'] = array(
+			'id' => $user_info['id'],
+			'is_logged' => !$user_info['is_guest'],
+			'is_guest' => &$user_info['is_guest'],
+			'is_admin' => &$user_info['is_admin'],
+			'is_mod' => &$user_info['is_mod'],
+			// A user can mod if they have permission to see the mod center, or they are a board/group/approval moderator.
+			'can_mod' => allowedTo('access_mod_center') || (!$user_info['is_guest'] && ($user_info['mod_cache']['gq'] != '0=1' || $user_info['mod_cache']['bq'] != '0=1' || ($modSettings['postmod_active'] && !empty($user_info['mod_cache']['ap'])))),
+			'username' => $user_info['username'],
+			'language' => $user_info['language'],
+			'email' => $user_info['email'],
+			'ignoreusers' => $user_info['ignoreusers'],
+		);
+		if (!$context['user']['is_guest'])
+			$context['user']['name'] = $user_info['name'];
+		elseif ($context['user']['is_guest'] && !empty($txt['guest_title']))
+			$context['user']['name'] = $txt['guest_title'];
 
-	// Determine the current smiley set.
-	$user_info['smiley_set'] = (!in_array($user_info['smiley_set'], explode(',', $modSettings['smiley_sets_known'])) && $user_info['smiley_set'] != 'none') || empty($modSettings['smiley_sets_enable']) ? (!empty($settings['smiley_sets_default']) ? $settings['smiley_sets_default'] : $modSettings['smiley_sets_default']) : $user_info['smiley_set'];
-	$context['user']['smiley_set'] = $user_info['smiley_set'];
+		// Determine the current smiley set.
+		$user_info['smiley_set'] = (!in_array($user_info['smiley_set'], explode(',', $modSettings['smiley_sets_known'])) && $user_info['smiley_set'] != 'none') || empty($modSettings['smiley_sets_enable']) ? (!empty($settings['smiley_sets_default']) ? $settings['smiley_sets_default'] : $modSettings['smiley_sets_default']) : $user_info['smiley_set'];
+		$context['user']['smiley_set'] = $user_info['smiley_set'];
+	}
+	else
+	{
+		$context['user'] = array(
+			'id' => -1,
+			'is_logged' => false,
+			'is_guest' => true,
+			'is_mod' => false,
+			'can_mod' => false,
+			'name' => $txt['guest_title'],
+			'language' => $language,
+			'email' => '',
+			'ignoreusers' => array(),
+		);
+	}
 
 	// Some basic information...
 	if (!isset($context['html_headers']))
@@ -1638,6 +1625,8 @@ function loadTheme($id_theme = 0, $initialize = true)
 		$context['javascript_files'] = array();
 	if (!isset($context['css_files']))
 		$context['css_files'] = array();
+	if (!isset($context['css_header']))
+		$context['css_header'] = '';
 	if (!isset($context['javascript_inline']))
 		$context['javascript_inline'] = array('standard' => array(), 'defer' => array());
 	if (!isset($context['javascript_vars']))
@@ -1649,28 +1638,11 @@ function loadTheme($id_theme = 0, $initialize = true)
 	$context['forum_name'] = $mbname;
 	$context['forum_name_html_safe'] = $smcFunc['htmlspecialchars']($context['forum_name']);
 	$context['header_logo_url_html_safe'] = empty($settings['header_logo_url']) ? '' : $smcFunc['htmlspecialchars']($settings['header_logo_url']);
-	$context['current_action'] = isset($_REQUEST['action']) ? $_REQUEST['action'] : null;
+	$context['current_action'] = isset($_REQUEST['action']) ? $smcFunc['htmlspecialchars']($_REQUEST['action']) : null;
 	$context['current_subaction'] = isset($_REQUEST['sa']) ? $_REQUEST['sa'] : null;
 	$context['can_register'] = empty($modSettings['registration_method']) || $modSettings['registration_method'] != 3;
 	if (isset($modSettings['load_average']))
 		$context['load_average'] = $modSettings['load_average'];
-
-	// Set some permission related settings.
-	$context['show_login_bar'] = $user_info['is_guest'] && !empty($modSettings['enableVBStyleLogin']);
-
-	// This determines the server... not used in many places, except for login fixing.
-	$context['server'] = array(
-		'is_iis' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'Microsoft-IIS') !== false,
-		'is_apache' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'Apache') !== false,
-		'is_litespeed' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'LiteSpeed') !== false,
-		'is_lighttpd' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'lighttpd') !== false,
-		'is_nginx' => isset($_SERVER['SERVER_SOFTWARE']) && strpos($_SERVER['SERVER_SOFTWARE'], 'nginx') !== false,
-		'is_cgi' => isset($_SERVER['SERVER_SOFTWARE']) && strpos(php_sapi_name(), 'cgi') !== false,
-		'is_windows' => strpos(PHP_OS, 'WIN') === 0,
-		'iso_case_folding' => ord(strtolower(chr(138))) === 154,
-	);
-	// A bug in some versions of IIS under CGI (older ones) makes cookie setting not work with Location: headers.
-	$context['server']['needs_login_fix'] = $context['server']['is_cgi'] && $context['server']['is_iis'];
 
 	// Detect the browser. This is separated out because it's also used in attachment downloads
 	detectBrowser();
@@ -1740,6 +1712,15 @@ function loadTheme($id_theme = 0, $initialize = true)
 	// Initialize the theme.
 	loadSubTemplate('init', 'ignore');
 
+	// Allow overriding the board wide time/number formats.
+	if (empty($user_settings['time_format']) && !empty($txt['time_format']))
+		$user_info['time_format'] = $txt['time_format'];
+
+	// Set the character set from the template.
+	$context['character_set'] = empty($modSettings['global_character_set']) ? $txt['lang_character_set'] : $modSettings['global_character_set'];
+	$context['utf8'] = $context['character_set'] === 'UTF-8';
+	$context['right_to_left'] = !empty($txt['lang_rtl']);
+
 	// Guests may still need a name.
 	if ($context['user']['is_guest'] && empty($context['user']['name']))
 		$context['user']['name'] = $txt['guest_title'];
@@ -1747,6 +1728,22 @@ function loadTheme($id_theme = 0, $initialize = true)
 	// Any theme-related strings that need to be loaded?
 	if (!empty($settings['require_theme_strings']))
 		loadLanguage('ThemeStrings', '', false);
+
+	// Sort out some themes.
+	if (isset($settings['use_default_images']) && $settings['use_default_images'] == 'always')
+	{
+		$settings['theme_url'] = $settings['default_theme_url'];
+		$settings['images_url'] = $settings['default_images_url'];
+		$settings['theme_dir'] = $settings['default_theme_dir'];
+	}
+	// Make a special URL for the language.
+	$settings['lang_images_url'] = $settings['images_url'] . '/' . (!empty($txt['image_lang']) ? $txt['image_lang'] : $user_info['language']);
+
+	// And of course, let's load the default CSS file.
+	loadCSSFile('index.css');
+
+	if ($context['right_to_left'])
+		loadCSSFile('rtl.css');
 
 	// We allow theme variants, because we're cool.
 	$context['theme_variant'] = '';
@@ -1766,38 +1763,24 @@ function loadTheme($id_theme = 0, $initialize = true)
 		// Do this to keep things easier in the templates.
 		$context['theme_variant'] = '_' . $context['theme_variant'];
 		$context['theme_variant_url'] = $context['theme_variant'] . '/';
+
+		if (!empty($context['theme_variant']))
+		{
+			loadCSSFile('index' . $context['theme_variant'] . '.css');
+			if ($context['right_to_left'])
+				loadCSSFile('rtl' . $context['theme_variant'] . '.css');
+		}
 	}
 
 	// Let's be compatible with old themes!
 	if (!function_exists('template_html_above') && in_array('html', $context['template_layers']))
 		$context['template_layers'] = array('main');
 
-	// Allow overriding the board wide time/number formats.
-	if (empty($user_settings['time_format']) && !empty($txt['time_format']))
-		$user_info['time_format'] = $txt['time_format'];
-
-	if (isset($settings['use_default_images']) && $settings['use_default_images'] == 'always')
-	{
-		$settings['theme_url'] = $settings['default_theme_url'];
-		$settings['images_url'] = $settings['default_images_url'];
-		$settings['theme_dir'] = $settings['default_theme_dir'];
-	}
-	// Make a special URL for the language.
-	$settings['lang_images_url'] = $settings['images_url'] . '/' . (!empty($txt['image_lang']) ? $txt['image_lang'] : $user_info['language']);
-
-	// Set the character set from the template.
-	$context['character_set'] = empty($modSettings['global_character_set']) ? $txt['lang_character_set'] : $modSettings['global_character_set'];
-	$context['utf8'] = $context['character_set'] === 'UTF-8';
-	$context['right_to_left'] = !empty($txt['lang_rtl']);
-
 	$context['tabindex'] = 1;
 
 	// Compatibility.
 	if (!isset($settings['theme_version']))
 		$modSettings['memberCount'] = $modSettings['totalMembers'];
-
-	// This allows us to change the way things look for the admin.
-	$context['admin_features'] = isset($modSettings['admin_features']) ? explode(',', $modSettings['admin_features']) : array('cd,k,w,ml,pm');
 
 	// Default JS variables for use in every theme
 	$context['javascript_vars'] = array(
@@ -1811,26 +1794,25 @@ function loadTheme($id_theme = 0, $initialize = true)
 		'smf_session_var' => '"' . $context['session_var'] . '"',
 		'smf_member_id' => $context['user']['id'],
 		'ajax_notification_text' => JavaScriptEscape($txt['ajax_in_progress']),
-		'ajax_notification_cancel_text' => JavaScriptEscape($txt['modify_cancel']),
 		'help_popup_heading_text' => JavaScriptEscape($txt['help_popup']),
 	);
 
 	// Add the JQuery library to the list of files to load.
 	if (isset($modSettings['jquery_source']) && $modSettings['jquery_source'] == 'cdn')
-		loadJavascriptFile('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js', array(), 'jquery');
+		loadJavascriptFile('https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js', array(), 'jquery');
 	elseif (isset($modSettings['jquery_source']) && $modSettings['jquery_source'] == 'local')
-		loadJavascriptFile('jquery-1.7.1.min.js', array('default_theme' => true, 'seed' => false), 'jquery');
+		loadJavascriptFile('jquery-1.11.0.min.js', array('default_theme' => true, 'seed' => false), 'jquery');
 	elseif (isset($modSettings['jquery_source'], $modSettings['jquery_custom']) && $modSettings['jquery_source'] == 'custom')
 		loadJavascriptFile($modSettings['jquery_custom'], array(), 'jquery');
 	// Auto loading? template_javascript() will take care of the local half of this.
 	else
-		loadJavascriptFile('https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js', array(), 'jquery');
+		loadJavascriptFile('https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js', array(), 'jquery');
 
 	// Queue our JQuery plugins!
 	loadJavascriptFile('smf_jquery_plugins.js', array('default_theme' => true));
 
 	// script.js and theme.js, always required, so always add them! Makes index.template.php cleaner and all.
-	loadJavascriptFile('script.js', array('default_theme' => true), 'smf_scripts');
+	loadJavascriptFile('script.js', array('default_theme' => true, 'defer' => false), 'smf_scripts');
 	loadJavascriptFile('theme.js', array(), 'theme_scripts');
 
 	// If we think we have mail to send, let's offer up some possibilities... robots get pain (Now with scheduled task support!)
@@ -1859,7 +1841,36 @@ function loadTheme($id_theme = 0, $initialize = true)
 			tempImage.src = smf_scripturl + "?scheduled=' . $type . ';ts=' . $ts . '";
 		}
 		window.setTimeout("smfAutoTask();", 1);');
+		}
+	}
 
+	// And we should probably trigger the cron too.
+	if (empty($modSettings['cron_is_real_cron']))
+	{
+		$ts = time();
+		$ts -= $ts % 15;
+		addInlineJavaScript('
+	function triggerCron() {
+		var tempImage = new Image();
+		tempImage.src = ' . JavaScriptEscape($boardurl) . ' + "/cron.php?ts=' . $ts . '";
+	}
+	window.setTimeout(triggerCron, 1);', true);
+	}
+
+	// Filter out the restricted boards from the linktree
+	if (!$user_info['is_admin'] && !empty($board))
+	{
+		foreach ($context['linktree'] as $k => $element)
+		{
+			if (!empty($element['groups']) &&
+				(count(array_intersect($user_info['groups'], $element['groups'])) == 0 ||
+				(!empty($modSettings['deny_boards_access']) && count(array_intersect($user_info['groups'], $element['deny_groups'])) != 0)))
+			{
+				$context['linktree'][$k]['name'] = $txt['restricted_board'];
+				$context['linktree'][$k]['extra_before'] = '<i>';
+				$context['linktree'][$k]['extra_after'] = '</i>';
+				unset($context['linktree'][$k]['url']);
+			}
 		}
 	}
 
@@ -1889,10 +1900,10 @@ function loadTheme($id_theme = 0, $initialize = true)
  *  - detects a wrong default theme directory and tries to work around it.
  *
  * @uses the template_include() function to include the file.
- * @param string $template_name
- * @param array $style_sheets = array()
- * @param bool $fatal = true if fatal is true, dies with an error message if the template cannot be found
- * @return boolean
+ * @param string $template_name The name of the template to load
+ * @param array|string $style_sheets The name of a single stylesheet or an array of names of stylesheets to load
+ * @param bool $fatal If true, dies with an error message if the template cannot be found
+ * @return boolean True if the template was loaded, false otherwise
  */
 function loadTemplate($template_name, $style_sheets = array(), $fatal = true)
 {
@@ -1947,7 +1958,7 @@ function loadTemplate($template_name, $style_sheets = array(), $fatal = true)
 			loadLanguage('Errors');
 			echo '
 <div class="alert errorbox">
-	<a href="', $scripturl . '?action=admin;area=theme;sa=list;th=1;' . $context['session_var'] . '=' . $context['session_id'], '" class="alert">', $txt['theme_dir_wrong'], '</a>
+	<a href="', $scripturl . '?action=admin;area=theme;sa=list;' . $context['session_var'] . '=' . $context['session_id'], '" class="alert">', $txt['theme_dir_wrong'], '</a>
 </div>';
 		}
 
@@ -1972,8 +1983,8 @@ function loadTemplate($template_name, $style_sheets = array(), $fatal = true)
  *
  * @todo get rid of reading $_REQUEST directly
  *
- * @param string $sub_template_name
- * @param bool $fatal = false, $fatal = true is for templates that shouldn't get a 'pretty' error screen.
+ * @param string $sub_template_name The name of the sub-template to load
+ * @param bool Whether to die with an error if the sub-template can't be loaded
  */
 function loadSubTemplate($sub_template_name, $fatal = false)
 {
@@ -2002,21 +2013,21 @@ function loadSubTemplate($sub_template_name, $fatal = false)
 /**
  * Add a CSS file for output later
  *
- * @param string $filename
- * @param array $params
+ * @param string $filename THe name of the file to load
+ * @param array $params An array of parameters
  * Keys are the following:
  * 	- ['local'] (true/false): define if the file is local
  * 	- ['default_theme'] (true/false): force use of default theme url
  * 	- ['force_current'] (true/false): if this is false, we will attempt to load the file from the default theme if not found in the current theme
  *  - ['validate'] (true/false): if true script will validate the local file exists
  *  - ['seed'] (true/false/string): if true or null, use cache stale, false do not, or used a supplied string
- * @param string $id
+ * @param string $id An ID to stick on the end of the filename for caching purposes
  */
 function loadCSSFile($filename, $params = array(), $id = '')
 {
-	global $settings, $context;
+	global $settings, $context, $modSettings;
 
-	$params['seed'] = (!isset($params['seed']) || $params['seed'] === true) ? '?alph21' : (is_string($params['seed']) ? ($params['seed'] = $params['seed'][0] === '?' ? $params['seed'] : '?' . $params['seed']) : '');
+	$params['seed'] = (!isset($params['seed']) || $params['seed'] === true) ? $modSettings['browser_cache'] : (is_string($params['seed']) ? ($params['seed'] = $params['seed'][0] === '?' ? $params['seed'] : '?' . $params['seed']) : '');
 	$params['force_current'] = !empty($params['force_current']) ? $params['force_current'] : false;
 	$theme = !empty($params['default_theme']) ? 'default_theme' : 'theme';
 
@@ -2043,13 +2054,16 @@ function loadCSSFile($filename, $params = array(), $id = '')
 	// Add it to the array for use in the template
 	if (!empty($filename))
 		$context['css_files'][$id] = array('filename' => $filename, 'options' => $params);
+
+	if (!empty($context['right_to_left']) && !empty($params['rtl']))
+		loadCSSFile($params['rtl'], array_diff_key($params, array('rtl' => 0)));
 }
 
 /**
  * Add a Javascript file for output later
 
- * @param string $filename
- * @param array $params
+ * @param string $filename The name of the file to load
+ * @param array $params An array of parameter info
  * Keys are the following:
  * 	- ['local'] (true/false): define if the file is local
  * 	- ['default_theme'] (true/false): force use of default theme url
@@ -2060,13 +2074,13 @@ function loadCSSFile($filename, $params = array(), $id = '')
  *  - ['validate'] (true/false): if true script will validate the local file exists
  *  - ['seed'] (true/false/string): if true or null, use cache stale, false do not, or used a supplied string
  *
- * @param string $id
+ * @param string $id An ID to stick on the end of the filename
  */
 function loadJavascriptFile($filename, $params = array(), $id = '')
 {
-	global $settings, $context;
+	global $settings, $context, $modSettings;
 
-	$params['seed'] = (!isset($params['seed']) || $params['seed'] === true) ? '?alph21' : (is_string($params['seed']) ? ($params['seed'] = $params['seed'][0] === '?' ? $params['seed'] : '?' . $params['seed']) : '');
+	$params['seed'] = (!isset($params['seed']) || $params['seed'] === true) ? $modSettings['browser_cache'] : (is_string($params['seed']) ? ($params['seed'] = $params['seed'][0] === '?' ? $params['seed'] : '?' . $params['seed']) : '');
 	$params['force_current'] = !empty($params['force_current']) ? $params['force_current'] : false;
 	$theme = !empty($params['default_theme']) ? 'default_theme' : 'theme';
 
@@ -2099,9 +2113,9 @@ function loadJavascriptFile($filename, $params = array(), $id = '')
  * Add a Javascript variable for output later (for feeding text strings and similar to JS)
  * Cleaner and easier (for modders) than to use the function below.
  *
- * @param string $key
- * @param string $value
- * @param bool $escape = false, whether or not to escape the value
+ * @param string $key The key for this variable
+ * @param string $value The value
+ * @param bool $escape Whether or not to escape the value
  */
 function addJavascriptVar($key, $value, $escape = false)
 {
@@ -2118,8 +2132,8 @@ function addJavascriptVar($key, $value, $escape = false)
  *   or for scripts that require help from PHP/whatever, this can be useful.
  * - all code added with this function is added to the same <script> tag so do make sure your JS is clean!
  *
- * @param string $javascript
- * @param bool $defer = false, define if the script should load in <head> or before the closing <html> tag
+ * @param string $javascript Some JS code
+ * @param bool Whether the script should load in <head> or before the closing <html> tag
  */
 function addInlineJavascript($javascript, $defer = false)
 {
@@ -2130,10 +2144,10 @@ function addInlineJavascript($javascript, $defer = false)
 /**
  * Load a language file.  Tries the current and default themes as well as the user and global languages.
  *
- * @param string $template_name
- * @param string $lang
- * @param bool $fatal = true
- * @param bool $force_reload = false
+ * @param string $template_name The name of a template file
+ * @param string $lang A specific language to load this file from
+ * @param bool $fatal Whether to die with an error if it can't be loaded
+ * @param bool $force_reload Whether to load the file again if it's already loaded
  * @return string The language actually loaded.
  */
 function loadLanguage($template_name, $lang = '', $fatal = true, $force_reload = false)
@@ -2257,8 +2271,8 @@ function loadLanguage($template_name, $lang = '', $fatal = true, $force_reload =
  * It finds all the parents of id_parent, and that board itself.
  * Additionally, it detects the moderators of said boards.
  *
- * @param int $id_parent
- * @return an array of information about the boards found.
+ * @param int $id_parent The ID of the parent board
+ * @return array An array of information about the boards found.
  */
 function getBoardParents($id_parent)
 {
@@ -2275,8 +2289,9 @@ function getBoardParents($id_parent)
 		{
 			$result = $smcFunc['db_query']('', '
 				SELECT
-					b.id_parent, b.name, {int:board_parent} AS id_board, IFNULL(mem.id_member, 0) AS id_moderator,
-					mem.real_name, b.child_level, IFNULL(mg.id_group, 0) AS id_moderator_group, mg.group_name
+					b.id_parent, b.name, {int:board_parent} AS id_board, b.member_groups, b.deny_member_groups,
+					b.child_level, IFNULL(mem.id_member, 0) AS id_moderator, mem.real_name,
+					IFNULL(mg.id_group, 0) AS id_moderator_group, mg.group_name
 				FROM {db_prefix}boards AS b
 					LEFT JOIN {db_prefix}moderators AS mods ON (mods.id_board = b.id_board)
 					LEFT JOIN {db_prefix}members AS mem ON (mem.id_member = mods.id_member)
@@ -2299,6 +2314,8 @@ function getBoardParents($id_parent)
 						'url' => $scripturl . '?board=' . $row['id_board'] . '.0',
 						'name' => $row['name'],
 						'level' => $row['child_level'],
+						'groups' => explode(',', $row['member_groups']),
+						'deny_groups' => explode(',', $row['deny_member_groups']),
 						'moderators' => array(),
 						'moderator_groups' => array()
 					);
@@ -2340,9 +2357,9 @@ function getBoardParents($id_parent)
  * Attempt to reload our known languages.
  * It will try to choose only utf8 or non-utf8 languages.
  *
- * @param bool $use_cache = true
- * @param bool $favor_utf8 = true
- * @return array
+ * @param bool $use_cache Whether or not to use the cache
+ * @param bool $favor_utf8 Whether or not to favor UTF-8 files
+ * @return array An array of information about available languages
  */
 function getLanguages($use_cache = true, $favor_utf8 = true)
 {
@@ -2358,8 +2375,9 @@ function getLanguages($use_cache = true, $favor_utf8 = true)
 		// Default language directories to try.
 		$language_directories = array(
 			$settings['default_theme_dir'] . '/languages',
-			$settings['actual_theme_dir'] . '/languages',
 		);
+		if (!empty($settings['actual_theme_dir']) && $settings['actual_theme_dir'] != $settings['default_theme_dir'])
+			$language_directories[] = $settings['actual_theme_dir'] . '/languages';
 
 		// We possibly have a base theme directory.
 		if (!empty($settings['base_theme_dir']))
@@ -2416,13 +2434,13 @@ function getLanguages($use_cache = true, $favor_utf8 = true)
  *    show_no_censored is enabled, does not censor, unless force is also set.
  *  - it caches the list of censored words to reduce parsing.
  *
- * @param string &$text
- * @param bool $force = false
+ * @param string &$text The text to censor
+ * @param bool $force Whether to censor the text regardless of settings
  * @return string The censored text
  */
 function censorText(&$text, $force = false)
 {
-	global $modSettings, $options, $settings, $txt;
+	global $modSettings, $options, $txt;
 	static $censor_vulgar = null, $censor_proper;
 
 	if ((!empty($options['show_no_censored']) && !empty($modSettings['allow_no_censored']) && !$force) || empty($modSettings['censor_vulgar']) || trim($text) === '')
@@ -2465,8 +2483,8 @@ function censorText(&$text, $force = false)
  * 	- outputs a parse error if the file did not exist or contained errors.
  * 	- attempts to detect the error and line, and show detailed information.
  *
- * @param string $filename
- * @param bool $once = false, if true only includes the file once (like include_once)
+ * @param string $filename The name of the file to include
+ * @param bool $once If true only includes the file once (like include_once)
  */
 function template_include($filename, $once = false)
 {
@@ -2520,17 +2538,18 @@ function template_include($filename, $once = false)
 		if (!isset($txt['template_parse_error']))
 		{
 			$txt['template_parse_error'] = 'Template Parse Error!';
-			$txt['template_parse_error_message'] = 'It seems something has gone sour on the forum with the template system.  This problem should only be temporary, so please come back later and try again.  If you continue to see this message, please contact the administrator.<br /><br />You can also try <a href="javascript:location.reload();">refreshing this page</a>.';
-			$txt['template_parse_error_details'] = 'There was a problem loading the <tt><strong>%1$s</strong></tt> template or language file.  Please check the syntax and try again - remember, single quotes (<tt>\'</tt>) often have to be escaped with a slash (<tt>\\</tt>).  To see more specific error information from PHP, try <a href="' . $boardurl . '%1$s" class="extern">accessing the file directly</a>.<br /><br />You may want to try to <a href="javascript:location.reload();">refresh this page</a> or <a href="' . $scripturl . '?theme=1">use the default theme</a>.';
+			$txt['template_parse_error_message'] = 'It seems something has gone sour on the forum with the template system.  This problem should only be temporary, so please come back later and try again.  If you continue to see this message, please contact the administrator.<br><br>You can also try <a href="javascript:location.reload();">refreshing this page</a>.';
+			$txt['template_parse_error_details'] = 'There was a problem loading the <tt><strong>%1$s</strong></tt> template or language file.  Please check the syntax and try again - remember, single quotes (<tt>\'</tt>) often have to be escaped with a slash (<tt>\\</tt>).  To see more specific error information from PHP, try <a href="' . $boardurl . '%1$s" class="extern">accessing the file directly</a>.<br><br>You may want to try to <a href="javascript:location.reload();">refresh this page</a> or <a href="' . $scripturl . '?theme=1">use the default theme</a>.';
+			$txt['template_parse_errmsg'] = 'Unfortunately more information is not available at this time as to exactly what is wrong.';
 		}
 
 		// First, let's get the doctype and language information out of the way.
-		echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"', !empty($context['right_to_left']) ? ' dir="rtl"' : '', '>
+		echo '<!DOCTYPE html>
+<html', !empty($context['right_to_left']) ? ' dir="rtl"' : '', '>
 	<head>';
 		if (isset($context['character_set']))
 			echo '
-		<meta http-equiv="Content-Type" content="text/html; charset=', $context['character_set'], '" />';
+		<meta http-equiv="Content-Type" content="text/html; charset=', $context['character_set'], '">';
 
 		if (!empty($maintenance) && !allowedTo('admin_forum'))
 			echo '
@@ -2555,8 +2574,10 @@ function template_include($filename, $once = false)
 			require_once($sourcedir . '/Subs-Package.php');
 
 			$error = fetch_web_data($boardurl . strtr($filename, array($boarddir => '', strtr($boarddir, '\\', '/') => '')));
-			if (empty($error) && ini_get('track_errors'))
+			if (empty($error) && ini_get('track_errors') && !empty($php_errormsg))
 				$error = $php_errormsg;
+			if (empty($error))
+				$error = $txt['template_parse_errmsg'];
 
 			$error = strtr($error, array('<b>' => '<strong>', '</b>' => '</strong>'));
 
@@ -2569,7 +2590,7 @@ function template_include($filename, $once = false)
 
 			if (!empty($error))
 				echo '
-		<hr />
+		<hr>
 
 		<div style="margin: 0 20px;"><tt>', strtr(strtr($error, array('<strong>' . $boarddir => '<strong>...', '<strong>' . strtr($boarddir, '\\', '/') => '<strong>...')), '\\', '/'), '</tt></div>';
 
@@ -2586,16 +2607,16 @@ function template_include($filename, $once = false)
 				else
 					$data2 = str_replace('<pre style="display: inline;">' . "\t" . '</pre>', "\t", $data2);
 
-				// Now we get to work around a bug in PHP where it doesn't escape <br />s!
+				// Now we get to work around a bug in PHP where it doesn't escape <br>s!
 				$j = -1;
 				foreach ($data as $line)
 				{
 					$j++;
 
-					if (substr_count($line, '<br />') == 0)
+					if (substr_count($line, '<br>') == 0)
 						continue;
 
-					$n = substr_count($line, '<br />');
+					$n = substr_count($line, '<br>');
 					for ($i = 0; $i < $n; $i++)
 					{
 						$data2[$j] .= '&lt;br /&gt;' . $data2[$j + $i + 1];
@@ -2664,7 +2685,7 @@ function template_include($filename, $once = false)
 function loadDatabase()
 {
 	global $db_persist, $db_connection, $db_server, $db_user, $db_passwd;
-	global $db_type, $db_name, $ssi_db_user, $ssi_db_passwd, $sourcedir, $db_prefix;
+	global $db_type, $db_name, $ssi_db_user, $ssi_db_passwd, $sourcedir, $db_prefix, $db_port;
 
 	// Figure out what type of database we are using.
 	if (empty($db_type) || !file_exists($sourcedir . '/Subs-Db-' . $db_type . '.php'))
@@ -2673,13 +2694,27 @@ function loadDatabase()
 	// Load the file for the database.
 	require_once($sourcedir . '/Subs-Db-' . $db_type . '.php');
 
+	$db_options = array();
+
+	// Add in the port if needed
+	if (!empty($db_port))
+		$db_options['port'] = $db_port;
+
 	// If we are in SSI try them first, but don't worry if it doesn't work, we have the normal username and password we can use.
 	if (SMF == 'SSI' && !empty($ssi_db_user) && !empty($ssi_db_passwd))
-		$db_connection = smf_db_initiate($db_server, $db_name, $ssi_db_user, $ssi_db_passwd, $db_prefix, array('persist' => $db_persist, 'non_fatal' => true, 'dont_select_db' => true));
+	{
+		$options = array_merge($db_options, array('persist' => $db_persist, 'non_fatal' => true, 'dont_select_db' => true));
+
+		$db_connection = smf_db_initiate($db_server, $db_name, $ssi_db_user, $ssi_db_passwd, $db_prefix, $options);
+	}
 
 	// Either we aren't in SSI mode, or it failed.
 	if (empty($db_connection))
-		$db_connection = smf_db_initiate($db_server, $db_name, $db_user, $db_passwd, $db_prefix, array('persist' => $db_persist, 'dont_select_db' => SMF == 'SSI'));
+	{
+		$options = array_merge($db_options, array('persist' => $db_persist, 'dont_select_db' => SMF == 'SSI'));
+
+		$db_connection = smf_db_initiate($db_server, $db_name, $db_user, $db_passwd, $db_prefix, $options);
+	}
 
 	// Safe guard here, if there isn't a valid connection lets put a stop to it.
 	if (!$db_connection)
@@ -2693,12 +2728,12 @@ function loadDatabase()
 /**
  * Try to retrieve a cache entry. On failure, call the appropriate function.
  *
- * @param string $key
- * @param string $file
- * @param string $function
- * @param array $params
- * @param int $level = 1
- * @return string
+ * @param string $key The key for this entry
+ * @param string $file The file associated with this entry
+ * @param string $function The function to call
+ * @param array $params Parameters to be passed to the specified function
+ * @param int $level The cache level
+ * @return string The cached data
  */
 function cache_quick_get($key, $file, $function, $params, $level = 1)
 {
@@ -2741,17 +2776,15 @@ function cache_quick_get($key, $file, $function, $params, $level = 1)
  * - It may "miss" so shouldn't be depended on
  * - Uses the cache engine chosen in the ACP and saved in settings.php
  * - It supports:
- *     Turck MMCache: http://turck-mmcache.sourceforge.net/index_old.html#api
  *     Xcache: http://xcache.lighttpd.net/wiki/XcacheApi
  *     memcache: http://www.php.net/memcache
  *     APC: http://www.php.net/apc
- *     eAccelerator: http://bart.eaccelerator.net/doc/phpdoc/
  *     Zend: http://files.zend.com/help/Zend-Platform/output_cache_functions.htm
  *     Zend: http://files.zend.com/help/Zend-Platform/zend_cache_functions.htm
  *
- * @param string $key
- * @param mixed $value
- * @param int $ttl = 120
+ * @param string $key A key for this value
+ * @param mixed $value The data to cache
+ * @param int $ttl How long (in seconds) the data should be cached for
  */
 function cache_put_data($key, $value, $ttl = 120)
 {
@@ -2785,36 +2818,6 @@ function cache_put_data($key, $value, $ttl = 120)
 					return;
 
 				memcache_set($memcached, $key, $value, 0, $ttl);
-			}
-			break;
-		case 'eaccelerator':
-			// eAccelerator...
-			if (function_exists('eaccelerator_put'))
-			{
-				if (mt_rand(0, 10) == 1)
-					eaccelerator_gc();
-
-				if ($value === null)
-					@eaccelerator_rm($key);
-				else
-					eaccelerator_put($key, $value, $ttl);
-			}
-			break;
-		case 'mmcache':
-			// Turck MMCache?
-			if (function_exists('mmcache_put'))
-			{
-				if (mt_rand(0, 10) == 1)
-					mmcache_gc();
-
-				if ($value === null)
-					@mmcache_rm($key);
-				else
-				{
-					mmcache_lock($key);
-					mmcache_put($key, $value, $ttl);
-					mmcache_unlock($key);
-				}
 			}
 			break;
 		case 'apc':
@@ -2872,9 +2875,9 @@ function cache_put_data($key, $value, $ttl = 120)
  * - It may often "miss", so shouldn't be depended on.
  * - It supports the same as cache_put_data().
  *
- * @param string $key
- * @param int $ttl = 120
- * @return string
+ * @param string $key The key for the value to retrieve
+ * @param int $ttl The maximum age of the cached data
+ * @return string The cached data or null if nothing was loaded
  */
 function cache_get_data($key, $ttl = 120)
 {
@@ -2909,16 +2912,6 @@ function cache_get_data($key, $ttl = 120)
 				$value = (function_exists('memcache_get')) ? memcache_get($cache['connection'], $key) : memcached_get($cache['connection'], $key);
 			}
 			break;
-		case 'eaccelerator':
-			// Again, eAccelerator.
-			if (function_exists('eaccelerator_get'))
-				$value = eaccelerator_get($key);
-			break;
-		case 'mmcache':
-			// The older, but ever-stable, Turck MMCache...
-			if (function_exists('mmcache_get'))
-				$value = mmcache_get($key);
-			break;
 		case 'apc':
 			// This is the free APC from PECL.
 			if (function_exists('apc_fetch'))
@@ -2927,7 +2920,7 @@ function cache_get_data($key, $ttl = 120)
 		case 'zend':
 			// Zend's pricey stuff.
 			if (function_exists('zend_shm_cache_fetch'))
-				$value = zend_shm_cache_fetch('SMF::' . $key, $ttl);
+				$value = zend_shm_cache_fetch('SMF::' . $key);
 			elseif (function_exists('output_cache_get'))
 				$value = output_cache_get($key, $ttl);
 			break;
@@ -2969,7 +2962,7 @@ function cache_get_data($key, $ttl = 120)
  * - It attempts to connect to a random server in the cache_memcached setting.
  * - It recursively calls itself up to $level times.
  *
- * @param int $level = 3
+ * @param int $level The maximum number of times to call this function recursively
  */
 function get_memcached_server($level = 3)
 {

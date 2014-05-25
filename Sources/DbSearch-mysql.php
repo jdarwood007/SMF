@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -35,7 +35,8 @@ function db_search_init()
 /**
  * This function will tell you whether this database type supports this search type.
  *
- * @param string $search_type
+ * @param string $search_type The search type.
+ * @return boolean Whether or not the specified search type is supported by this db system
  */
 function smf_db_search_support($search_type)
 {
@@ -47,7 +48,7 @@ function smf_db_search_support($search_type)
 /**
  * Highly specific function, to create the custom word index table.
  *
- * @param $size
+ * @param string $size The size of the desired index.
  */
 function smf_db_create_word_search($size)
 {

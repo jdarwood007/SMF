@@ -9,7 +9,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -23,7 +23,7 @@ if (!defined('SMF'))
  */
 function ManageMail()
 {
-	global $context, $txt, $scripturl, $modSettings, $sourcedir;
+	global $context, $txt, $sourcedir;
 
 	// You need to be an admin to edit settings!
 	isAllowedTo('admin_forum');
@@ -65,13 +65,13 @@ function ManageMail()
  */
 function BrowseMailQueue()
 {
-	global $scripturl, $context, $modSettings, $txt, $smcFunc;
+	global $scripturl, $context, $txt, $smcFunc;
 	global $sourcedir;
 
 	// First, are we deleting something from the queue?
 	if (isset($_REQUEST['delete']))
 	{
-		checkSession('post');
+		checkSession();
 
 		$smcFunc['db_query']('', '
 			DELETE FROM {db_prefix}mail_queue
@@ -116,7 +116,7 @@ function BrowseMailQueue()
 				'data' => array(
 					'function' => create_function('$rowData', '
 						global $smcFunc;
-						return $smcFunc[\'strlen\']($rowData[\'subject\']) > 50 ? sprintf(\'%1$s...\', htmlspecialchars($smcFunc[\'substr\']($rowData[\'subject\'], 0, 47))) : htmlspecialchars($rowData[\'subject\']);
+						return $smcFunc[\'strlen\']($rowData[\'subject\']) > 50 ? sprintf(\'%1$s...\', $smcFunc[\'htmlspecialchars\']($smcFunc[\'substr\']($rowData[\'subject\'], 0, 47))) : $smcFunc[\'htmlspecialchars\']($rowData[\'subject\']);
 					'),
 					'class' => 'smalltext',
 				),
@@ -181,11 +181,11 @@ function BrowseMailQueue()
 			),
 			'check' => array(
 				'header' => array(
-					'value' => '<input type="checkbox" onclick="invertAll(this, this.form);" class="input_check" />',
+					'value' => '<input type="checkbox" onclick="invertAll(this, this.form);" class="input_check">',
 				),
 				'data' => array(
 					'function' => create_function('$rowData', '
-						return \'<input type="checkbox" name="delete[]" value="\' . $rowData[\'id_mail\'] . \'" class="input_check" />\';
+						return \'<input type="checkbox" name="delete[]" value="\' . $rowData[\'id_mail\'] . \'" class="input_check">\';
 					'),
 					'class' => 'smalltext',
 				),
@@ -199,7 +199,7 @@ function BrowseMailQueue()
 		'additional_rows' => array(
 			array(
 				'position' => 'bottom_of_list',
-				'value' => '<input type="submit" name="delete_redirects" value="' . $txt['quickmod_delete_selected'] . '" onclick="return confirm(\'' . $txt['quickmod_confirm'] . '\');" class="button_submit" /><a class="button_link" href="' . $scripturl . '?action=admin;area=mailqueue;sa=clear;' . $context['session_var'] . '=' . $context['session_id'] . '" onclick="return confirm(\'' . $txt['mailqueue_clear_list_warning'] . '\');">' . $txt['mailqueue_clear_list'] . '</a> ',
+				'value' => '<input type="submit" name="delete_redirects" value="' . $txt['quickmod_delete_selected'] . '" onclick="return confirm(\'' . $txt['quickmod_confirm'] . '\');" class="button_submit"><a class="button_link" href="' . $scripturl . '?action=admin;area=mailqueue;sa=clear;' . $context['session_var'] . '=' . $context['session_id'] . '" onclick="return confirm(\'' . $txt['mailqueue_clear_list_warning'] . '\');">' . $txt['mailqueue_clear_list'] . '</a> ',
 			),
 		),
 	);
@@ -278,7 +278,7 @@ function list_getMailQueueSize()
  */
 function ModifyMailSettings($return_config = false)
 {
-	global $txt, $scripturl, $context, $settings, $modSettings, $txtBirthdayEmails;
+	global $txt, $scripturl, $context, $modSettings, $txtBirthdayEmails;
 
 	loadLanguage('EmailTemplates');
 
@@ -298,7 +298,6 @@ function ModifyMailSettings($return_config = false)
 
 	$config_vars = array(
 			// Mail queue stuff, this rocks ;)
-			array('check', 'mail_queue'),
 			array('int', 'mail_limit'),
 			array('int', 'mail_quantity'),
 		'',
@@ -344,7 +343,7 @@ function ModifyMailSettings($return_config = false)
 	prepareDBSettingContext($config_vars);
 
 	$context['settings_insert_above'] = '
-	<script type="text/javascript"><!-- // --><![CDATA[
+	<script><!-- // --><![CDATA[
 		var bDay = {';
 
 	$i = 0;

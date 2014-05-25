@@ -9,7 +9,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -26,7 +26,8 @@ if (!defined('SMF'))
 function ModifyProfile($post_errors = array())
 {
 	global $txt, $scripturl, $user_info, $context, $sourcedir, $user_profile, $cur_profile;
-	global $modSettings, $memberContext, $profile_vars, $smcFunc, $post_errors, $options, $user_settings;
+	global $modSettings, $memberContext, $profile_vars, $post_errors, $user_settings;
+	global $db_show_debug;
 
 	// Don't reload this as we may have processed error strings.
 	if (empty($post_errors))
@@ -41,9 +42,13 @@ function ModifyProfile($post_errors = array())
 	// ... or by id_member?
 	elseif (!empty($_REQUEST['u']))
 		$memberResult = loadMemberData((int) $_REQUEST['u'], false, 'profile');
-	// If it was just ?action=profile, edit your own profile.
+	// If it was just ?action=profile, edit your own profile, but only if you're not a guest.
 	else
+	{
+		// Members only...
+		is_not_guest();
 		$memberResult = loadMemberData($user_info['id'], false, 'profile');
+	}
 
 	// Check if loadMemberData() has returned a valid result.
 	if (!is_array($memberResult))
@@ -61,6 +66,11 @@ function ModifyProfile($post_errors = array())
 	// Is this the profile of the user himself or herself?
 	$context['user']['is_owner'] = $memID == $user_info['id'];
 
+	// Group management isn't actually a permission. But we need it to be for this, so we need a phantom permission.
+	// And we care about what the current user can do, not what the user whose profile it is.
+	if ($user_info['mod_cache']['gq'] != '0=1')
+		$user_info['permissions'][] = 'approve_group_requests';
+
 	/* Define all the sections within the profile area!
 		We start by defining the permission required - then SMF takes this and turns it into the relevant context ;)
 		Possible fields:
@@ -72,9 +82,10 @@ function ModifyProfile($post_errors = array())
 				string $label:		Text string that will be used to show the area in the menu.
 				string $file:		Optional text string that may contain a file name that's needed for inclusion in order to display the area properly.
 				string $custom_url:	Optional href for area.
-				string $function:	Function to execute for this section.
+				string $function:	Function to execute for this section. Can be a call to an static method: class::method
+				string $class		If your function is a method, set the class field with your class's name and SMF will create a new instance for it.
 				bool $enabled:		Should area be shown?
-				string $sc:		Session check validation to do on save - note without this save will get unset - if set.
+				string $sc:			Session check validation to do on save - note without this save will get unset - if set.
 				bool $hidden:		Does this not actually appear on the menu?
 				bool $password:		Whether to require the user's password in order to save the data in the area.
 				array $subsections:	Array of subsections, in order of appearance.
@@ -88,49 +99,70 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['summary'],
 					'file' => 'Profile-View.php',
 					'function' => 'summary',
+					'icon' => 'administration.png',
 					'permission' => array(
-						'own' => 'profile_view_own',
-						'any' => 'profile_view_any',
+						'own' => 'is_not_guest',
+						'any' => 'profile_view',
 					),
+				),
+				'popup' => array(
+					'function' => 'profile_popup',
+					'permission' => array(
+						'own' => 'is_not_guest',
+						'any' => array(),
+					),
+					'select' => 'summary',
+				),
+				'alerts_popup' => array(
+					'function' => 'alerts_popup',
+					'permission' => array(
+						'own' => 'is_not_guest',
+						'any' => array(),
+					),
+					'select' => 'summary',
 				),
 				'statistics' => array(
 					'label' => $txt['statPanel'],
 					'file' => 'Profile-View.php',
 					'function' => 'statPanel',
+					'icon' => 'stats.png',
 					'permission' => array(
-						'own' => 'profile_view_own',
-						'any' => 'profile_view_any',
+						'own' => 'is_not_guest',
+						'any' => 'profile_view',
 					),
 				),
 				'showposts' => array(
 					'label' => $txt['showPosts'],
 					'file' => 'Profile-View.php',
 					'function' => 'showPosts',
+					'icon' => 'posts.png',
 					'subsections' => array(
-						'messages' => array($txt['showMessages'], array('profile_view_own', 'profile_view_any')),
-						'topics' => array($txt['showTopics'], array('profile_view_own', 'profile_view_any')),
-						'unwatchedtopics' => array($txt['showUnwatched'], array('profile_view_own', 'profile_view_any'), 'enabled' => $modSettings['enable_unwatch'] && $context['user']['is_owner']),
-						'attach' => array($txt['showAttachments'], array('profile_view_own', 'profile_view_any')),
+						'messages' => array($txt['showMessages'], array('is_not_guest', 'profile_view')),
+						'topics' => array($txt['showTopics'], array('is_not_guest', 'profile_view')),
+						'unwatchedtopics' => array($txt['showUnwatched'], array('is_not_guest', 'profile_view'), 'enabled' => $modSettings['enable_unwatch'] && $context['user']['is_owner']),
+						'attach' => array($txt['showAttachments'], array('is_not_guest', 'profile_view')),
 					),
 					'permission' => array(
-						'own' => 'profile_view_own',
-						'any' => 'profile_view_any',
+						'own' => 'is_not_guest',
+						'any' => 'profile_view',
 					),
 				),
 				'showdrafts' => array(
 					'label' => $txt['drafts_show'],
 					'file' => 'Drafts.php',
 					'function' => 'showProfileDrafts',
+					'icon' => 'drafts.png',
 					'enabled' => !empty($modSettings['drafts_post_enabled']) && $context['user']['is_owner'],
 					'permission' => array(
-						'own' => 'profile_view_own',
-						'any' =>  array(),
+						'own' => 'is_not_guest',
+						'any' => array(),
 					),
 				),
 				'permissions' => array(
 					'label' => $txt['showPermissions'],
 					'file' => 'Profile-View.php',
 					'function' => 'showPermissions',
+					'icon' => 'permissions.png',
 					'permission' => array(
 						'own' => 'manage_permissions',
 						'any' => 'manage_permissions',
@@ -140,60 +172,66 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['trackUser'],
 					'file' => 'Profile-View.php',
 					'function' => 'tracking',
+					'icon' => 'logs.png',
 					'subsections' => array(
 						'activity' => array($txt['trackActivity'], 'moderate_forum'),
 						'ip' => array($txt['trackIP'], 'moderate_forum'),
-						'edits' => array($txt['trackEdits'], 'moderate_forum'),
-						'logins' => array($txt['trackLogins'], array('profile_view_own', 'moderate_forum')),
+						'edits' => array($txt['trackEdits'], 'moderate_forum', 'enabled' => !empty($modSettings['userlog_enabled'])),
+						'groupreq' => array($txt['trackGroupRequests'], 'approve_group_requests', 'enabled' => !empty($modSettings['show_group_membership'])),
+						'logins' => array($txt['trackLogins'], 'moderate_forum'),
 					),
 					'permission' => array(
-						'own' => 'moderate_forum',
-						'any' => 'moderate_forum',
+						'own' => array('moderate_forum', 'approve_group_requests'),
+						'any' => array('moderate_forum', 'approve_group_requests'),
 					),
 				),
 				'viewwarning' => array(
 					'label' => $txt['profile_view_warnings'],
-					'enabled' => in_array('w', $context['admin_features']) && $modSettings['warning_settings'][0] == 1 && $cur_profile['warning'] && (!empty($modSettings['warning_show']) && ($context['user']['is_owner'] || $modSettings['warning_show'] == 2)),
+					'enabled' => $modSettings['warning_settings'][0] == 1 && $cur_profile['warning'],
 					'file' => 'Profile-View.php',
 					'function' => 'viewWarning',
+					'icon' => 'warning.png',
 					'permission' => array(
-						'own' => 'profile_view_own',
-						'any' => 'issue_warning',
+						'own' => array('profile_warning_own', 'profile_warning_any', 'issue_warning', 'moderate_forum'),
+						'any' => array('profile_warning_any', 'issue_warning', 'moderate_forum'),
 					),
 				),
 			),
 		),
 		'edit_profile' => array(
-			'title' => $txt['profileEdit'],
+			'title' => $txt['forumprofile'],
 			'areas' => array(
 				'account' => array(
 					'label' => $txt['account'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'account',
+					'icon' => 'maintain.png',
 					'enabled' => $context['user']['is_admin'] || ($cur_profile['id_group'] != 1 && !in_array(1, explode(',', $cur_profile['additional_groups']))),
 					'sc' => 'post',
 					'token' => 'profile-ac%u',
 					'password' => true,
 					'permission' => array(
-						'own' => array('profile_identity_any', 'profile_identity_own', 'manage_membergroups'),
-						'any' => array('profile_identity_any', 'manage_membergroups'),
+						'own' => array('profile_identity_any', 'profile_identity_own', 'profile_password_any', 'profile_password_own', 'manage_membergroups'),
+						'any' => array('profile_identity_any', 'profile_password_any', 'manage_membergroups'),
 					),
 				),
 				'forumprofile' => array(
 					'label' => $txt['forumprofile'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'forumProfile',
+					'icon' => 'members.png',
 					'sc' => 'post',
 					'token' => 'profile-fp%u',
 					'permission' => array(
-						'own' => array('profile_extra_any', 'profile_extra_own', 'profile_title_own', 'profile_title_any'),
-						'any' => array('profile_extra_any', 'profile_title_any'),
+						'own' => array('profile_forum_any', 'profile_forum_own'),
+						'any' => array('profile_forum_any'),
 					),
 				),
 				'theme' => array(
 					'label' => $txt['theme'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'theme',
+					'icon' => 'features.png',
 					'sc' => 'post',
 					'token' => 'profile-th%u',
 					'permission' => array(
@@ -205,44 +243,39 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['authentication'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'authentication',
-					'enabled' => !empty($modSettings['enableOpenID']) || !empty($cur_profile['openid_uri']),
+					'icon' => 'openid.png',
+					'enabled' => !empty($modSettings['enableOpenID']) && ($modSettings['enableOpenID'] == 1 || !empty($cur_profile['openid_uri'])),
 					'sc' => 'post',
 					'token' => 'profile-au%u',
 					'hidden' => empty($modSettings['enableOpenID']) && empty($cur_profile['openid_uri']),
 					'password' => true,
 					'permission' => array(
-						'own' => array('profile_identity_any', 'profile_identity_own'),
-						'any' => array('profile_identity_any'),
+						'own' => array('profile_password_any', 'profile_password_own'),
+						'any' => array('profile_password_any'),
 					),
 				),
 				'notification' => array(
 					'label' => $txt['notification'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'notification',
+					'icon' => 'mail.png',
 					'sc' => 'post',
-					'token' => 'profile-nt%u',
-					'permission' => array(
-						'own' => array('profile_extra_any', 'profile_extra_own'),
-						'any' => array('profile_extra_any'),
+					//'token' => 'profile-nt%u', This is not checked here. We do it in the function itself - but if it was checked, this is what it'd be.
+					'subsections' => array(
+						'alerts' => array($txt['alert_prefs'], array('is_not_guest', 'profile_extra_any')),
+						'topics' => array($txt['watched_topics'], array('is_not_guest', 'profile_extra_any')),
+						'boards' => array($txt['watched_boards'], array('is_not_guest', 'profile_extra_any')),
 					),
-				),
-				// Without profile_extra_own, settings are accessible from the PM section.
-				'pmprefs' => array(
-					'label' => $txt['pmprefs'],
-					'file' => 'Profile-Modify.php',
-					'function' => 'pmprefs',
-					'enabled' => allowedTo(array('profile_extra_own', 'profile_extra_any')),
-					'sc' => 'post',
-					'token' => 'profile-pm%u',
 					'permission' => array(
-						'own' => array('pm_read'),
-						'any' => array('profile_extra_any'),
+						'own' => array('is_not_guest'),
+						'any' => array('profile_extra_any'), // If you change this, update it in the functions themselves; we delegate all saving checks there.
 					),
 				),
 				'ignoreboards' => array(
 					'label' => $txt['ignoreboards'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'ignoreboards',
+					'icon' => 'boards.png',
 					'enabled' => !empty($modSettings['allow_ignore_boards']),
 					'sc' => 'post',
 					'token' => 'profile-ib%u',
@@ -255,9 +288,9 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['editBuddyIgnoreLists'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'editBuddyIgnoreLists',
+					'icon' => 'frenemy.png',
 					'enabled' => !empty($modSettings['enable_buddylist']) && $context['user']['is_owner'],
 					'sc' => 'post',
-					'token' => 'profile-bl%u',
 					'subsections' => array(
 						'buddies' => array($txt['editBuddies']),
 						'ignore' => array($txt['editIgnoreList']),
@@ -271,12 +304,13 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['groupmembership'],
 					'file' => 'Profile-Modify.php',
 					'function' => 'groupMembership',
+					'icon' => 'membergroups.png',
 					'enabled' => !empty($modSettings['show_group_membership']) && $context['user']['is_owner'],
 					'sc' => 'request',
 					'token' => 'profile-gm%u',
 					'token_type' => 'request',
 					'permission' => array(
-						'own' => array('profile_view_own'),
+						'own' => array('is_not_guest'),
 						'any' => array('manage_membergroups'),
 					),
 				),
@@ -288,16 +322,27 @@ function ModifyProfile($post_errors = array())
 				'sendpm' => array(
 					'label' => $txt['profileSendIm'],
 					'custom_url' => $scripturl . '?action=pm;sa=send',
+					'icon' => 'personal_message.png',
 					'permission' => array(
 						'own' => array(),
 						'any' => array('pm_send'),
 					),
 				),
+				'report' => array(
+					'label' => $txt['report_profile'],
+					'custom_url' => $scripturl . '?action=reporttm;' . $context['session_var'] . '=' . $context['session_id'],
+					'icon' => 'warning.png',
+					'permission' => array(
+						'own' => array(),
+						'any' => array('moderate_forum', 'report_user'),
+					),
+				),
 				'issuewarning' => array(
 					'label' => $txt['profile_issue_warning'],
-					'enabled' => in_array('w', $context['admin_features']) && $modSettings['warning_settings'][0] == 1,
+					'enabled' => $modSettings['warning_settings'][0] == 1,
 					'file' => 'Profile-Actions.php',
 					'function' => 'issueWarning',
+					'icon' => 'warning.png',
 					'token' => 'profile-iw%u',
 					'permission' => array(
 						'own' => array(),
@@ -307,6 +352,7 @@ function ModifyProfile($post_errors = array())
 				'banuser' => array(
 					'label' => $txt['profileBanUser'],
 					'custom_url' => $scripturl . '?action=admin;area=ban;sa=add',
+					'icon' => 'ban.png',
 					'enabled' => $cur_profile['id_group'] != 1 && !in_array(1, explode(',', $cur_profile['additional_groups'])),
 					'permission' => array(
 						'own' => array(),
@@ -317,9 +363,10 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['subscriptions'],
 					'file' => 'Profile-Actions.php',
 					'function' => 'subscriptions',
+					'icon' => 'paid.png',
 					'enabled' => !empty($modSettings['paid_enabled']),
 					'permission' => array(
-						'own' => array('profile_view_own'),
+						'own' => array('is_not_guest'),
 						'any' => array('moderate_forum'),
 					),
 				),
@@ -327,6 +374,7 @@ function ModifyProfile($post_errors = array())
 					'label' => $txt['deleteAccount'],
 					'file' => 'Profile-Actions.php',
 					'function' => 'deleteAccount',
+					'icon' => 'members_delete.png',
 					'sc' => 'post',
 					'token' => 'profile-da%u',
 					'password' => true,
@@ -338,9 +386,10 @@ function ModifyProfile($post_errors = array())
 				'activateaccount' => array(
 					'file' => 'Profile-Actions.php',
 					'function' => 'activateAccount',
+					'icon' => 'regcenter.png',
 					'sc' => 'get',
 					'token' => 'profile-aa%u',
-					'select' => 'summary',
+					'token_type' => 'get',
 					'permission' => array(
 						'own' => array(),
 						'any' => array('moderate_forum'),
@@ -401,6 +450,7 @@ function ModifyProfile($post_errors = array())
 
 	// Set the selected item - now it's been validated.
 	$current_area = $profile_include_data['current_area'];
+	$current_sa = $profile_include_data['current_subsection'];
 	$context['menu_item_selected'] = $current_area;
 
 	// Before we go any further, let's work on the area we've said is valid. Note this is done here just in case we ever compromise the menu function in error!
@@ -479,8 +529,9 @@ function ModifyProfile($post_errors = array())
 	if (isset($profile_include_data['file']))
 		require_once($sourcedir . '/' . $profile_include_data['file']);
 
-	// Make sure that the area function does exist!
-	if (!isset($profile_include_data['function']) || !function_exists($profile_include_data['function']))
+	// Make sure that the area function/method does exist!
+	$exists = (isset($profile_include_data['class']) ? 'class' : 'function') .'_exists';
+	if (!isset($profile_include_data['function']) || !$exists(isset($profile_include_data['class']) ? $profile_include_data['class'] : $profile_include_data['function']))
 	{
 		destroyMenu();
 		fatal_lang_error('no_access', false);
@@ -515,6 +566,9 @@ function ModifyProfile($post_errors = array())
 	// If we're in wireless then we have a cut down template...
 	if (WIRELESS && $context['sub_template'] == 'summary' && WIRELESS_PROTOCOL != 'wap')
 		$context['sub_template'] = WIRELESS_PROTOCOL . '_profile';
+
+	if (!WIRELESS)
+		loadJavascriptFile('profile.js', array('default_theme' => true, 'defer' => false), 'smf_profile');
 
 	// These will get populated soon!
 	$post_errors = array();
@@ -587,7 +641,7 @@ function ModifyProfile($post_errors = array())
 		{
 			authentication($memID, true);
 		}
-		elseif (in_array($current_area, array('account', 'forumprofile', 'theme', 'pmprefs')))
+		elseif (in_array($current_area, array('account', 'forumprofile', 'theme')))
 			saveProfileFields();
 		else
 		{
@@ -666,16 +720,141 @@ function ModifyProfile($post_errors = array())
 	}
 	// If it's you then we should redirect upon save.
 	elseif (!empty($profile_vars) && $context['user']['is_owner'] && !$context['do_preview'])
-		redirectexit('action=profile;area=' . $current_area . ';updated');
+		redirectexit('action=profile;area=' . $current_area . (!empty($current_sa) ? ';sa=' . $current_sa : '') . ';updated');
 	elseif (!empty($force_redirect))
 		redirectexit('action=profile' . ($context['user']['is_owner'] ? '' : ';u=' . $memID) . ';area=' . $current_area);
 
-	// Call the appropriate subaction function.
-	$profile_include_data['function']($memID);
+	// Is this a "real" method?
+	if (isset($profile_include_data['class']) && !empty($profile_include_data['class']) && is_string($profile_include_data['class']))
+	{
+		// Is there an instance already? nope? then create it!
+		if (empty($context['instances'][$profile_include_data['class']]) || !($context['instances'][$profile_include_data['class']] instanceof $profile_include_data['class']))
+		{
+			$context['instances'][$profile_include_data['class']] = new $profile_include_data['class'];
+
+			// Add another one to the list.
+			if ($db_show_debug === true)
+			{
+				if (!isset($context['debug']['instances']))
+					$context['debug']['instances'] = array();
+
+				$context['debug']['instances'][$profile_include_data['class']] = $profile_include_data['class'];
+			}
+		}
+
+		$call = array($context['instances'][$profile_include_data['class']], $profile_include_data['function']);
+	}
+
+	// A static one or more likely, a plain good old function.
+	else
+		$call = $profile_include_data['function'];
+
+	// Is it valid?
+	if (is_callable($call))
+		call_user_func($call, $memID);
 
 	// Set the page title if it's not already set...
 	if (!isset($context['page_title']))
 		$context['page_title'] = $txt['profile'] . (isset($txt[$current_area]) ? ' - ' . $txt[$current_area] : '');
+}
+
+/**
+ * Set up the requirements for the profile popup - the area that is shown as the popup menu for the current user.
+ *
+ * @param int $memID
+ */
+function profile_popup($memID)
+{
+	global $context, $scripturl, $txt, $db_show_debug;
+
+	// We do not want to output debug information here.
+	$db_show_debug = false;
+
+	// We only want to output our little layer here.
+	$context['template_layers'] = array();
+
+	// This list will pull from the master list wherever possible. Hopefully it should be clear what does what.
+	$profile_items = array(
+		array(
+			'menu' => 'info',
+			'area' => 'summary',
+			'title' => $txt['popup_summary'],
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'account',
+		),
+		array(
+			'menu' => 'info',
+			'area' => 'showposts',
+			'title' => $txt['popup_showposts'],
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'forumprofile',
+			'title' => $txt['forumprofile'],
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'notification',
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'theme',
+			'title' => $txt['theme'],
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'ignoreboards',
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'lists',
+			'url' => $scripturl . '?action=profile;area=lists;sa=ignore',
+			'title' => $txt['popup_ignore'],
+		),
+		array(
+			'menu' => 'edit_profile',
+			'area' => 'groupmembership',
+		),
+		array(
+			'menu' => 'profile_action',
+			'area' => 'subscriptions',
+		),
+	);
+
+	call_integration_hook('integrate_profile_popup', array(&$profile_items));
+
+	// Now check if these items are available
+	$context['profile_items'] = array();
+	$menu_context = &$context[$context['profile_menu_name']]['sections'];
+	foreach ($profile_items as $item)
+	{
+		if (isset($menu_context[$item['menu']]['areas'][$item['area']]))
+		{
+			$context['profile_items'][] = $item;
+		}
+	}
+}
+
+/**
+ * Set up the requirements for the alerts popup - the area that shows all the alerts just quickly for the current user.
+ *
+ * @param int $memID
+ */
+function alerts_popup($memID)
+{
+	global $context, $scripturl, $txt, $sourcedir, $db_show_debug;
+
+	// We do not want to output debug information here.
+	$db_show_debug = false;
+
+	// We only want to output our little layer here.
+	$context['template_layers'] = array();
+
+	// Now fetch me my unread alerts, pronto!
+	require_once($sourcedir . '/Profile-View.php');
+	$context['unread_alerts'] = fetch_alerts($memID, false);
 }
 
 /**
@@ -707,10 +886,11 @@ function loadCustomFields($memID, $area = 'summary')
 	// Load all the relevant fields - and data.
 	$request = $smcFunc['db_query']('', '
 		SELECT
-			col_name, field_name, field_desc, field_type, show_reg, field_length, field_options,
+			col_name, field_name, field_desc, field_type, field_order, show_reg, field_length, field_options,
 			default_value, bbc, enclose, placement
 		FROM {db_prefix}custom_fields
-		WHERE ' . $where,
+		WHERE ' . $where .'
+		ORDER BY field_order',
 		array(
 			'area' => $area,
 		)
@@ -736,17 +916,17 @@ function loadCustomFields($memID, $area = 'summary')
 		if ($row['field_type'] == 'check')
 		{
 			$true = (!$exists && $row['default_value']) || $value;
-			$input_html = '<input type="checkbox" name="customfield[' . $row['col_name'] . ']" ' . ($true ? 'checked="checked"' : '') . ' class="input_check" />';
+			$input_html = '<input type="checkbox" name="customfield[' . $row['col_name'] . ']" id="customfield[' . $row['col_name'] . ']"' . ($true ? ' checked' : '') . ' class="input_check">';
 			$output_html = $true ? $txt['yes'] : $txt['no'];
 		}
 		elseif ($row['field_type'] == 'select')
 		{
-			$input_html = '<select name="customfield[' . $row['col_name'] . ']"><option value="-1"></option>';
+			$input_html = '<select name="customfield[' . $row['col_name'] . ']" id="customfield[' . $row['col_name'] . ']"><option value="-1"></option>';
 			$options = explode(',', $row['field_options']);
 			foreach ($options as $k => $v)
 			{
 				$true = (!$exists && $row['default_value'] == $v) || $value == $v;
-				$input_html .= '<option value="' . $k . '"' . ($true ? ' selected="selected"' : '') . '>' . $v . '</option>';
+				$input_html .= '<option value="' . $k . '"' . ($true ? ' selected' : '') . '>' . $v . '</option>';
 				if ($true)
 					$output_html = $v;
 			}
@@ -760,7 +940,7 @@ function loadCustomFields($memID, $area = 'summary')
 			foreach ($options as $k => $v)
 			{
 				$true = (!$exists && $row['default_value'] == $v) || $value == $v;
-				$input_html .= '<label for="customfield_' . $row['col_name'] . '_' . $k . '"><input type="radio" name="customfield[' . $row['col_name'] . ']" class="input_radio" id="customfield_' . $row['col_name'] . '_' . $k . '" value="' . $k . '" ' . ($true ? 'checked="checked"' : '') . ' />' . $v . '</label><br />';
+				$input_html .= '<label for="customfield_' . $row['col_name'] . '_' . $k . '"><input type="radio" name="customfield[' . $row['col_name'] . ']" class="input_radio" id="customfield_' . $row['col_name'] . '_' . $k . '" value="' . $k . '"' . ($true ? ' checked' : '') . '>' . $v . '</label><br>';
 				if ($true)
 					$output_html = $v;
 			}
@@ -768,12 +948,12 @@ function loadCustomFields($memID, $area = 'summary')
 		}
 		elseif ($row['field_type'] == 'text')
 		{
-			$input_html = '<input type="text" name="customfield[' . $row['col_name'] . ']" ' . ($row['field_length'] != 0 ? 'maxlength="' . $row['field_length'] . '"' : '') . ' size="' . ($row['field_length'] == 0 || $row['field_length'] >= 50 ? 50 : ($row['field_length'] > 30 ? 30 : ($row['field_length'] > 10 ? 20 : 10))) . '" value="' . $value . '" class="input_text" />';
+			$input_html = '<input type="text" name="customfield[' . $row['col_name'] . ']" id="customfield[' . $row['col_name'] . ']"' . ($row['field_length'] != 0 ? ' maxlength="' . $row['field_length'] . '"' : '') . ' size="' . ($row['field_length'] == 0 || $row['field_length'] >= 50 ? 50 : ($row['field_length'] > 30 ? 30 : ($row['field_length'] > 10 ? 20 : 10))) . '" value="' . $value . '" class="input_text"' . ($row['show_reg'] == 2 ? ' required' : '') . '>';
 		}
 		else
 		{
 			@list ($rows, $cols) = @explode(',', $row['default_value']);
-			$input_html = '<textarea name="customfield[' . $row['col_name'] . ']" ' . (!empty($rows) ? 'rows="' . $rows . '"' : '') . ' ' . (!empty($cols) ? 'cols="' . $cols . '"' : '') . '>' . $value . '</textarea>';
+			$input_html = '<textarea name="customfield[' . $row['col_name'] . ']" id="customfield[' . $row['col_name'] . ']"' . (!empty($rows) ? ' rows="' . $rows . '"' : '') . (!empty($cols) ? ' cols="' . $cols . '"' : '') . ($row['show_reg'] == 2 ? ' required' : '' ). '>' . $value . '</textarea>';
 		}
 
 		// Parse BBCode
@@ -781,7 +961,7 @@ function loadCustomFields($memID, $area = 'summary')
 			$output_html = parse_bbc($output_html);
 		elseif ($row['field_type'] == 'textarea')
 			// Allow for newlines at least
-			$output_html = strtr($output_html, array("\n" => '<br />'));
+			$output_html = strtr($output_html, array("\n" => '<br>'));
 
 		// Enclosing the user input within some other text?
 		if (!empty($row['enclose']) && !empty($output_html))
@@ -796,6 +976,7 @@ function loadCustomFields($memID, $area = 'summary')
 			'name' => $row['field_name'],
 			'desc' => $row['field_desc'],
 			'type' => $row['field_type'],
+			'order' => $row['field_order'],
 			'input_html' => $input_html,
 			'output_html' => $output_html,
 			'placement' => $row['placement'],
@@ -803,7 +984,7 @@ function loadCustomFields($memID, $area = 'summary')
 			'value' => $value,
 			'show_reg' => $row['show_reg'],
 		);
-		$context['custom_fields_required'] = $context['custom_fields_required'] || $row['show_reg'];
+		$context['custom_fields_required'] = $context['custom_fields_required'] || $row['show_reg'] == 2;
 	}
 	$smcFunc['db_free_result']($request);
 

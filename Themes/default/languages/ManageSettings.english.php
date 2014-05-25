@@ -4,7 +4,6 @@
 global $scripturl;
 
 $txt['modSettings_desc'] = 'This page allows you to change the settings of features and basic options in your forum.  Please see the <a href="' . $scripturl . '?action=admin;area=theme;sa=list;th=%1$s;%3$s=%2$s">theme settings</a> for more options.  Click the help icons for more information about a setting.';
-$txt['security_settings_desc'] = 'This page allows you to set options specifically related to the security and moderation of your forum, including anti-spam options.';
 $txt['modification_settings_desc'] = 'This page contains settings added by any modifications to your forum';
 
 $txt['modification_no_misc_settings'] = 'There are no modifications installed that have added any settings to this area yet.';
@@ -15,9 +14,7 @@ $txt['enable_polls'] = 'Enable polls';
 $txt['polls_as_topics'] = 'Show existing polls as topics';
 $txt['allow_guestAccess'] = 'Allow guests to browse the forum';
 $txt['userLanguage'] = 'Enable user-selectable language support';
-$txt['allow_editDisplayName'] = 'Allow users to edit their displayed name';
 $txt['allow_hideOnline'] = 'Allow non-administrators to hide their online status';
-$txt['guest_hideContacts'] = 'Do not reveal contact details of members to guests';
 $txt['titlesEnable'] = 'Enable custom titles';
 $txt['enable_buddylist'] = 'Enable buddy/ignore lists';
 $txt['enable_unwatch'] = 'Enable unwatch topics';
@@ -37,6 +34,7 @@ $txt['disableTemplateEval'] = 'Disable evaluation of templates';
 $txt['databaseSession_enable'] = 'Use database driven sessions';
 $txt['databaseSession_loose'] = 'Allow browsers to go back to cached pages';
 $txt['databaseSession_lifetime'] = 'Seconds before an unused session timeout';
+$txt['error_log_desc'] = 'The error log, if enabled, will log every error encountered by users using your forum. This can be an invaluable aid to identifying forum problems.';
 $txt['enableErrorLogging'] = 'Enable error logging';
 $txt['enableErrorQueryLogging'] = 'Include database query in the error log';
 $txt['pruningOptions'] = 'Enable pruning of log entries';
@@ -57,7 +55,6 @@ $txt['securityDisable'] = 'Disable administration security';
 $txt['securityDisable_moderate'] = 'Disable moderation security';
 $txt['send_validation_onChange'] = 'Require reactivation after email change';
 $txt['approveAccountDeletion'] = 'Require admin approval when member deletes account';
-$txt['autoOptMaxOnline'] = 'Maximum users online when optimizing';
 $txt['autoFixDatabase'] = 'Automatically fix broken tables';
 $txt['allow_disableAnnounce'] = 'Allow users to disable announcements';
 $txt['disallow_sendBody'] = 'Don\'t allow post text in notifications';
@@ -83,18 +80,14 @@ $txt['todayMod'] = 'Enable shorthand date display';
 $txt['today_disabled'] = 'Disabled';
 $txt['today_only'] = 'Only Today';
 $txt['yesterday_today'] = 'Today &amp; Yesterday';
-$txt['topbottomEnable'] = 'Enable Go Up/Go Down buttons';
 $txt['onlineEnable'] = 'Show online/offline in posts and PMs';
-$txt['enableVBStyleLogin'] = 'Show a quick login on every page';
 $txt['defaultMaxMembers'] = 'Members per page in member list';
 $txt['timeLoadPageEnable'] = 'Display time taken to create every page';
 $txt['disableHostnameLookup'] = 'Disable hostname lookups';
 $txt['who_enabled'] = 'Enable who\'s online list';
-$txt['make_email_viewable'] = 'Allow viewable email addresses';
 $txt['meta_keywords'] = 'Meta keywords associated with forum';
 $txt['meta_keywords_note'] = 'For search engines. Leave blank for default.';
 $txt['settings_error'] = 'Warning: Updating of Settings.php failed, the settings cannot be saved.';
-$txt['core_settings_saved'] = 'The settings were successfully saved';
 
 $txt['karmaMode'] = 'Karma mode';
 $txt['karma_options'] = 'Disable karma|Enable karma total|Enable karma positive/negative';
@@ -108,13 +101,11 @@ $txt['karmaSmiteLabel'] = 'Karma smite label';
 $txt['caching_information'] = 'SMF supports caching through the use of accelerators. The currently supported accelerators include:
 <ul class="normallist">
 	<li>APC</li>
-	<li>eAccelerator</li>
-	<li>Turck MMCache</li>
 	<li>Memcached</li>
 	<li>Zend Platform/Performance Suite (Not Zend Optimizer)</li>
 	<li>XCache</li>
 </ul>
-Caching will work best if you have PHP compiled with one of the above optimizers, or have memcache available. If you do not have any optimizer installed SMF will do file based caching.';
+Caching will work best if you have PHP compiled with one of the above optimizers, or have memcached available. If you do not have any optimizer installed SMF will do file based caching.';
 $txt['detected_no_caching'] = '<strong class="alert">SMF has not been able to detect a compatible accelerator on your server.  File based caching can be used instead.</strong>';
 $txt['detected_accelerators'] = '<strong class="success">SMF has detected the following accelerators: %1$s</strong>';
 
@@ -124,12 +115,10 @@ $txt['cache_off'] = 'No caching';
 $txt['cache_level1'] = 'Level 1 Caching (Recommended)';
 $txt['cache_level2'] = 'Level 2 Caching';
 $txt['cache_level3'] = 'Level 3 Caching (Not Recommended)';
-$txt['cache_memcached'] = 'Memcache settings';
+$txt['cache_memcached'] = 'Memcached settings';
 $txt['cache_accelerator'] = 'Caching Accelerator';
 $txt['default_cache'] = 'SMF file based caching';
 $txt['apc_cache'] = 'APC';
-$txt['eAccelerator_cache'] = 'eAccelerator';
-$txt['mmcache_cache'] = 'Turck MMCache';
 $txt['memcached_cache'] = 'Memcached';
 $txt['zend_cache'] = 'Zend Platform/Performance Suite';
 $txt['xcache_cache'] = 'XCache';
@@ -161,7 +150,6 @@ $txt['posts_require_captcha_desc'] = '(0 for no limit, moderators are exempt)';
 $txt['search_enable_captcha'] = 'Require verification on all guest searches';
 $txt['setting_guests_require_captcha'] = 'Guests must pass verification when making a post';
 $txt['setting_guests_require_captcha_desc'] = '(Automatically set if you specify a minimum post count below)';
-$txt['guests_report_require_captcha'] = 'Guests must pass verification when reporting a post'; // Deprecated
 
 $txt['configure_verification_means'] = 'Configure Verification Methods';
 $txt['setting_qa_verification_number'] = 'Number of verification questions user must answer';
@@ -223,6 +211,7 @@ $txt['custom_profile_desc'] = 'From this page you can create your own custom pro
 $txt['custom_profile_active'] = 'Active';
 $txt['custom_profile_fieldname'] = 'Field Name';
 $txt['custom_profile_fieldtype'] = 'Field Type';
+$txt['custom_profile_fieldorder'] = 'Field Order';
 $txt['custom_profile_make_new'] = 'New Field';
 $txt['custom_profile_none'] = 'You have not created any custom profile fields yet!';
 $txt['custom_profile_icon'] = 'Icon';
@@ -248,6 +237,7 @@ $txt['custom_edit_registration_disable'] = 'No';
 $txt['custom_edit_registration_allow'] = 'Yes';
 $txt['custom_edit_registration_require'] = 'Yes, and require entry';
 $txt['custom_edit_display'] = 'Show on Topic View';
+$txt['custom_edit_mlist'] = 'Show on memberlist';
 $txt['custom_edit_picktype'] = 'Field Type';
 
 $txt['custom_edit_max_length'] = 'Maximum Length';
@@ -279,6 +269,9 @@ $txt['custom_edit_mask_regex'] = 'Regex (Advanced)';
 $txt['custom_edit_enclose'] = 'Show Enclosed Within Text (Optional)';
 $txt['custom_edit_enclose_desc'] = 'We <strong>strongly</strong> recommend to use an input mask to validate the input supplied by the user.';
 
+$txt['custom_edit_order_move'] = 'Move ';
+$txt['custom_edit_order_up'] = 'Up';
+$txt['custom_edit_order_down'] = 'Down';
 $txt['custom_edit_placement'] = 'Choose Placement';
 $txt['custom_edit_placement_standard'] = 'Standard (with title)';
 $txt['custom_edit_placement_withicons'] = 'With Icons';
@@ -287,33 +280,16 @@ $txt['custom_profile_placement'] = 'Placement';
 $txt['custom_profile_placement_standard'] = 'Standard';
 $txt['custom_profile_placement_withicons'] = 'With Icons';
 $txt['custom_profile_placement_abovesignature'] = 'Above Signature';
+$txt['custom_profile_placement_belowsignature'] = 'Below Signature';
+$txt['custom_profile_placement_below_avatar'] = 'Below Avatar';
+$txt['custom_profile_placement_above_name'] = 'Above Username';
+$txt['custom_profile_placement_bottom'] = 'Bottom poster info';
 
 // Use numeric entities in the string below!
 $txt['custom_edit_delete_sure'] = 'Are you sure you wish to delete this field - all related user data will be lost!';
 
 $txt['standard_profile_title'] = 'Standard Profile Fields';
 $txt['standard_profile_field'] = 'Field';
-
-$txt['core_settings_welcome_msg'] = 'Welcome to Your New Forum';
-$txt['core_settings_welcome_msg_desc'] = 'To get you started we suggest you select which of SMF\'s core features you want to enable. We\'d recommend only enabling with those features you need!';
-$txt['core_settings_item_cd'] = 'Calendar';
-$txt['core_settings_item_cd_desc'] = 'Enabling this feature will open up a selection of options to enable your users to view the calendar, add and review events, see users birthdates on a calendar and much, much more.';
-$txt['core_settings_item_k'] = 'Karma';
-$txt['core_settings_item_k_desc'] = 'Karma is a feature that shows the popularity of a member. Members, if allowed, can \'applaud\' or \'smite\' other members, which is how their popularity is calculated.';
-$txt['core_settings_item_ml'] = 'Moderation, Administration and User Logs';
-$txt['core_settings_item_ml_desc'] = 'Enable the moderation and administration logs to keep an audit trail of all the key actions taken on your forum. Also allows forum moderators to view a history of key changes a user makes to their profile.';
-$txt['core_settings_item_pm'] = 'Post Moderation';
-$txt['core_settings_item_pm_desc'] = 'Post moderation enables you to select groups and boards within which posts must be approved before they become public. Upon enabling this feature be sure to visit the permission section to set up the relevant permissions.';
-$txt['core_settings_item_ps'] = 'Paid Subscriptions';
-$txt['core_settings_item_ps_desc'] = 'Paid subscriptions allow users to pay for subscriptions to change membergroups within the forum and thus change their access rights.';
-$txt['core_settings_item_sp'] = 'Search Engine Tracking';
-$txt['core_settings_item_sp_desc'] = 'Enabling this feature will allow administrators to track search engines as they index your forum.';
-$txt['core_settings_item_w'] = 'Warning System';
-$txt['core_settings_item_w_desc'] = 'This system allows administrators and moderators to issue warnings to users, and can automatically remove user rights as their warning level increases. To take full advantage of this system, &quot;Post Moderation&quot; should be enabled.';
-$txt['core_settings_switch_on'] = 'Click to Enable';
-$txt['core_settings_switch_off'] = 'Click to Disable';
-$txt['core_settings_enabled'] = 'Enabled';
-$txt['core_settings_disabled'] = 'Disabled';
 
 $txt['languages_lang_name'] = 'Language Name';
 $txt['languages_locale'] = 'Locale';
@@ -330,7 +306,8 @@ $txt['add_language'] = 'Add Language';
 $txt['add_language_smf'] = 'Download from Simple Machines';
 $txt['add_language_smf_browse'] = 'Type name of language to search for or leave blank to search for all.';
 $txt['add_language_smf_install'] = 'Install';
-$txt['add_language_smf_found'] = 'The following languages were found. Click the install link next to the language you wish to install, you will then be taken to the package manager to install.';
+$txt['add_language_found_title'] = 'Found Languages';
+$txt['add_language_smf_found'] = 'The following languages were found. Click the install link next to the language you wish to install. You will then be taken to the package manager to install.';
 $txt['add_language_error_no_response'] = 'The Simple Machines site is not responding. Please try again later.';
 $txt['add_language_error_no_files'] = 'No files could be found.';
 $txt['add_language_smf_desc'] = 'Description';
@@ -363,7 +340,7 @@ $txt['languages_download_filename'] = 'File Name';
 $txt['languages_download_dest'] = 'Destination';
 $txt['languages_download_writable'] = 'Writable';
 $txt['languages_download_version'] = 'Version';
-$txt['languages_download_older'] = 'You have a newer version of this file installed, overwriting is not recommended.';
+$txt['languages_download_older'] = 'You have a newer version of this file installed. Overwriting is not recommended.';
 $txt['languages_download_exists'] = 'Already Exists';
 $txt['languages_download_exists_same'] = 'Identical';
 $txt['languages_download_exists_different'] = 'Different';
@@ -379,4 +356,12 @@ $txt['setting_frame_security_SAMEORIGIN'] = 'Allow Same Origin';
 $txt['setting_frame_security_DENY'] = 'Deny all frames';
 $txt['setting_frame_security_DISABLE'] = 'Disabled';
 
+$txt['select_boards_from_list'] = 'Select boards which apply';
+
+$txt['topic_move_any'] = 'Allow moving of topics to read-only boards';
+
+$txt['setting_proxy_ip_header'] = 'Reverse Proxy IP Header';
+$txt['setting_proxy_ip_header_disabled'] = 'Do not allow any Proxy IP Headers';
+$txt['setting_proxy_ip_header_autodetect'] = 'Auto-detect Proxy IP header';
+$txt['setting_proxy_ip_servers'] = 'Reverse Proxy Servers IPs';
 ?>

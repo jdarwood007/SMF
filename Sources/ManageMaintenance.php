@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -22,7 +22,7 @@ if (!defined('SMF'))
  */
 function ManageMaintenance()
 {
-	global $txt, $modSettings, $scripturl, $context, $options;
+	global $txt, $scripturl, $context;
 
 	// You absolutely must be an admin by here!
 	isAllowedTo('admin_forum');
@@ -197,6 +197,8 @@ function MaintainMembers()
 
 	if (isset($_GET['done']) && $_GET['done'] == 'recountposts')
 		$context['maintenance_finished'] = $txt['maintain_recountposts'];
+
+	loadJavascriptFile('suggest.js', array('default_theme' => true, 'defer' => false), 'smf_suggest');
 }
 
 /**
@@ -204,7 +206,7 @@ function MaintainMembers()
  */
 function MaintainTopics()
 {
-	global $context, $smcFunc, $txt;
+	global $context, $smcFunc, $txt, $sourcedir;
 
 	// Let's load up the boards in case they are useful.
 	$result = $smcFunc['db_query']('order_by_board_order', '
@@ -233,6 +235,9 @@ function MaintainTopics()
 		);
 	}
 	$smcFunc['db_free_result']($result);
+
+	require_once($sourcedir . '/Subs-Boards.php');
+	sortCategories($context['categories']);
 
 	if (isset($_GET['done']) && $_GET['done'] == 'purgeold')
 		$context['maintenance_finished'] = $txt['maintain_old'];
@@ -323,8 +328,8 @@ function Destroy()
 {
 	global $context;
 
-	echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-		<html xmlns="http://www.w3.org/1999/xhtml"', $context['right_to_left'] ? ' dir="rtl"' : '', '><head><title>', $context['forum_name_html_safe'], ' deleted!</title></head>
+	echo '<!DOCTYPE html>
+		<html', $context['right_to_left'] ? ' dir="rtl"' : '', '><head><title>', $context['forum_name_html_safe'], ' deleted!</title></head>
 		<body style="background-color: orange; font-family: arial, sans-serif; text-align: center;">
 		<div style="margin-top: 8%; font-size: 400%; color: black;">Oh my, you killed ', $context['forum_name_html_safe'], '!</div>
 		<div style="margin-top: 7%; font-size: 500%; color: red;"><strong>You lazy bum!</strong></div>
@@ -720,7 +725,7 @@ function ConvertUtf8()
 function ConvertMsgBody()
 {
 	global $scripturl, $context, $txt, $language, $db_character_set, $db_type;
-	global $modSettings, $user_info, $sourcedir, $smcFunc, $db_prefix, $time_start;
+	global $modSettings, $sourcedir, $smcFunc, $time_start;
 
 	// Show me your badge!
 	isAllowedTo('admin_forum');
@@ -809,9 +814,9 @@ function ConvertMsgBody()
 			{
 				createToken('admin-convertMsg');
 				$context['continue_post_data'] = '
-					<input type="hidden" name="' . $context['admin-convertMsg_token_var'] . '" value="' . $context['admin-convertMsg_token'] . '" />
-					<input type="hidden" name="' . $context['session_var'] . '" value="' . $context['session_id'] . '" />
-					<input type="hidden" name="id_msg_exceeding" value="' . implode(',', $id_msg_exceeding) . '" />';
+					<input type="hidden" name="' . $context['admin-convertMsg_token_var'] . '" value="' . $context['admin-convertMsg_token'] . '">
+					<input type="hidden" name="' . $context['session_var'] . '" value="' . $context['session_id'] . '">
+					<input type="hidden" name="id_msg_exceeding" value="' . implode(',', $id_msg_exceeding) . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=database;activity=convertmsgbody;start=' . $_REQUEST['start'];
 				$context['continue_percent'] = round(100 * $_REQUEST['start'] / $max_msgs);
@@ -1062,7 +1067,7 @@ function ConvertEntities()
  * It is accessed from ?action=admin;area=maintain;sa=database;activity=optimize.
  * It also updates the optimize scheduled task such that the tables are not automatically optimized again too soon.
 
- * @uses the rawdata sub template (built in.)
+ * @uses the optimize sub template
  */
 function OptimizeTables()
 {
@@ -1070,7 +1075,7 @@ function OptimizeTables()
 
 	isAllowedTo('admin_forum');
 
-	checkSession('post');
+	checkSession();
 	validateToken('admin-maint');
 
 	ignore_user_abort(true);
@@ -1117,10 +1122,6 @@ function OptimizeTables()
 	// Number of tables, etc....
 	$txt['database_numb_tables'] = sprintf($txt['database_numb_tables'], $context['num_tables']);
 	$context['num_tables_optimized'] = count($context['optimized_tables']);
-
-	// Check that we don't auto optimise again too soon!
-	require_once($sourcedir . '/ScheduledTasks.php');
-	CalculateNextTrigger('auto_optimize', true);
 }
 
 /**
@@ -1245,7 +1246,7 @@ function AdminBoardRecount()
 			if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 			{
 				createToken('admin-boardrecount');
-				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=0;start=' . $_REQUEST['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 				$context['continue_percent'] = round((100 * $_REQUEST['start'] / $max_topics) / $total_steps);
@@ -1303,7 +1304,7 @@ function AdminBoardRecount()
 			if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 			{
 				createToken('admin-boardrecount');
-				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=1;start=' . $_REQUEST['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 				$context['continue_percent'] = round((200 + 100 * $_REQUEST['start'] / $max_topics) / $total_steps);
@@ -1359,7 +1360,7 @@ function AdminBoardRecount()
 			if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 			{
 				createToken('admin-boardrecount');
-				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=2;start=' . $_REQUEST['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 				$context['continue_percent'] = round((300 + 100 * $_REQUEST['start'] / $max_topics) / $total_steps);
@@ -1415,7 +1416,7 @@ function AdminBoardRecount()
 			if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 			{
 				createToken('admin-boardrecount');
-				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=3;start=' . $_REQUEST['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 				$context['continue_percent'] = round((400 + 100 * $_REQUEST['start'] / $max_topics) / $total_steps);
@@ -1471,7 +1472,7 @@ function AdminBoardRecount()
 			if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 			{
 				createToken('admin-boardrecount');
-				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=4;start=' . $_REQUEST['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 				$context['continue_percent'] = round((500 + 100 * $_REQUEST['start'] / $max_topics) / $total_steps);
@@ -1520,7 +1521,7 @@ function AdminBoardRecount()
 		if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 		{
 			createToken('admin-boardrecount');
-			$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+			$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 			$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=6;start=0;' . $context['session_var'] . '=' . $context['session_id'];
 			$context['continue_percent'] = round(700 / $total_steps);
@@ -1566,7 +1567,7 @@ function AdminBoardRecount()
 			if (array_sum(explode(' ', microtime())) - array_sum(explode(' ', $time_start)) > 3)
 			{
 				createToken('admin-boardrecount');
-				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '" />';
+				$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-boardrecount_token_var'] . '" value="' . $context['admin-boardrecount_token'] . '">';
 
 				$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=6;start=' . $_REQUEST['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 				$context['continue_percent'] = round((700 + 100 * $_REQUEST['start'] / $modSettings['maxMsgID']) / $total_steps);
@@ -1881,23 +1882,59 @@ function MaintainMassMoveTopics()
 	$context['start_time'] = time();
 
 	// First time we do this?
-	$id_board_from = isset($_POST['id_board_from']) ? (int) $_POST['id_board_from'] : (int) $_REQUEST['id_board_from'];
-	$id_board_to = isset($_POST['id_board_to']) ? (int) $_POST['id_board_to'] : (int) $_REQUEST['id_board_to'];
+	$id_board_from = isset($_REQUEST['id_board_from']) ? (int) $_REQUEST['id_board_from'] : 0;
+	$id_board_to = isset($_REQUEST['id_board_to']) ? (int) $_REQUEST['id_board_to'] : 0;
+	$max_days = isset($_REQUEST['maxdays']) ? (int) $_REQUEST['maxdays'] : 0;
+	$locked = isset($_POST['move_type_locked']) || isset($_GET['locked']);
+	$sticky = isset($_POST['move_type_sticky']) || isset($_GET['sticky']);
 
 	// No boards then this is your stop.
 	if (empty($id_board_from) || empty($id_board_to))
 		return;
+
+	// The big WHERE clause
+	$conditions = 'WHERE t.id_board = {int:id_board_from}
+		AND m.icon != {string:moved}';
+
+	// DB parameters
+	$params = array(
+		'id_board_from' => $id_board_from,
+		'moved' => 'moved',
+	);
+
+	// Only moving topics not posted in for x days?
+	if (!empty($max_days))
+	{
+		$conditions .= '
+			AND m.poster_time < {int:poster_time}';
+		$params['poster_time'] = time() - 3600 * 24 * $max_days;
+	}
+
+	// Moving locked topics?
+	if ($locked)
+	{
+		$conditions .= '
+			AND t.locked = {int:locked}';
+		$params['locked'] = 1;
+	}
+
+	// What about sticky topics?
+	if ($sticky)
+	{
+		$conditions .= '
+			AND t.is_sticky = {int:sticky}';
+		$params['sticky'] = 1;
+	}
 
 	// How many topics are we converting?
 	if (!isset($_REQUEST['totaltopics']))
 	{
 		$request = $smcFunc['db_query']('', '
 			SELECT COUNT(*)
-			FROM {db_prefix}topics
-			WHERE id_board = {int:id_board_from}',
-			array(
-				'id_board_from' => $id_board_from,
-			)
+			FROM {db_prefix}topics AS t
+				INNER JOIN {db_prefix}messages AS m ON (m.id_msg = t.id_last_msg)' .
+			$conditions,
+			$params
 		);
 		list ($total_topics) = $smcFunc['db_fetch_row']($request);
 		$smcFunc['db_free_result']($request);
@@ -1906,7 +1943,15 @@ function MaintainMassMoveTopics()
 		$total_topics = (int) $_REQUEST['totaltopics'];
 
 	// Seems like we need this here.
-	$context['continue_get_data'] = '?action=admin;area=maintain;sa=topics;activity=massmove;id_board_from=' . $id_board_from . ';id_board_to=' . $id_board_to . ';totaltopics=' . $total_topics . ';start=' . $context['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
+	$context['continue_get_data'] = '?action=admin;area=maintain;sa=topics;activity=massmove;id_board_from=' . $id_board_from . ';id_board_to=' . $id_board_to . ';totaltopics=' . $total_topics . ';max_days=' . $max_days;
+
+	if ($locked)
+		$context['continue_get_data'] .= ';locked';
+
+	if ($sticky)
+		$context['continue_get_data'] .= ';sticky';
+
+	$context['continue_get_data'] .= ';start=' . $context['start'] . ';' . $context['session_var'] . '=' . $context['session_id'];
 
 	// We have topics to move so start the process.
 	if (!empty($total_topics))
@@ -1915,13 +1960,12 @@ function MaintainMassMoveTopics()
 		{
 			// Lets get the topics.
 			$request = $smcFunc['db_query']('', '
-				SELECT id_topic
-				FROM {db_prefix}topics
-				WHERE id_board = {int:id_board_from}
+				SELECT t.id_topic
+				FROM {db_prefix}topics AS t
+					INNER JOIN {db_prefix}messages AS m ON (m.id_msg = t.id_last_msg)
+				' . $conditions . '
 				LIMIT 10',
-				array(
-					'id_board_from' => $id_board_from,
-				)
+				$params
 			);
 
 			// Get the ids.
@@ -2064,7 +2108,7 @@ function MaintainRecountPosts()
 		$context['continue_percent'] = round(100 * $_REQUEST['start'] / $_SESSION['total_members']);
 
 		createToken('admin-recountposts');
-		$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-recountposts_token_var'] . '" value="' . $context['admin-recountposts_token'] . '" />';
+		$context['continue_post_data'] = '<input type="hidden" name="' . $context['admin-recountposts_token_var'] . '" value="' . $context['admin-recountposts_token'] . '">';
 
 		if (function_exists('apache_reset_timeout'))
 			apache_reset_timeout();
@@ -2089,6 +2133,7 @@ function MaintainRecountPosts()
 			'zero' => 0,
 			'string_zero' => '0',
 			'db_error_skip' => true,
+			'recycle' => !empty($modSettings['recycle_board']) ? $modSettings['recycle_board'] : 0,
 		)
 	) !== false;
 
@@ -2132,11 +2177,11 @@ function MaintainRecountPosts()
 /**
  * Generates a list of integration hooks for display
  * Accessed through ?action=admin;area=maintain;sa=hooks;
- * Allows for removal or disabing of selected hooks
+ * Allows for removal or disabling of selected hooks
  */
 function list_integration_hooks()
 {
-	global $sourcedir, $scripturl, $context, $txt, $modSettings, $settings;
+	global $sourcedir, $scripturl, $context, $txt, $settings;
 
 	$context['filter_url'] = '';
 	$context['current_filter'] = '';
@@ -2211,7 +2256,7 @@ function list_integration_hooks()
 						global $txt;
 
 						if (!empty($data[\'included_file\']))
-							return $txt[\'hooks_field_function\'] . \': \' . $data[\'real_function\'] . \'<br />\' . $txt[\'hooks_field_included_file\'] . \': \' . $data[\'included_file\'];
+							return $txt[\'hooks_field_function\'] . \': \' . $data[\'real_function\'] . \'<br>\' . $txt[\'hooks_field_included_file\'] . \': \' . $data[\'included_file\'] . (!empty($data[\'instance\']) ? \'<br>\'. $txt[\'hooks_field_function_method\'] : \'\');
 						else
 							return $data[\'real_function\'];
 					'),
@@ -2248,7 +2293,7 @@ function list_integration_hooks()
 							$change_status[\'before\'] = \'<a href="\' . $scripturl . \'?action=admin;area=maintain;sa=hooks;do=\' . ($data[\'enabled\'] ? \'disable\' : \'enable\') . \';hook=\' . $data[\'hook_name\'] . \';function=\' . $data[\'real_function\'] . (!empty($data[\'included_file\']) ? \';includedfile=\' . urlencode($data[\'included_file\']) : \'\') . $context[\'filter_url\'] . \';\' . $context[\'admin-hook_token_var\'] . \'=\' . $context[\'admin-hook_token\'] . \';\' . $context[\'session_var\'] . \'=\' . $context[\'session_id\'] . \'" onclick="return confirm(\' . javaScriptEscape($txt[\'quickmod_confirm\']) . \');">\';
 							$change_status[\'after\'] = \'</a>\';
 						}
-						return $change_status[\'before\'] . \'<img src="\' . $settings[\'images_url\'] . \'/admin/post_moderation_\' . $data[\'status\'] . \'.png" alt="\' . $data[\'img_text\'] . \'" title="\' . $data[\'img_text\'] . \'" />\' . $change_status[\'after\'];
+						return $change_status[\'before\'] . \'<img src="\' . $settings[\'images_url\'] . \'/admin/post_moderation_\' . $data[\'status\'] . \'.png" alt="\' . $data[\'img_text\'] . \'" title="\' . $data[\'img_text\'] . \'">\' . $change_status[\'after\'];
 					'),
 					'class' => 'centertext',
 				),
@@ -2261,12 +2306,12 @@ function list_integration_hooks()
 		'additional_rows' => array(
 			array(
 				'position' => 'after_title',
-				'value' => $txt['hooks_disable_instructions'] . '<br />
+				'value' => $txt['hooks_disable_instructions'] . '<br>
 					' . $txt['hooks_disable_legend'] . ':
 									<ul style="list-style: none;">
-					<li><img src="' . $settings['images_url'] . '/admin/post_moderation_allow.png" alt="' . $txt['hooks_active'] . '" title="' . $txt['hooks_active'] . '" /> ' . $txt['hooks_disable_legend_exists'] . '</li>
-					<li><img src="' . $settings['images_url'] . '/admin/post_moderation_moderate.png" alt="' . $txt['hooks_disabled'] . '" title="' . $txt['hooks_disabled'] . '" /> ' . $txt['hooks_disable_legend_disabled'] . '</li>
-					<li><img src="' . $settings['images_url'] . '/admin/post_moderation_deny.png" alt="' . $txt['hooks_missing'] . '" title="' . $txt['hooks_missing'] . '" /> ' . $txt['hooks_disable_legend_missing'] . '</li>
+					<li><img src="' . $settings['images_url'] . '/admin/post_moderation_allow.png" alt="' . $txt['hooks_active'] . '" title="' . $txt['hooks_active'] . '"> ' . $txt['hooks_disable_legend_exists'] . '</li>
+					<li><img src="' . $settings['images_url'] . '/admin/post_moderation_moderate.png" alt="' . $txt['hooks_disabled'] . '" title="' . $txt['hooks_disabled'] . '"> ' . $txt['hooks_disable_legend_disabled'] . '</li>
+					<li><img src="' . $settings['images_url'] . '/admin/post_moderation_deny.png" alt="' . $txt['hooks_missing'] . '" title="' . $txt['hooks_missing'] . '"> ' . $txt['hooks_disable_legend_missing'] . '</li>
 				</ul>'
 			),
 		),
@@ -2281,12 +2326,12 @@ function list_integration_hooks()
 		),
 		'data' => array(
 			'function' => create_function('$data', '
-				global $txt, $settings, $scripturl, $context;
+				global $txt, $scripturl, $context;
 
 				if (!$data[\'hook_exists\'])
 					return \'
-					<a href="\' . $scripturl . \'?action=admin;area=maintain;sa=hooks;do=remove;hook=\' . $data[\'hook_name\'] . \';function=\' . urlencode($data[\'function_name\']) . $context[\'filter_url\'] . \';\' . $context[\'admin-hook_token_var\'] . \'=\' . $context[\'admin-hook_token\'] . \';\' . $context[\'session_var\'] . \'=\' . $context[\'session_id\'] . \'" onclick="return confirm(\' . javaScriptEscape($txt[\'quickmod_confirm\']) . \');">
-						<img src="\' . $settings[\'images_url\'] . \'/icons/quick_remove.png" alt="\' . $txt[\'hooks_button_remove\'] . \'" title="\' . $txt[\'hooks_button_remove\'] . \'" />
+					<a href="\' . $scripturl . \'?action=admin;area=maintain;sa=hooks;do=remove;hook=\' . $data[\'hook_name\'] . \';function=\' . urlencode($data[\'function_name\']) . $context[\'filter_url\'] . \';\' . $context[\'admin-hook_token_var\'] . \'=\' . $context[\'admin-hook_token\'] . \';\' . $context[\'session_var\'] . \'=\' . $context[\'session_id\'] . \'" onclick="return confirm(\' . JavaScriptEscape($txt[\'quickmod_confirm\']) . \');">
+						<span class="generic_icons delete" title="\' . $txt[\'hooks_button_remove\'] . \'"></span>
 					</a>\';
 			'),
 			'class' => 'centertext',
@@ -2307,7 +2352,7 @@ function list_integration_hooks()
 }
 
 /**
- * Gets all of the files in a directory and its chidren directories
+ * Gets all of the files in a directory and its children directories
  *
  * @param type $dir_path
  * @return array
@@ -2346,7 +2391,7 @@ function get_files_recursive($dir_path)
  */
 function get_integration_hooks_data($start, $per_page, $sort)
 {
-	global $boarddir, $sourcedir, $settings, $txt, $context, $scripturl, $modSettings;
+	global $boarddir, $sourcedir, $settings, $txt, $context, $scripturl;
 
 	$hooks = $temp_hooks = get_integration_hooks();
 	$hooks_data = $temp_data = $hook_status = array();
@@ -2366,6 +2411,14 @@ function get_integration_hooks_data($start, $per_page, $sort)
 				{
 					foreach ($functions as $function_o)
 					{
+						$object = false;
+
+						if (strpos($function_o, '#') !== false)
+						{
+							$function_o = str_replace('#', '', $function_o);
+							$object = true;
+						}
+
 						$hook_name = str_replace(']', '', $function_o);
 						if (strpos($hook_name, '::') !== false)
 						{
@@ -2374,6 +2427,7 @@ function get_integration_hooks_data($start, $per_page, $sort)
 						}
 						else
 							$function = $hook_name;
+
 						$function = explode(':', $function);
 						$function = $function[0];
 
@@ -2386,8 +2440,10 @@ function get_integration_hooks_data($start, $per_page, $sort)
 						}
 						elseif (strpos(str_replace(' (', '(', $fc), 'function ' . trim($function) . '(') !== false)
 						{
-							$hook_status[$hook][$hook_name]['exists'] = true;
-							$hook_status[$hook][$hook_name]['in_file'] = $file['name'];
+							$hook_status[$hook][$function]['exists'] = true;
+							$hook_status[$hook][$function]['in_file'] = $file['name'];
+							$hook_status[$hook][$function]['instance'] = $object;
+
 							// I want to remember all the functions called within this file (to check later if they are enabled or disabled and decide if the integrare_*_include of that file can be disabled too)
 							$temp_data['function'][$file['name']][] = $function_o;
 							unset($temp_hooks[$hook][$function_o]);
@@ -2415,7 +2471,7 @@ function get_integration_hooks_data($start, $per_page, $sort)
 
 	foreach ($hooks as $hook => $functions)
 	{
-		$hooks_filters[] = '<option ' . ($context['current_filter'] == $hook ? 'selected="selected" ' : '') . 'onclick="window.location = \'' . $scripturl . '?action=admin;area=maintain;sa=hooks;filter=' . $hook . '\';">' . $hook . '</option>';
+		$hooks_filters[] = '<option' . ($context['current_filter'] == $hook ? ' selected ' : '') . ' value="' . $hook . '">' . $hook . '</option>';
 		foreach ($functions as $function)
 		{
 			$enabled = strstr($function, ']') === false;
@@ -2440,9 +2496,9 @@ function get_integration_hooks_data($start, $per_page, $sort)
 
 	if (!empty($hooks_filters))
 		$context['insert_after_template'] .= '
-		<script type="text/javascript"><!-- // --><![CDATA[
+		<script><!-- // --><![CDATA[
 			var hook_name_header = document.getElementById(\'header_list_integration_hooks_hook_name\');
-			hook_name_header.innerHTML += ' . JavaScriptEscape('<select style="margin-left:15px;"><option>---</option><option onclick="window.location = \'' . $scripturl . '?action=admin;area=maintain;sa=hooks\';">' . $txt['hooks_reset_filter'] . '</option>' . implode('', $hooks_filters) . '</select>'). ';
+			hook_name_header.innerHTML += ' . JavaScriptEscape('<select style="margin-left:15px;" onchange="window.location=(\'' . $scripturl . '?action=admin;area=maintain;sa=hooks\' + (this.value ? \';filter=\' + this.value : \'\'));"><option value="">' . $txt['hooks_reset_filter'] . '</option>' . implode('', $hooks_filters) . '</select>'). ';
 		// ]]></script>';
 
 	$temp_data = array();
@@ -2454,11 +2510,12 @@ function get_integration_hooks_data($start, $per_page, $sort)
 		{
 			foreach ($functions as $function)
 			{
+				// Gotta remove the # bit.
+				if (strpos($function, '#') !== false)
+					$function = str_replace('#', '', $function);
+
 				$enabled = strstr($function, ']') === false;
 				$function = str_replace(']', '', $function);
-				$hook_exists = !empty($hook_status[$hook][$function]['exists']);
-				$file_name = isset($hook_status[$hook][$function]['in_file']) ? $hook_status[$hook][$function]['in_file'] : ((substr($hook, -8) === '_include') ? 'zzzzzzzzz' : 'zzzzzzzza');
-				$sort[] = $$sort_options[0];
 
 				if (strpos($function, '::') !== false)
 				{
@@ -2467,13 +2524,18 @@ function get_integration_hooks_data($start, $per_page, $sort)
 				}
 				$exploded = explode(':', $function);
 
+				$hook_exists = !empty($hook_status[$hook][$exploded[0]]['exists']);
+				$file_name = isset($hook_status[$hook][$exploded[0]]['in_file']) ? $hook_status[$hook][$exploded[0]]['in_file'] : ((substr($hook, -8) === '_include') ? 'zzzzzzzzz' : 'zzzzzzzza');
+				$sort[] = $$sort_options[0];
+
 				$temp_data[] = array(
 					'id' => 'hookid_' . $id++,
 					'hook_name' => $hook,
 					'function_name' => $function,
 					'real_function' => $exploded[0],
 					'included_file' => isset($exploded[1]) ? strtr(trim($exploded[1]), array('$boarddir' => $boarddir, '$sourcedir' => $sourcedir, '$themedir' => $settings['theme_dir'])) : '',
-					'file_name' => (isset($hook_status[$hook][$function]['in_file']) ? $hook_status[$hook][$function]['in_file'] : ''),
+					'file_name' => (isset($hook_status[$hook][$exploded[0]]['in_file']) ? $hook_status[$hook][$exploded[0]]['in_file'] : ''),
+					'instance' => (isset($hook_status[$hook][$exploded[0]]['instance']) ? $hook_status[$hook][$exploded[0]]['instance'] : ''),
 					'hook_exists' => $hook_exists,
 					'status' => $hook_exists ? ($enabled ? 'allow' : 'moderate') : 'deny',
 					'img_text' => $txt['hooks_' . ($hook_exists ? ($enabled ? 'active' : 'disabled') : 'missing')],
@@ -2503,8 +2565,8 @@ function get_integration_hooks_data($start, $per_page, $sort)
 }
 
 /**
- * Simply returns the total count of integraion hooks
- * Used but the intergation hooks list function (list_integration_hooks)
+ * Simply returns the total count of integration hooks
+ * Used by the integration hooks list function (list_integration_hooks)
  *
  * @global type $context
  * @return int

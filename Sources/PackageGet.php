@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -21,7 +21,7 @@ if (!defined('SMF'))
  */
 function PackageGet()
 {
-	global $txt, $scripturl, $context, $boarddir, $sourcedir, $modSettings;
+	global $txt, $scripturl, $context, $boarddir, $sourcedir;
 
 	isAllowedTo('admin_forum');
 	require_once($sourcedir . '/Subs-Package.php');
@@ -109,15 +109,14 @@ function PackageServers()
 	}
 	$smcFunc['db_free_result']($request);
 
-	$context['package_download_broken'] = !is_writable($packagesdir) || !is_writable($packagesdir . '/installed.list');
+	$context['package_download_broken'] = !is_writable($packagesdir);
 
 	if ($context['package_download_broken'])
 	{
 		@chmod($packagesdir, 0777);
-		@chmod($packagesdir . '/installed.list', 0777);
 	}
 
-	$context['package_download_broken'] = !is_writable($packagesdir) || !is_writable($packagesdir . '/installed.list');
+	$context['package_download_broken'] = !is_writable($packagesdir);
 
 	if ($context['package_download_broken'])
 	{
@@ -168,11 +167,15 @@ function PackageServers()
 			$context['package_download_broken'] = false;
 
 			$ftp->chmod('.', 0777);
-			$ftp->chmod('installed.list', 0666);
-
 			$ftp->close();
 		}
 	}
+
+	addInlineJavascript('
+	$(\'.new_package_content\').hide();
+	$(\'.download_new_package\').on(\'click\', function() {
+		$(\'.new_package_content\').css(\'display\') == \'none\' ? $(\'.new_package_content\').show(\'slow\') : $(\'.new_package_content\').hide(\'slow\'); 
+	});', true);
 }
 
 /**
@@ -180,7 +183,7 @@ function PackageServers()
  */
 function PackageGBrowse()
 {
-	global $txt, $boardurl, $context, $scripturl, $boarddir, $sourcedir, $forum_version, $context, $smcFunc;
+	global $txt, $boardurl, $context, $scripturl, $boarddir, $sourcedir, $forum_version, $smcFunc;
 
 	if (isset($_GET['server']))
 	{
@@ -230,7 +233,7 @@ function PackageGBrowse()
 			$context['sub_template'] = 'package_confirm';
 
 			$context['page_title'] = $txt['package_servers'];
-			$context['confirm_message'] = sprintf($txt['package_confirm_view_package_content'], htmlspecialchars($_GET['absolute']));
+			$context['confirm_message'] = sprintf($txt['package_confirm_view_package_content'], $smcFunc['htmlspecialchars']($_GET['absolute']));
 			$context['proceed_href'] = $scripturl . '?action=admin;area=packages;get;sa=browse;absolute=' . urlencode($_GET['absolute']) . ';confirm=' . $token;
 
 			return;
@@ -333,7 +336,7 @@ function PackageGBrowse()
 			{
 				$remote_type = $thisPackage->exists('@type') ? $thisPackage->fetch('@type') : 'relative';
 
-				if ($remote_type == 'relative' && substr($thisPackage->fetch('@href'), 0, 7) != 'http://')
+				if ($remote_type == 'relative' && substr($thisPackage->fetch('@href'), 0, 7) != 'http://' && substr($thisPackage->fetch('@href'), 0, 8) != 'https://')
 				{
 					if (isset($_GET['absolute']))
 						$current_url = $_GET['absolute'] . '/';

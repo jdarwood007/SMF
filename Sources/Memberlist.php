@@ -8,7 +8,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -29,7 +29,7 @@ if (!defined('SMF'))
  */
 function Memberlist()
 {
-	global $scripturl, $txt, $modSettings, $context, $settings, $modSettings;
+	global $scripturl, $txt, $modSettings, $context;
 
 	// Make sure they can view the memberlist.
 	isAllowedTo('view_mlist');
@@ -62,7 +62,6 @@ function Memberlist()
 	$context['columns'] = array(
 		'is_online' => array(
 			'label' => $txt['status'],
-			'width' => 60,
 			'class' => 'first_th',
 			'sort' => array(
 				'down' => allowedTo('moderate_forum') ? 'IFNULL(lo.log_time, 1) ASC, real_name ASC' : 'CASE WHEN mem.show_online THEN IFNULL(lo.log_time, 1) ELSE 1 END ASC, real_name ASC',
@@ -70,59 +69,18 @@ function Memberlist()
 			),
 		),
 		'real_name' => array(
-			'label' => $txt['username'],
+			'label' => $txt['name'],
 			'sort' => array(
 				'down' => 'mem.real_name DESC',
 				'up' => 'mem.real_name ASC'
 			),
 		),
-		'email_address' => array(
-			'label' => $txt['email'],
-			'width' => 25,
-			'sort' => array(
-				'down' => allowedTo('moderate_forum') ? 'mem.email_address DESC' : 'mem.hide_email DESC, mem.email_address DESC',
-				'up' => allowedTo('moderate_forum') ? 'mem.email_address ASC' : 'mem.hide_email ASC, mem.email_address ASC'
-			),
-		),
 		'website_url' => array(
 			'label' => $txt['website'],
-			'width' => 70,
 			'link_with' => 'website',
 			'sort' => array(
 				'down' => 'LENGTH(mem.website_url) > 0 ASC, IFNULL(mem.website_url, 1=1) DESC, mem.website_url DESC',
 				'up' => 'LENGTH(mem.website_url) > 0 DESC, IFNULL(mem.website_url, 1=1) ASC, mem.website_url ASC'
-			),
-		),
-		'icq' => array(
-			'label' => $txt['icq'],
-			'width' => 30,
-			'sort' => array(
-				'down' => 'LENGTH(mem.icq) > 0 ASC, mem.icq = 0 DESC, mem.icq DESC',
-				'up' => 'LENGTH(mem.icq) > 0 DESC, mem.icq = 0 ASC, mem.icq ASC'
-			),
-		),
-		'aim' => array(
-			'label' => $txt['aim'],
-			'width' => 30,
-			'sort' => array(
-				'down' => 'LENGTH(mem.aim) > 0 ASC, IFNULL(mem.aim, 1=1) DESC, mem.aim DESC',
-				'up' => 'LENGTH(mem.aim) > 0 DESC, IFNULL(mem.aim, 1=1) ASC, mem.aim ASC'
-			),
-		),
-		'yim' => array(
-			'label' => $txt['yim'],
-			'width' => 30,
-			'sort' => array(
-				'down' => 'LENGTH(mem.yim) > 0 ASC, IFNULL(mem.yim, 1=1) DESC, mem.yim DESC',
-				'up' => 'LENGTH(mem.yim) > 0 DESC, IFNULL(mem.yim, 1=1) ASC, mem.yim ASC'
-			),
-		),
-		'skype' => array(
-			'label' => $txt['skype'],
-			'width' => 30,
-			'sort' => array(
-				'down' => 'LENGTH(mem.skype) > 0 ASC, IFNULL(mem.skype, 1=1) DESC, mem.skype DESC',
-				'up' => 'LENGTH(mem.skype) > 0 DESC, IFNULL(mem.skype, 1=1) ASC, mem.skype ASC',
 			),
 		),
 		'id_group' => array(
@@ -141,7 +99,6 @@ function Memberlist()
 		),
 		'posts' => array(
 			'label' => $txt['posts'],
-			'width' => 115,
 			'colspan' => 2,
 			'default_sort_rev' => true,
 			'sort' => array(
@@ -150,6 +107,11 @@ function Memberlist()
 			),
 		)
 	);
+
+	$context['custom_profile_fields'] = getCustFieldsMList();
+
+	if (!empty($context['custom_profile_fields']['columns']))
+		$context['columns'] += $context['custom_profile_fields']['columns'];
 
 	$context['colspan'] = 0;
 	$context['disabled_fields'] = isset($modSettings['disabled_profile_fields']) ? array_flip(explode(',', $modSettings['disabled_profile_fields'])) : array();
@@ -174,7 +136,7 @@ function Memberlist()
 	);
 
 	$context['can_send_pm'] = allowedTo('pm_send');
-	$context['can_send_email'] = allowedTo('send_email_to_members');
+	$context['can_send_email'] = allowedTo('moderate_forum');
 
 	// Build the memberlist button array.
 	$context['memberlist_buttons'] = array(
@@ -200,7 +162,7 @@ function Memberlist()
  */
 function MLAll()
 {
-	global $txt, $scripturl, $user_info;
+	global $txt, $scripturl;
 	global $modSettings, $context, $smcFunc;
 
 	// The chunk size for the cached index.
@@ -328,7 +290,7 @@ function MLAll()
 	$context['linktree'][] = array(
 		'url' => $scripturl . '?action=mlist;sort=' . $_REQUEST['sort'] . ';start=' . $_REQUEST['start'],
 		'name' => &$context['page_title'],
-		'extra_after' => ' (' . sprintf($txt['of_total_members'], $context['num_members']) . ')'
+		'extra_after' => '(' . sprintf($txt['of_total_members'], $context['num_members']) . ')'
 	);
 
 	$limit = $_REQUEST['start'];
@@ -336,6 +298,7 @@ function MLAll()
 		'regular_id_group' => 0,
 		'is_activated' => 1,
 		'sort' => $context['columns'][$_REQUEST['sort']]['sort'][$context['sort_direction']],
+		'blank_string' => '',
 	);
 
 	// Using cache allows to narrow down the list to be retrieved.
@@ -370,6 +333,7 @@ function MLAll()
 		FROM {db_prefix}members AS mem' . ($_REQUEST['sort'] === 'is_online' ? '
 			LEFT JOIN {db_prefix}log_online AS lo ON (lo.id_member = mem.id_member)' : '') . ($_REQUEST['sort'] === 'id_group' ? '
 			LEFT JOIN {db_prefix}membergroups AS mg ON (mg.id_group = CASE WHEN mem.id_group = {int:regular_id_group} THEN mem.id_post_group ELSE mem.id_group END)' : '') . '
+			' . (!empty($context['custom_profile_fields']['join']) ? implode(' ', $context['custom_profile_fields']['join']) : '') . '
 		WHERE mem.is_activated = {int:is_activated}' . (empty($where) ? '' : '
 			AND ' . $where) . '
 		ORDER BY {raw:sort}
@@ -389,7 +353,7 @@ function MLAll()
 
 			if ($this_letter != $last_letter && preg_match('~[a-z]~', $this_letter) === 1)
 			{
-				$context['members'][$i]['sort_letter'] = htmlspecialchars($this_letter);
+				$context['members'][$i]['sort_letter'] = $smcFunc['htmlspecialchars']($this_letter);
 				$last_letter = $this_letter;
 			}
 		}
@@ -483,9 +447,7 @@ function MLSearch()
 			$fields = allowedTo('moderate_forum') ? array('member_name', 'real_name') : array('real_name');
 		else
 			$fields = array();
-		// Search for messengers...
-		if (in_array('messenger', $_POST['fields']) && (!$user_info['is_guest'] || empty($modSettings['guest_hideContacts'])))
-			$fields += array(3 => 'aim', 'icq', 'yim', 'skype');
+
 		// Search for websites.
 		if (in_array('website', $_POST['fields']))
 			$fields += array(7 => 'website_title', 'website_url');
@@ -495,8 +457,7 @@ function MLSearch()
 		// Search for an email address?
 		if (in_array('email', $_POST['fields']))
 		{
-			$fields += array(2 => allowedTo('moderate_forum') ? 'email_address' : '(hide_email = 0 AND email_address');
-			$condition = allowedTo('moderate_forum') ? '' : ')';
+			$fields += array(2 => allowedTo('moderate_forum') ? 'email_address' : '');
 		}
 		else
 			$condition = '';
@@ -511,12 +472,12 @@ function MLSearch()
 		// Any custom fields to search for - these being tricky?
 		foreach ($_POST['fields'] as $field)
 		{
-			$curField = substr($field, 5);
-			if (substr($field, 0, 5) == 'cust_' && isset($context['custom_search_fields'][$curField]))
+			$row['col_name'] = substr($field, 5);
+			if (substr($field, 0, 5) == 'cust_' && isset($context['custom_search_fields'][$row['col_name']]))
 			{
-				$customJoin[] = 'LEFT JOIN {db_prefix}themes AS t' . $curField . ' ON (t' . $curField . '.variable = {string:t' . $curField . '} AND t' . $curField . '.id_theme = 1 AND t' . $curField . '.id_member = mem.id_member)';
-				$query_parameters['t' . $curField] = $curField;
-				$fields += array($customCount++ => 'IFNULL(t' . $curField . '.value, {string:blank_string})');
+				$customJoin[] = 'LEFT JOIN {db_prefix}themes AS t' . $row['col_name'] . ' ON (t' . $row['col_name'] . '.variable = {string:t' . $row['col_name'] . '} AND t' . $row['col_name'] . '.id_theme = 1 AND t' . $row['col_name'] . '.id_member = mem.id_member)';
+				$query_parameters['t' . $row['col_name']] = $row['col_name'];
+				$fields += array($customCount++ => 'IFNULL(t' . $row['col_name'] . '.value, {string:blank_string})');
 			}
 		}
 
@@ -560,19 +521,30 @@ function MLSearch()
 		$context['search_fields'] = array(
 			'name' => $txt['mlist_search_name'],
 			'email' => $txt['mlist_search_email'],
-			'messenger' => $txt['mlist_search_messenger'],
 			'website' => $txt['mlist_search_website'],
 			'group' => $txt['mlist_search_group'],
 		);
 
+		// Sorry, but you can't search by email unless you can view emails
+		if (!allowedTo('moderate_forum'))
+		{
+			unset($context['search_fields']['email']);
+			$context['search_defaults'] = array('name');
+		}
+		else
+		{
+			$context['search_defaults'] = array('name', 'email');
+		}
+
 		foreach ($context['custom_search_fields'] as $field)
 			$context['search_fields']['cust_' . $field['colname']] = sprintf($txt['mlist_search_by'], $field['name']);
 
-		// What do we search for by default?
-		$context['search_defaults'] = array('name', 'email');
-
 		$context['sub_template'] = 'search';
-		$context['old_search'] = isset($_GET['search']) ? $_GET['search'] : (isset($_POST['search']) ? htmlspecialchars($_POST['search']) : '');
+		$context['old_search'] = isset($_GET['search']) ? $_GET['search'] : (isset($_POST['search']) ? $smcFunc['htmlspecialchars']($_POST['search']) : '');
+
+		// Since we're nice we also want to default focus on to the search field.
+		addInlineJavascript('
+	$(\'input[name="search"]\').focus();', true);
 	}
 
 	$context['linktree'][] = array(
@@ -593,8 +565,8 @@ function MLSearch()
  */
 function printMemberListRows($request)
 {
-	global $scripturl, $txt, $user_info, $modSettings;
-	global $context, $settings, $memberContext, $smcFunc;
+	global $context, $memberContext, $smcFunc, $txt;
+	global $scripturl, $settings;
 
 	// Get the most posts.
 	$result = $smcFunc['db_query']('', '
@@ -626,7 +598,88 @@ function printMemberListRows($request)
 		$context['members'][$member] = $memberContext[$member];
 		$context['members'][$member]['post_percent'] = round(($context['members'][$member]['real_posts'] * 100) / $most_posts);
 		$context['members'][$member]['registered_date'] = strftime('%Y-%m-%d', $context['members'][$member]['registered_timestamp']);
+
+		if (!empty($context['custom_profile_fields']['columns']))
+		{
+			foreach ($context['custom_profile_fields']['columns'] as $key => $column)
+			{
+				// Don't show anything if there isn't anything to show.
+				if (!isset($context['members'][$member]['options'][$key]))
+				{
+					$context['members'][$member]['options'][$key] = '';
+					continue;
+				}
+
+				if ($column['bbc'] && !empty($context['members'][$member]['options'][$key]))
+					$context['members'][$member]['options'][$key] = strip_tags(parse_bbc($context['members'][$member]['options'][$key]));
+
+				elseif ($column['type'] == 'check')
+					$context['members'][$member]['options'][$key] = $context['members'][$member]['options'][$key] == 0 ? $txt['no'] : $txt['yes'];
+
+				// Enclosing the user input within some other text?
+				if (!empty($column['enclose']))
+					$context['members'][$member]['options'][$key] = strtr($column['enclose'], array(
+						'{SCRIPTURL}' => $scripturl,
+						'{IMAGES_URL}' => $settings['images_url'],
+						'{DEFAULT_IMAGES_URL}' => $settings['default_images_url'],
+						'{INPUT}' => $context['members'][$member]['options'][$key],
+					));
+			}
+		}
 	}
 }
 
+/**
+ * Sets the label, sort and join info for every custom field column.
+ *
+ * @return array
+ */
+function getCustFieldsMList()
+{
+	global $smcFunc;
+
+	$cpf = array();
+
+	$request = $smcFunc['db_query']('', '
+		SELECT col_name, field_name, field_desc, field_type, bbc, enclose
+		FROM {db_prefix}custom_fields
+		WHERE active = {int:active}
+			AND show_mlist = {int:show}
+			AND private < {int:private_level}',
+		array(
+			'active' => 1,
+			'show' => 1,
+			'private_level' => 2,
+		)
+	);
+
+	while ($row = $smcFunc['db_fetch_assoc']($request))
+	{
+		// Get all the data we're gonna need.
+		$cpf['columns'][$row['col_name']] = array(
+			'label' => $row['field_name'],
+			'type' => $row['field_type'],
+			'bbc' => !empty($row['bbc']),
+			'enclose' => $row['enclose'],
+		);
+
+		// Get the right sort method depending on the cust field type.
+		if ($row['field_type'] != 'check')
+			$cpf['columns'][$row['col_name']]['sort'] = array(
+				'down' => 'LENGTH(t' . $row['col_name'] . '.value) > 0 ASC, IFNULL(t' . $row['col_name'] . '.value, "") DESC',
+				'up' => 'LENGTH(t' . $row['col_name'] . '.value) > 0 DESC, IFNULL(t' . $row['col_name'] . '.value, "") ASC'
+			);
+
+		else
+			$cpf['columns'][$row['col_name']]['sort'] = array(
+				'down' => 't' . $row['col_name'] . '.value DESC',
+				'up' => 't' . $row['col_name'] . '.value ASC'
+			);
+
+		$cpf['join'][$row['col_name']] = 'LEFT JOIN {db_prefix}themes AS t' .  $row['col_name'] . ' ON (t' .  $row['col_name'] . '.variable = {literal:' .  $row['col_name'] . '} AND t' .  $row['col_name'] . '.id_theme = 1 AND t' .  $row['col_name'] . '.id_member = mem.id_member)';
+	}
+	$smcFunc['db_free_result']($request);
+
+	return $cpf;
+}
 ?>

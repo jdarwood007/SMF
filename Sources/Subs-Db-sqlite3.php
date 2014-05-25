@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -163,7 +163,7 @@ function db_fix_prefix(&$db_prefix, $db_name)
  */
 function smf_db_replacement__callback($matches)
 {
-	global $db_callback, $user_info, $db_prefix;
+	global $db_callback, $user_info, $db_prefix, $smcFunc;
 
 	list ($values, $connection) = $db_callback;
 
@@ -183,10 +183,10 @@ function smf_db_replacement__callback($matches)
 		smf_db_error_backtrace('Invalid value inserted or no type specified.', '', E_USER_ERROR, __FILE__, __LINE__);
 
 	if ($matches[1] === 'literal')
-		return SQLite::escapeString($matches[2]);
+		return '\'' . SQLite::escapeString($matches[2]) . '\'';
 
 	if (!isset($values[$matches[2]]))
-		smf_db_error_backtrace('The database value you\'re trying to insert does not exist: ' . htmlspecialchars($matches[2]), '', E_USER_ERROR, __FILE__, __LINE__);
+		smf_db_error_backtrace('The database value you\'re trying to insert does not exist: ' . (isset($smcFunc['htmlspecialchars']) ? $smcFunc['htmlspecialchars']($matches[2]) : htmlspecialchars($matches[2])), '', E_USER_ERROR, __FILE__, __LINE__);
 
 	$replacement = $values[$matches[2]];
 
@@ -336,9 +336,6 @@ function smf_db_query($identifier, $db_string, $db_values = array(), $connection
 		'unread_fetch_topic_count' => array(
 			'~\s*SELECT\sCOUNT\(DISTINCT\st\.id_topic\),\sMIN\(t\.id_last_msg\)(.+)$~is' => 'SELECT COUNT(id_topic), MIN(id_last_msg) FROM (SELECT DISTINCT t.id_topic, t.id_last_msg $1)',
 		),
-		'alter_table_boards' => array(
-			'~(.+)~' => '',
-		),
 		'get_random_number' => array(
 			'~RAND~' => 'RANDOM',
 		),
@@ -353,18 +350,6 @@ function smf_db_query($identifier, $db_string, $db_values = array(), $connection
 		),
 		'pm_conversation_list' => array(
 			'~ORDER BY id_pm~' => 'ORDER BY MAX(pm.id_pm)',
-		),
-		'boardindex_fetch_boards' => array(
-			'~(.)$~' => '$1 ORDER BY b.board_order',
-		),
-		'messageindex_fetch_boards' => array(
-			'~(.)$~' => '$1 ORDER BY b.board_order',
-		),
-		'order_by_board_order' => array(
-			'~(.)$~' => '$1 ORDER BY b.board_order',
-		),
-		'spider_check' => array(
-			'~(.)$~' => '$1 ORDER BY LENGTH(user_agent) DESC',
 		),
 	);
 
@@ -601,7 +586,7 @@ function smf_db_transaction($type = 'commit', $connection = null)
 function smf_db_error($db_string, $connection = null)
 {
 	global $txt, $context, $sourcedir, $webmaster_email, $modSettings;
-	global $forum_version, $db_connection, $db_last_error, $db_persist;
+	global $db_connection, $db_last_error, $db_persist;
 	global $db_server, $db_user, $db_passwd, $db_name, $db_show_debug, $ssi_db_user, $ssi_db_passwd;
 	global $smcFunc;
 
@@ -617,7 +602,7 @@ function smf_db_error($db_string, $connection = null)
 
 	// Get the extra error message.
 	$errStart = strrpos($db_string, '#!#');
-	$query_error .= '<br />' . substr($db_string, $errStart + 3);
+	$query_error .= '<br>' . substr($db_string, $errStart + 3);
 	$db_string = substr($db_string, 0, $errStart);
 
 	// Log the error.
@@ -652,13 +637,13 @@ function smf_db_error($db_string, $connection = null)
 	// Show an error message, if possible.
 	$context['error_title'] = $txt['database_error'];
 	if (allowedTo('admin_forum'))
-		$context['error_message'] = nl2br($query_error) . '<br />' . $txt['file'] . ': ' . $file . '<br />' . $txt['line'] . ': ' . $line;
+		$context['error_message'] = nl2br($query_error) . '<br>' . $txt['file'] . ': ' . $file . '<br>' . $txt['line'] . ': ' . $line;
 	else
 		$context['error_message'] = $txt['try_again'];
 
 	if (allowedTo('admin_forum') && isset($db_show_debug) && $db_show_debug === true)
 	{
-		$context['error_message'] .= '<br /><br />' . nl2br($db_string);
+		$context['error_message'] .= '<br><br>' . nl2br($db_string);
 	}
 
 	// It's already been logged... don't log it again.
@@ -788,7 +773,7 @@ function smf_db_error_backtrace($error_message, $log_message = '', $error_type =
 		// Found it?
 		if (strpos($step['function'], 'query') === false && !in_array(substr($step['function'], 0, 7), array('smf_db_', 'preg_re', 'db_erro', 'call_us')) && strpos($step['function'], '__') !== 0)
 		{
-			$log_message .= '<br />Function: ' . $step['function'];
+			$log_message .= '<br>Function: ' . $step['function'];
 			break;
 		}
 

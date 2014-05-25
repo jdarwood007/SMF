@@ -95,14 +95,7 @@ smf_AdminIndex.prototype.checkUpdateAvailable = function ()
 	// Parse in the package download URL if it exists in the string.
 	document.getElementById('update-link').href = this.opt.sUpdateNotificationLink.replace('%package%', window.smfUpdatePackage);
 
-	// If we decide to override life into "red" mode, do it.
-	if ('smfUpdateCritical' in window)
-	{
-		document.getElementById('update_title').style.backgroundColor = '#dd2222';
-		document.getElementById('update_title').style.color = 'white';
-		document.getElementById('update_message').style.backgroundColor = '#eebbbb';
-		document.getElementById('update_message').style.color = 'black';
-	}
+	oContainer.className = ('smfUpdateCritical' in window) ? 'errorbox' : 'noticebox';
 }
 
 
@@ -333,7 +326,7 @@ smf_ViewVersions.prototype.determineVersions = function ()
 
 function addNewWord()
 {
-	setOuterHTML(document.getElementById('moreCensoredWords'), '<div style="margin-top: 1ex;"><input type="text" name="censor_vulgar[]" size="30" class="input_text" /> => <input type="text" name="censor_proper[]" size="30" class="input_text" /><' + '/div><div id="moreCensoredWords"><' + '/div>');
+	setOuterHTML(document.getElementById('moreCensoredWords'), '<div style="margin-top: 1ex;"><input type="text" name="censor_vulgar[]" size="30" class="input_text"> => <input type="text" name="censor_proper[]" size="30" class="input_text"><' + '/div><div id="moreCensoredWords"><' + '/div>');
 }
 
 function toggleBBCDisabled(section, disable)
@@ -379,7 +372,7 @@ function updateInputBoxes()
 
 function addOption()
 {
-	setOuterHTML(document.getElementById("addopt"), '<br /><input type="radio" name="default_select" value="' + startOptID + '" id="' + startOptID + '" class="input_radio" /><input type="text" name="select_option[' + startOptID + ']" value="" class="input_text" /><span id="addopt"></span>');
+	setOuterHTML(document.getElementById("addopt"), '<br><input type="radio" name="default_select" value="' + startOptID + '" id="' + startOptID + '" class="input_radio"><input type="text" name="select_option[' + startOptID + ']" value="" class="input_text"><span id="addopt"></span>');
 	startOptID++;
 }
 
@@ -448,34 +441,6 @@ function toggleDuration(toChange)
 		document.getElementById("fixed_area").style.display = "none";
 		document.getElementById("flexible_area").style.display = "inline";
 	}
-}
-
-function toggleBreakdown(id_group, forcedisplayType)
-{
-	displayType = document.getElementById("group_hr_div_" + id_group).style.display == "none" ? "" : "none";
-	if (typeof(forcedisplayType) != "undefined")
-		displayType = forcedisplayType;
-
-	// swap the image
-	document.getElementById("group_toggle_img_" + id_group).src = smf_images_url + "/" + (displayType == "none" ? "selected" : "selected_open") + ".png";
-
-	// show or hide the elements
-	var aContainer = new Array();
-	for (i = 0; i < groupPermissions[id_group].length; i++)
-	{
-		var oContainerTemp = document.getElementById("perm_div_" + id_group + "_" + groupPermissions[id_group][i]);
-		if (typeof(oContainerTemp) == 'object' && oContainerTemp != null)
-			aContainer[i] = oContainerTemp;
-	}
-	if (displayType == "none")
-		$(aContainer).fadeOut();
-	else
-		$(aContainer).show();
-
-	// remove or add the separators
-	document.getElementById("group_hr_div_" + id_group).style.display = displayType
-
-	return false;
 }
 
 function calculateNewValues()

@@ -10,7 +10,6 @@ $txt['smtp_port'] = 'SMTP port';
 $txt['smtp_username'] = 'SMTP username';
 $txt['smtp_password'] = 'SMTP password';
 
-$txt['mail_queue'] = 'Enable mail queue';
 $txt['mail_limit'] = 'Maximum emails to send per minute';
 $txt['mail_limit_desc'] = '(Set to 0 to disable)';
 $txt['mail_quantity'] = 'Maximum amount of emails to send per page load';
@@ -26,6 +25,7 @@ $txt['mailqueue_recipient'] = 'Recipient';
 $txt['mailqueue_subject'] = 'Subject';
 $txt['mailqueue_clear_list'] = 'Send mail queue now';
 $txt['mailqueue_no_items'] = 'The mail queue is currently empty';
+$txt['personal_message'] = 'Personal Message';
 // Do not use numeric entities in below string.
 $txt['mailqueue_clear_list_warning'] = 'Are you sure you wish to send the whole mail queue now? This will override any limits you have set.';
 

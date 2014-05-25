@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -28,9 +28,6 @@ function XMLhttpMain()
 		'messageicons' => array(
 			'function' => 'ListMessageIcons',
 		),
-		'corefeatures' => array(
-			'function' => 'EnableCoreFeatures',
-		),
 		'previews' => array(
 			'function' => 'RetrievePreview',
 		),
@@ -50,7 +47,7 @@ function XMLhttpMain()
  */
 function GetJumpTo()
 {
-	global $user_info, $context, $smcFunc, $sourcedir;
+	global $context, $sourcedir;
 
 	// Find the boards/cateogories they can see.
 	require_once($sourcedir . '/Subs-MessageIndex.php');
@@ -79,106 +76,6 @@ function ListMessageIcons()
 	$context['icons'] = getMessageIcons($board);
 
 	$context['sub_template'] = 'message_icons';
-}
-
-function EnableCoreFeatures()
-{
-	global $context, $smcFunc, $sourcedir, $modSettings, $txt, $boarddir, $settings;
-
-	$context['xml_data'] = array();
-	// Just in case, maybe we don't need it
-	loadLanguage('Errors');
-
-	// We need (at least) this to ensure that mod files are included
-	if (!empty($modSettings['integrate_admin_include']))
-	{
-		$admin_includes = explode(',', $modSettings['integrate_admin_include']);
-		foreach ($admin_includes as $include)
-		{
-			$include = strtr(trim($include), array('$boarddir' => $boarddir, '$sourcedir' => $sourcedir, '$themedir' => $settings['theme_dir']));
-			if (file_exists($include))
-				require_once($include);
-		}
-	}
-
-	$errors = array();
-	$returns = array();
-	$tokens = array();
-	if (allowedTo('admin_forum'))
-	{
-		$validation = validateSession();
-		if (empty($validation))
-		{
-			require_once($sourcedir . '/ManageSettings.php');
-			$result = ModifyCoreFeatures();
-
-			if (empty($result))
-			{
-				$id = isset($_POST['feature_id']) ? $_POST['feature_id'] : '';
-
-				if (!empty($id) && isset($context['features'][$id]))
-				{
-					$feature = $context['features'][$id];
-
-					$returns[] = array(
-						'value' => (!empty($_POST['feature_' . $id]) && $feature['url'] ? '<a href="' . $feature['url'] . '">' . $feature['title'] . '</a>' : $feature['title']),
-					);
-
-					createToken('admin-core', 'post');
-					$tokens = array(
-						array(
-							'value' => $context['admin-core_token'],
-							'attributes' => array('type' => 'token_var'),
-						),
-						array(
-							'value' => $context['admin-core_token_var'],
-							'attributes' => array('type' => 'token'),
-						),
-					);
-				}
-				else
-				{
-					$errors[] = array(
-						'value' => $txt['feature_no_exists'],
-					);
-				}
-			}
-			else
-			{
-				$errors[] = array(
-					'value' => $txt[$result],
-				);
-			}
-		}
-		else
-		{
-			$errors[] = array(
-				'value' => $txt[$validation],
-			);
-		}
-	}
-	else
-	{
-		$errors[] = array(
-			'value' => $txt['cannot_admin_forum']
-		);
-	}
-
-	$context['sub_template'] = 'generic_xml';
-	$context['xml_data'] = array (
-		'corefeatures' => array (
-			'identifier' => 'corefeature',
-			'children' => $returns,
-		),
-		'tokens' => array (
-			'identifier' => 'token',
-			'children' => $tokens,
-		),
-		'errors' => array (
-			'identifier' => 'error',
-			'children' => $errors,
-		),
-	);
 }
 
 function RetrievePreview()
@@ -230,7 +127,7 @@ function newspreview()
 }
 function newsletterpreview()
 {
-	global $context, $sourcedir, $smcFunc, $txt;
+	global $context, $sourcedir, $txt;
 
 	require_once($sourcedir . '/Subs-Post.php');
 	require_once($sourcedir . '/ManageNews.php');
@@ -280,9 +177,9 @@ function sig_preview()
 		list($current_signature) = $smcFunc['db_fetch_row']($request);
 		$smcFunc['db_free_result']($request);
 		censorText($current_signature);
-		$current_signature = parse_bbc($current_signature, true, 'sig' . $user);
+		$current_signature = !empty($current_signature) ? parse_bbc($current_signature, true, 'sig' . $user) : $txt['no_signature_set'];
 
-		$preview_signature = !empty($_POST['signature']) ? $_POST['signature'] : '';
+		$preview_signature = !empty($_POST['signature']) ? $_POST['signature'] : $txt['no_signature_preview'];
 		$validation = profileValidateSignature($preview_signature);
 
 		if ($validation !== true && $validation !== false)
@@ -390,7 +287,7 @@ function warning_preview()
 	else
 		$context['post_error']['messages'][] = array('value' => $txt['cannot_issue_warning'], 'attributes' => array('type' => 'error'));
 
-	$context['sub_template'] = 'pm';
+	$context['sub_template'] = 'warning';
 }
 
 ?>

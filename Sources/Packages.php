@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -85,6 +85,9 @@ function Packages()
 			),
 		),
 	);
+
+	if ($context['sub_action'] == 'browse')
+		loadJavascriptFile('suggest.js', array('default_theme' => true, 'defer' => false), 'smf_suggest');
 
 	// Call the function we're handing control to.
 	$subActions[$context['sub_action']]();
@@ -321,9 +324,9 @@ function PackageInstallTest()
 		{
 			$type = 'package_' . $action['type'];
 			if (file_exists($packagesdir . '/temp/' . $context['base_path'] . $action['filename']))
-				$context[$type] = htmlspecialchars(trim(file_get_contents($packagesdir . '/temp/' . $context['base_path'] . $action['filename']), "\n\r"));
+				$context[$type] = $smcFunc['htmlspecialchars'](trim(file_get_contents($packagesdir . '/temp/' . $context['base_path'] . $action['filename']), "\n\r"));
 			elseif (file_exists($action['filename']))
-				$context[$type] = htmlspecialchars(trim(file_get_contents($action['filename']), "\n\r"));
+				$context[$type] = $smcFunc['htmlspecialchars'](trim(file_get_contents($action['filename']), "\n\r"));
 
 			if (!empty($action['parse_bbc']))
 			{
@@ -891,7 +894,9 @@ function PackageInstall()
 	{
 		$_SESSION['last_backup_for'] = $context['filename'] . ($context['uninstalling'] ? '$$' : '$');
 		// @todo Internationalize this?
-		package_create_backup(($context['uninstalling'] ? 'backup_' : 'before_') . strtok($context['filename'], '.'));
+		$result = package_create_backup(($context['uninstalling'] ? 'backup_' : 'before_') . strtok($context['filename'], '.'));
+		if (!$result)
+			fatal_lang_error('could_not_package_backup', false);
 	}
 
 	// The mod isn't installed.... unless proven otherwise.
@@ -1057,9 +1062,6 @@ function PackageInstall()
 		}
 
 		package_flush_cache();
-
-		// First, ensure this change doesn't get removed by putting a stake in the ground (So to speak).
-		package_put_contents($packagesdir . '/installed.list', time());
 
 		// See if this is already installed, and change it's state as required.
 		$request = $smcFunc['db_query']('', '
@@ -1241,7 +1243,7 @@ function PackageList()
  */
 function ExamineFile()
 {
-	global $txt, $scripturl, $boarddir, $context, $sourcedir, $packagesdir;
+	global $txt, $scripturl, $boarddir, $context, $sourcedir, $packagesdir, $smcFunc;
 
 	require_once($sourcedir . '/Subs-Package.php');
 
@@ -1279,13 +1281,13 @@ function ExamineFile()
 
 	// Let the unpacker do the work.... but make sure we handle images properly.
 	if (in_array(strtolower(strrchr($_REQUEST['file'], '.')), array('.bmp', '.gif', '.jpeg', '.jpg', '.png')))
-		$context['filedata'] = '<img src="' . $scripturl . '?action=admin;area=packages;sa=examine;package=' . $_REQUEST['package'] . ';file=' . $_REQUEST['file'] . ';raw" alt="' . $_REQUEST['file'] . '" />';
+		$context['filedata'] = '<img src="' . $scripturl . '?action=admin;area=packages;sa=examine;package=' . $_REQUEST['package'] . ';file=' . $_REQUEST['file'] . ';raw" alt="' . $_REQUEST['file'] . '">';
 	else
 	{
 		if (is_file($packagesdir . '/' . $_REQUEST['package']))
-			$context['filedata'] = htmlspecialchars(read_tgz_file($packagesdir . '/' . $_REQUEST['package'], $_REQUEST['file'], true));
+			$context['filedata'] = $smcFunc['htmlspecialchars'](read_tgz_file($packagesdir . '/' . $_REQUEST['package'], $_REQUEST['file'], true));
 		elseif (is_dir($packagesdir . '/' . $_REQUEST['package']))
-			$context['filedata'] = htmlspecialchars(file_get_contents($packagesdir . '/' . $_REQUEST['package'] . '/' . $_REQUEST['file']));
+			$context['filedata'] = $smcFunc['htmlspecialchars'](file_get_contents($packagesdir . '/' . $_REQUEST['package'] . '/' . $_REQUEST['file']));
 
 		if (strtolower(strrchr($_REQUEST['file'], '.')) == '.php')
 			$context['filedata'] = highlight_php_code($context['filedata']);
@@ -1318,9 +1320,6 @@ function FlushInstall()
 
 	include_once($sourcedir . '/Subs-Package.php');
 
-	// Record when we last did this.
-	package_put_contents($packagesdir . '/installed.list', time());
-
 	// Set everything as uninstalled.
 	$smcFunc['db_query']('', '
 		UPDATE {db_prefix}log_packages
@@ -1344,7 +1343,7 @@ function PackageRemove()
 	checkSession('get');
 
 	// Ack, don't allow deletion of arbitrary files here, could become a security hole somehow!
-	if (!isset($_GET['package']) || $_GET['package'] == 'index.php' || $_GET['package'] == 'installed.list' || $_GET['package'] == 'backups')
+	if (!isset($_GET['package']) || $_GET['package'] == 'index.php' || $_GET['package'] == 'backups')
 		redirectexit('action=admin;area=packages;sa=browse');
 	$_GET['package'] = preg_replace('~[\.]+~', '.', strtr($_GET['package'], array('/' => '_', '\\' => '_')));
 
@@ -1370,7 +1369,7 @@ function PackageRemove()
  */
 function PackageBrowse()
 {
-	global $txt, $boarddir, $scripturl, $context, $forum_version, $sourcedir, $settings;
+	global $txt, $boarddir, $scripturl, $context, $forum_version, $sourcedir;
 
 	$context['page_title'] .= ' - ' . $txt['browse_packages'];
 
@@ -1434,7 +1433,6 @@ function PackageBrowse()
 				'version' . $type => array(
 					'header' => array(
 						'value' => $txt['mod_version'],
-						'style' => 'width: 25%;',
 					),
 					'data' => array(
 						'function' => create_function('$package_md5', '
@@ -1447,6 +1445,24 @@ function PackageBrowse()
 					'sort' => array(
 						'default' => 'version',
 						'reverse' => 'version',
+					),
+				),
+				'time_installed' . $type => array(
+					'header' => array(
+						'value' => $txt['mod_installed_time'],
+					),
+					'data' => array(
+						'function' => create_function('$package_md5', '
+							global $context, $txt;
+
+							if (isset($context[\'available_' . $type . '\'][$package_md5]))
+								return !empty($context[\'available_' . $type . '\'][$package_md5][\'time_installed\']) ? timeformat($context[\'available_' . $type . '\'][$package_md5][\'time_installed\']) : $txt[\'not_applicable\'];
+						'),
+						'class' => 'smalltext',
+					),
+					'sort' => array(
+						'default' => 'time_installed',
+						'reverse' => 'time_installed',
 					),
 				),
 				'operations' . $type => array(
@@ -1491,7 +1507,7 @@ function PackageBrowse()
 			'additional_rows' => array(
 				array(
 					'position' => 'bottom_of_list',
-					'value' => ($context['sub_action'] == 'browse' ? '<div class="padding smalltext">' . $txt['package_installed_key'] . '<img src="' . $settings['images_url'] . '/icons/package_installed.png" alt="" class="centericon" style="margin-left: 1ex;" /> ' . $txt['package_installed_current'] . '<img src="' . $settings['images_url'] . '/icons/package_old.png" alt="" class="centericon" style="margin-left: 2ex;" /> ' . $txt['package_installed_old'] . '</div>' :
+					'value' => ($context['sub_action'] == 'browse' ? '<div class="padding smalltext">' . $txt['package_installed_key'] . '<span class="generic_icons current centericon" style="margin-left: 1ex;"></span> ' . $txt['package_installed_current'] . '<span class="generic_icons old centericon" style="margin-left: 2ex;"></span> ' . $txt['package_installed_old'] . '</div>' :
 					'<a class="button_link" href="' . $scripturl . '?action=admin;area=packages;sa=flush;' . $context['session_var'] . '=' . $context['session_id'] . '" onclick="return confirm(\'' . $txt['package_delete_list_warning'] . '\');">' . $txt['delete_list'] . '</a>'),
 				),
 			),
@@ -1567,6 +1583,7 @@ function list_getPackages($start, $items_per_page, $sort, $params, $installed)
 			$installed_mods[$installed_mod['package_id']] = array(
 				'id' => $installed_mod['id'],
 				'version' => $installed_mod['version'],
+				'time_installed' => $installed_mod['time_installed'],
 			);
 
 		// Get a list of all the ids installed, so the latest packages won't include already installed ones.
@@ -1585,6 +1602,7 @@ function list_getPackages($start, $items_per_page, $sort, $params, $installed)
 				'filename' => $installed_mod['filename'],
 				'installed_id' => $installed_mod['id'],
 				'version' => $installed_mod['version'],
+				'time_installed' => $installed_mod['time_installed'],
 				'is_installed' => true,
 				'is_current' => true,
 			);
@@ -1645,6 +1663,7 @@ function list_getPackages($start, $items_per_page, $sort, $params, $installed)
 			if (!empty($packageInfo))
 			{
 				$packageInfo['installed_id'] = isset($installed_mods[$packageInfo['id']]) ? $installed_mods[$packageInfo['id']]['id'] : 0;
+				$packageInfo['time_installed'] = isset($installed_mods[$packageInfo['id']]) ? $installed_mods[$packageInfo['id']]['time_installed'] : 0;
 
 				$packageInfo['sort_id'] = $sort_id[$packageInfo['type']];
 				$packageInfo['is_installed'] = isset($installed_mods[$packageInfo['id']]);
@@ -1796,7 +1815,7 @@ function PackageOptions()
 
 	if (isset($_POST['save']))
 	{
-		checkSession('post');
+		checkSession();
 
 		updateSettings(array(
 			'package_server' => trim($smcFunc['htmlspecialchars']($_POST['pack_server'])),
@@ -1805,6 +1824,7 @@ function PackageOptions()
 			'package_make_backups' => !empty($_POST['package_make_backups']),
 			'package_make_full_backups' => !empty($_POST['package_make_full_backups'])
 		));
+		$_SESSION['adm-save'] = true;
 
 		redirectexit('action=admin;area=packages;sa=options');
 	}
@@ -1822,6 +1842,12 @@ function PackageOptions()
 	$context['package_ftp_username'] = isset($modSettings['package_username']) ? $modSettings['package_username'] : $default_username;
 	$context['package_make_backups'] = !empty($modSettings['package_make_backups']);
 	$context['package_make_full_backups'] = !empty($modSettings['package_make_full_backups']);
+
+	if (!empty($_SESSION['adm-save']))
+	{
+		$context['saved_successful'] = true;
+		unset ($_SESSION['adm-save']);
+	}
 }
 
 /**
@@ -1888,6 +1914,36 @@ function ViewOperations()
 		$theme_paths[$row['id_theme']][$row['variable']] = $row['value'];
 	$smcFunc['db_free_result']($request);
 
+	// If we're viewing uninstall operations, only consider themes that
+	// the package is actually installed into.
+	if (isset($_REQUEST['reverse']) && !empty($_REQUEST['install_id']))
+	{
+		$install_id = (int) $_REQUEST['install_id'];
+		if ($install_id > 0)
+		{
+			$old_themes = array();
+			$request = $smcFunc['db_query']('', '
+				SELECT themes_installed
+				FROM {db_prefix}log_packages
+				WHERE id_install = {int:install_id}',
+				array(
+					'install_id' => $install_id,
+				)
+			);
+
+			if ($smcFunc['db_num_rows']($request) == 1)
+			{
+				list ($old_themes) = $smcFunc['db_fetch_row']($request);
+				$old_themes = explode(',', $old_themes);
+
+				foreach ($theme_paths as $id => $data)
+					if ($id != 1 && !in_array($id, $old_themes))
+						unset($theme_paths[$id]);
+			}
+			$smcFunc['db_free_result']($request);
+		}
+	}
+
 	// Boardmod?
 	if (isset($_REQUEST['boardmod']))
 		$mod_actions = parseBoardMod(@file_get_contents($packagesdir . '/temp/' . $context['base_path'] . $_REQUEST['filename']), true, $reverse, $theme_paths);
@@ -1896,8 +1952,8 @@ function ViewOperations()
 
 	// Ok lets get the content of the file.
 	$context['operations'] = array(
-		'search' => strtr(htmlspecialchars($mod_actions[$_REQUEST['operation_key']]['search_original']), array('[' => '&#91;', ']' => '&#93;')),
-		'replace' => strtr(htmlspecialchars($mod_actions[$_REQUEST['operation_key']]['replace_original']), array('[' => '&#91;', ']' => '&#93;')),
+		'search' => strtr($smcFunc['htmlspecialchars']($mod_actions[$_REQUEST['operation_key']]['search_original']), array('[' => '&#91;', ']' => '&#93;')),
+		'replace' => strtr($smcFunc['htmlspecialchars']($mod_actions[$_REQUEST['operation_key']]['replace_original']), array('[' => '&#91;', ']' => '&#93;')),
 		'position' => $mod_actions[$_REQUEST['operation_key']]['position'],
 	);
 
@@ -1994,9 +2050,15 @@ function PackagePermissions()
 					'writable_on' => 'standard',
 				),
 				'Sources' => array(
-					'type' => 'dir',
+					'type' => 'dir_recursive',
 					'list_contents' => true,
 					'writable_on' => 'standard',
+					'contents' => array(
+						'tasks' => array(
+							'type' => 'dir',
+							'list_contents' => true,
+						),
+					),
 				),
 				'Themes' => array(
 					'type' => 'dir_recursive',
@@ -2023,10 +2085,6 @@ function PackagePermissions()
 						),
 						'backup' => array(
 							'type' => 'dir',
-						),
-						'installed.list' => array(
-							'type' => 'file',
-							'writable_on' => 'standard',
 						),
 					),
 				),

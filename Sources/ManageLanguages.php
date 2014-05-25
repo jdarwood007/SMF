@@ -6,9 +6,8 @@
  * Simple Machines Forum (SMF)
  *
  * @package SMF
- * @author Simple Machines
- *
- * @copyright 2013 Simple Machines and individual contributors
+ * @author Simple Machines http://www.simplemachines.org
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -27,7 +26,7 @@ if (!defined('SMF'))
  */
 function ManageLanguages()
 {
-	global $context, $txt, $scripturl, $modSettings;
+	global $context, $txt, $scripturl;
 
 	loadTemplate('ManageLanguages');
 	loadLanguage('ManageSettings');
@@ -66,7 +65,7 @@ function ManageLanguages()
  */
 function AddLanguage()
 {
-	global $context, $sourcedir, $forum_version, $boarddir, $txt, $smcFunc, $scripturl;
+	global $context, $sourcedir, $boarddir, $txt, $smcFunc, $scripturl;
 
 	// Are we searching for new languages courtesy of Simple Machines?
 	if (!empty($_POST['smf_add_sub']))
@@ -74,7 +73,7 @@ function AddLanguage()
 		// Need fetch_web_data.
 		require_once($sourcedir . '/Subs-Package.php');
 
-		$context['smf_search_term'] = htmlspecialchars(trim($_POST['smf_add']));
+		$context['smf_search_term'] = $smcFunc['htmlspecialchars'](trim($_POST['smf_add']));
 
 		$listOptions = array(
 			'id' => 'smf_languages',
@@ -490,7 +489,7 @@ function DownloadLanguage()
 					'function' => create_function('$rowData', '
 						global $context, $txt;
 
-						return \'<strong>\' . $rowData[\'name\'] . \'</strong><br /><span class="smalltext">\' . $txt[\'languages_download_dest\'] . \': \' . $rowData[\'destination\'] . \'</span>\' . ($rowData[\'version_compare\'] == \'older\' ? \'<br />\' . $txt[\'languages_download_older\'] : \'\');
+						return \'<strong>\' . $rowData[\'name\'] . \'</strong><br><span class="smalltext">\' . $txt[\'languages_download_dest\'] . \': \' . $rowData[\'destination\'] . \'</span>\' . ($rowData[\'version_compare\'] == \'older\' ? \'<br>\' . $txt[\'languages_download_older\'] : \'\');
 					'),
 				),
 			),
@@ -537,7 +536,7 @@ function DownloadLanguage()
 				),
 				'data' => array(
 					'function' => create_function('$rowData', '
-						return \'<input type="checkbox" name="copy_file[]" value="\' . $rowData[\'generaldest\'] . \'" \' . ($rowData[\'default_copy\'] ? \'checked="checked"\' : \'\') . \' class="input_check" />\';
+						return \'<input type="checkbox" name="copy_file[]" value="\' . $rowData[\'generaldest\'] . \'"\' . ($rowData[\'default_copy\'] ? \' checked\' : \'\') . \' class="input_check">\';
 					'),
 					'style' => 'width: 4%;',
 					'class' => 'centercol',
@@ -566,7 +565,7 @@ function DownloadLanguage()
 function ModifyLanguages()
 {
 	global $txt, $context, $scripturl;
-	global $user_info, $smcFunc, $sourcedir, $language, $boarddir, $forum_version;
+	global $smcFunc, $sourcedir, $language, $boarddir, $forum_version;
 
 	// Setting a new default?
 	if (!empty($_POST['set_default']) && !empty($_POST['def_language']))
@@ -615,7 +614,7 @@ function ModifyLanguages()
 				),
 				'data' => array(
 					'function' => create_function('$rowData', '
-						return \'<input type="radio" name="def_language" value="\' . $rowData[\'id\'] . \'" \' . ($rowData[\'default\'] ? \'checked="checked"\' : \'\') . \' onclick="highlightSelected(\\\'list_language_list_\' . $rowData[\'id\'] . \'\\\');" class="input_radio" />\';
+						return \'<input type="radio" name="def_language" value="\' . $rowData[\'id\'] . \'"\' . ($rowData[\'default\'] ? \' checked\' : \'\') . \' onclick="highlightSelected(\\\'list_language_list_\' . $rowData[\'id\'] . \'\\\');" class="input_radio">\';
 					'),
 					'style' => 'width: 8%;',
 					'class' => 'centercol',
@@ -665,26 +664,19 @@ function ModifyLanguages()
 		'additional_rows' => array(
 			array(
 				'position' => 'bottom_of_list',
-				'value' => '<input type="hidden" name="' . $context['session_var'] . '" value="' . $context['session_id'] . '" /><input type="submit" name="set_default" value="' . $txt['save'] . '"' . (is_writable($boarddir . '/Settings.php') ? '' : ' disabled="disabled"') . ' class="button_submit" />',
+				'value' => '<input type="hidden" name="' . $context['session_var'] . '" value="' . $context['session_id'] . '"><input type="submit" name="set_default" value="' . $txt['save'] . '"' . (is_writable($boarddir . '/Settings.php') ? '' : ' disabled') . ' class="button_submit">',
 			),
 		),
-		// For highlighting the default.
-		'javascript' => '
-					var prevClass = "";
-					var prevDiv = "";
-					function highlightSelected(box)
-					{
-						if (prevClass != "")
-							prevDiv.className = prevClass;
-
-						prevDiv = document.getElementById(box);
-						prevClass = prevDiv.className;
-
-						prevDiv.className = "highlight2";
-					}
-					highlightSelected("list_language_list_' . ($language == '' ? 'english' : $language). '");
-		',
 	);
+
+	// We want to highlight the selected language. Need some Javascript for this.
+	addInlineJavascript('
+	function highlightSelected(box)
+	{
+		$("tr.highlight2").removeClass("highlight2");
+		$("#" + box).addClass("highlight2");
+	}
+	highlightSelected("list_language_list_' . ($language == '' ? 'english' : $language). '");', true);
 
 	// Display a warning if we cannot edit the default setting.
 	if (!is_writable($boarddir . '/Settings.php'))
@@ -825,6 +817,8 @@ function ModifyLanguageSettings($return_config = false)
 		call_integration_hook('integrate_save_language_settings', array(&$config_vars));
 
 		saveSettings($config_vars);
+		if (!$settings_not_writable && !$settings_backup_fail)
+			$_SESSION['adm-save'] = true;
 		redirectexit('action=admin;area=languages;sa=settings');
 	}
 
@@ -834,9 +828,9 @@ function ModifyLanguageSettings($return_config = false)
 	$context['save_disabled'] = $settings_not_writable;
 
 	if ($settings_not_writable)
-		$context['settings_message'] = '<div class="centertext"><strong>' . $txt['settings_not_writable'] . '</strong></div><br />';
+		$context['settings_message'] = '<div class="centertext"><strong>' . $txt['settings_not_writable'] . '</strong></div><br>';
 	elseif ($settings_backup_fail)
-		$context['settings_message'] = '<div class="centertext"><strong>' . $txt['admin_backup_fail'] . '</strong></div><br />';
+		$context['settings_message'] = '<div class="centertext"><strong>' . $txt['admin_backup_fail'] . '</strong></div><br>';
 
 	// Fill the config array.
 	prepareServerSettingsContext($config_vars);
@@ -946,7 +940,9 @@ function ModifyLanguage()
 		if (!empty($modSettings['package_make_backups']) && (!isset($_SESSION['last_backup_for']) || $_SESSION['last_backup_for'] != $context['lang_id'] . '$$$'))
 		{
 			$_SESSION['last_backup_for'] = $context['lang_id'] . '$$$';
-			package_create_backup('backup_lang_' . $context['lang_id']);
+			$result = package_create_backup('backup_lang_' . $context['lang_id']);
+			if (!$result)
+				fatal_lang_error('could_not_language_backup', false);
 		}
 
 		// Second, loop through the array to remove the files.

@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -78,7 +78,7 @@ function ModifyMembergroups()
  */
 function MembergroupIndex()
 {
-	global $txt, $scripturl, $context, $settings, $smcFunc, $sourcedir;
+	global $txt, $scripturl, $context, $smcFunc, $sourcedir;
 
 	$context['page_title'] = $txt['membergroups_title'];
 
@@ -610,7 +610,10 @@ function DeleteMembergroup()
 	checkSession('get');
 
 	require_once($sourcedir . '/Subs-Membergroups.php');
-	deleteMembergroups((int) $_REQUEST['group']);
+	$result = deleteMembergroups((int) $_REQUEST['group']);
+	// Need to throw a warning if it went wrong, but this is the only one we have a message for...
+	if ($result === 'group_cannot_delete_sub')
+		fatal_lang_error('membergroups_cannot_delete_paid', false);
 
 	// Go back to the membergroup index.
 	redirectexit('action=admin;area=membergroups;');
@@ -635,7 +638,6 @@ function EditMembergroup()
 	if (!empty($modSettings['deny_boards_access']))
 		loadLanguage('ManagePermissions');
 
-
 	// Make sure this group is editable.
 	if (!empty($_REQUEST['group']))
 	{
@@ -659,6 +661,11 @@ function EditMembergroup()
 	if (empty($_REQUEST['group']))
 		fatal_lang_error('membergroup_does_not_exist', false);
 
+	// People who can manage boards are a bit special.
+	require_once($sourcedir . '/Subs-Members.php');
+	$board_managers = groupsAllowedTo('manage_boards', null);
+	$context['can_manage_boards'] = in_array($_REQUEST['group'], $board_managers['allowed']);
+
 	// Can this group moderate any boards?
 	$request = $smcFunc['db_query']('', '
 		SELECT COUNT(id_board)
@@ -681,7 +688,10 @@ function EditMembergroup()
 		validateToken('admin-mmg');
 
 		require_once($sourcedir . '/Subs-Membergroups.php');
-		deleteMembergroups($_REQUEST['group']);
+		$result = deleteMembergroups($_REQUEST['group']);
+		// Need to throw a warning if it went wrong, but this is the only one we have a message for...
+		if ($result === 'group_cannot_delete_sub')
+			fatal_lang_error('membergroups_cannot_delete_paid', false);
 
 		redirectexit('action=admin;area=membergroups;');
 	}
@@ -693,7 +703,7 @@ function EditMembergroup()
 		validateToken('admin-mmg');
 
 		// Can they really inherit from this group?
-		if (isset($_POST['group_inherit']) && $_POST['group_inherit'] != -2 && !allowedTo('admin_forum'))
+		if ($_REQUEST['group'] > 1 && $_REQUEST['group'] != 3 && isset($_POST['group_inherit']) && $_POST['group_inherit'] != -2 && !allowedTo('admin_forum'))
 		{
 			$request = $smcFunc['db_query']('', '
 				SELECT group_type
@@ -748,6 +758,19 @@ function EditMembergroup()
 		if ($_REQUEST['group'] == 2 || $_REQUEST['group'] > 3)
 		{
 			$accesses = empty($_POST['boardaccess']) || !is_array($_POST['boardaccess']) ? array() : $_POST['boardaccess'];
+
+			// If they can manage boards, the rules are a bit different. They can see everything.
+			if ($context['can_manage_boards'])
+			{
+				$accesses = array();
+				$request = $smcFunc['db_query']('', '
+					SELECT id_board
+					FROM {db_prefix}boards');
+				while ($row = $smcFunc['db_fetch_assoc']($request))
+					$accesses[(int) $row['id_board']] = 'allow';
+				$smcFunc['db_free_result']($request);
+			}
+
 			$changed_boards['allow'] = array();
 			$changed_boards['deny'] = array();
 			$changed_boards['ignore'] = array();
@@ -858,7 +881,10 @@ function EditMembergroup()
 				$smcFunc['db_free_result']($request);
 
 				foreach ($updates as $additional_groups => $memberArray)
-					updateMemberData($memberArray, array('additional_groups' => implode(',', array_merge(explode(',', $additional_groups), array((int) $_REQUEST['group'])))));
+				{
+					$new_groups = (!empty($additional_groups) ? $additional_groups . ',' : '') . $_REQUEST['group']; // We already validated this a while ago.
+					updateMemberData($memberArray, array('additional_groups' => $new_groups));
+				}
 
 				$smcFunc['db_query']('', '
 					UPDATE {db_prefix}members
@@ -918,7 +944,7 @@ function EditMembergroup()
 			// Get all the usernames from the string
 			if (!empty($moderator_string))
 			{
-				$moderator_string = strtr(preg_replace('~&amp;#(\d{4,5}|[2-9]\d{2,4}|1[2-9]\d);~', '&#$1;', htmlspecialchars($moderator_string), ENT_QUOTES), array('&quot;' => '"'));
+				$moderator_string = strtr(preg_replace('~&amp;#(\d{4,5}|[2-9]\d{2,4}|1[2-9]\d);~', '&#$1;', $smcFunc['htmlspecialchars']($moderator_string, ENT_QUOTES)), array('&quot;' => '"'));
 				preg_match_all('~"([^"]+)"~', $moderator_string, $matches);
 				$moderators = array_merge($matches[1], explode(',', preg_replace('~"[^"]+"~', '', $moderator_string)));
 				for ($k = 0, $n = count($moderators); $k < $n; $k++)
@@ -1021,7 +1047,7 @@ function EditMembergroup()
 	$context['group'] = array(
 		'id' => $_REQUEST['group'],
 		'name' => $row['group_name'],
-		'description' => htmlspecialchars($row['description']),
+		'description' => $smcFunc['htmlspecialchars']($row['description'], ENT_QUOTES),
 		'editable_name' => $row['group_name'],
 		'color' => $row['online_color'],
 		'min_posts' => $row['min_posts'],
@@ -1146,6 +1172,8 @@ function EditMembergroup()
 	if (!empty($context['possible_icons']))
 		loadJavascriptFile('icondropdown.js', array('validate' => true));
 
+		loadJavascriptFile('suggest.js', array('default_theme' => true, 'defer' => false), 'smf_suggest');
+
 	// Finally, get all the groups this could be inherited off.
 	$request = $smcFunc['db_query']('', '
 		SELECT id_group, group_name
@@ -1186,7 +1214,7 @@ function EditMembergroup()
  */
 function ModifyMembergroupsettings()
 {
-	global $context, $sourcedir, $scripturl, $modSettings, $txt;
+	global $context, $sourcedir, $scripturl, $txt;
 
 	$context['sub_template'] = 'show_settings';
 	$context['page_title'] = $txt['membergroups_settings'];
@@ -1211,6 +1239,7 @@ function ModifyMembergroupsettings()
 
 		// Yeppers, saving this...
 		saveDBSettings($config_vars);
+		$_SESSION['adm-save'] = true;
 		redirectexit('action=admin;area=membergroups;sa=settings');
 	}
 

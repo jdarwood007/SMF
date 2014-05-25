@@ -6,9 +6,8 @@
  * Simple Machines Forum (SMF)
  *
  * @package SMF
- * @author Simple Machines
- *
- * @copyright 2013 Simple Machines and individual contributors
+ * @author Simple Machines http://www.simplemachines.org
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -17,6 +16,9 @@
 if (!defined('SMF'))
 	die('No direct access...');
 
+/**
+ * Shows an avatar based on $_GET['attach']
+ */
 function showAvatar()
 {
 	global $smcFunc, $modSettings, $maintenance;
@@ -127,7 +129,7 @@ function showAvatar()
 		$fp = fopen($file['filename'], 'rb');
 		while (!feof($fp))
 		{
-			print fread($fp, 8192);
+			echo fread($fp, 8192);
 			flush();
 		}
 		fclose($fp);
@@ -135,7 +137,7 @@ function showAvatar()
 
 	// On some of the less-bright hosts, readfile() is disabled.  It's just a faster, more byte safe, version of what's in the if.
 	elseif (@readfile($file['filename']) === null)
-		print file_get_contents($file['filename']);
+		echo file_get_contents($file['filename']);
 
 	die();
 }

@@ -14,13 +14,14 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
  */
 
 $forum_version = 'SMF 2.1 Alpha 1';
+$software_year = '2014';
 
 // Get everything started up...
 define('SMF', 1);
@@ -61,10 +62,10 @@ $smcFunc = array();
 loadDatabase();
 
 // Load the settings from the settings table, and perform operations like optimizing.
+$context = array();
 reloadSettings();
 // Clean the request variables, add slashes, etc.
 cleanRequest();
-$context = array();
 
 // Seed the random generator.
 if (empty($modSettings['rand_seed']) || mt_rand(1, 250) == 69)
@@ -76,7 +77,8 @@ if (isset($_GET['scheduled']))
 	require_once($sourcedir . '/ScheduledTasks.php');
 	AutoTask();
 }
-// Displaying attached avatars
+
+// Displaying attached avatars, legacy.
 elseif (isset($_GET['action']) && $_GET['action'] == 'dlattach' && isset($_GET['type']) && $_GET['type'] == 'avatar')
 {
 	require_once($sourcedir. '/Avatar.php');
@@ -170,7 +172,8 @@ obExit(null, null, true);
  */
 function smf_main()
 {
-	global $modSettings, $settings, $user_info, $board, $topic, $board_info, $maintenance, $sourcedir;
+	global $modSettings, $settings, $user_info, $board, $topic;
+	global $board_info, $maintenance, $sourcedir, $db_show_debug, $context;
 
 	// Special case: session keep-alive, output a transparent pixel.
 	if (isset($_GET['action']) && $_GET['action'] == 'keepalive')
@@ -205,7 +208,7 @@ function smf_main()
 	if (!empty($topic) && empty($board_info['cur_topic_approved']) && !allowedTo('approve_posts') && ($user_info['id'] != $board_info['cur_topic_starter'] || $user_info['is_guest']))
 		fatal_lang_error('not_a_topic', false);
 
-	$no_stat_actions = array('dlattach', 'findmember', 'jsoption', 'requestmembers', 'smstats', '.xml', 'xmlhttp', 'verificationcode', 'viewquery', 'viewsmfile');
+	$no_stat_actions = array('clock', 'dlattach', 'findmember', 'jsoption', 'likes', 'loadeditorlocale', 'modifycat', 'requestmembers', 'smstats', 'suggest', 'about:unknown', '.xml', 'xmlhttp', 'verificationcode', 'viewquery', 'viewsmfile');
 	call_integration_hook('integrate_pre_log_stats', array(&$no_stat_actions));
 	// Do some logging, unless this is an attachment, avatar, toggle of editor buttons, theme option, XML feed etc.
 	if (empty($_REQUEST['action']) || !in_array($_REQUEST['action'], $no_stat_actions))
@@ -236,7 +239,7 @@ function smf_main()
 		}
 	}
 	// If guest access is off, a guest can only do one of the very few following actions.
-	elseif (empty($modSettings['allow_guestAccess']) && $user_info['is_guest'] && (!isset($_REQUEST['action']) || !in_array($_REQUEST['action'], array('coppa', 'login', 'login2', 'register', 'register2', 'reminder', 'activate', 'help', 'helpadmin', 'smstats', 'mailq', 'verificationcode', 'openidreturn'))))
+	elseif (empty($modSettings['allow_guestAccess']) && $user_info['is_guest'] && (!isset($_REQUEST['action']) || !in_array($_REQUEST['action'], array('coppa', 'login', 'login2', 'register', 'register2', 'reminder', 'activate', 'help', 'helpadmin', 'smstats', 'verificationcode', 'openidreturn'))))
 	{
 		require_once($sourcedir . '/Subs-Auth.php');
 		return 'KickGuest';
@@ -249,7 +252,7 @@ function smf_main()
 			$defaultActions = call_integration_hook('integrate_default_action');
 			foreach ($defaultActions as $defaultAction)
 			{
-				$call = strpos($defaultAction, '::') !== false ? explode('::', $defaultAction) : $defaultAction;
+				$call = call_hook_helper($defaultAction);
 				if (!empty($call) && is_callable($call))
 					return $call;
 			}
@@ -281,20 +284,19 @@ function smf_main()
 		'buddy' => array('Subs-Members.php', 'BuddyListToggle'),
 		'calendar' => array('Calendar.php', 'CalendarMain'),
 		'clock' => array('Calendar.php', 'clock'),
-		'collapse' => array('BoardIndex.php', 'CollapseCategory'),
 		'coppa' => array('Register.php', 'CoppaForm'),
 		'credits' => array('Who.php', 'Credits'),
 		'deletemsg' => array('RemoveTopic.php', 'DeleteMessage'),
 		'dlattach' => array('Display.php', 'Download'),
 		'editpoll' => array('Poll.php', 'EditPoll'),
 		'editpoll2' => array('Poll.php', 'EditPoll2'),
-		'emailuser' => array('SendTopic.php', 'EmailUser'),
 		'findmember' => array('Subs-Auth.php', 'JSMembers'),
 		'groups' => array('Groups.php', 'Groups'),
 		'help' => array('Help.php', 'ShowHelp'),
 		'helpadmin' => array('Help.php', 'ShowAdminHelp'),
 		'jsmodify' => array('Post.php', 'JavaScriptModify'),
 		'jsoption' => array('Themes.php', 'SetJavaScript'),
+		'likes' => array('Likes.php', 'Likes::call#'),
 		'loadeditorlocale' => array('Subs-Editor.php', 'loadLocale'),
 		'lock' => array('Topic.php', 'LockTopic'),
 		'lockvoting' => array('Poll.php', 'LockVoting'),
@@ -326,12 +328,12 @@ function smf_main()
 		'reminder' => array('Reminder.php', 'RemindMe'),
 		'removepoll' => array('Poll.php', 'RemovePoll'),
 		'removetopic2' => array('RemoveTopic.php', 'RemoveTopic2'),
-		'reporttm' => array('SendTopic.php', 'ReportToModerator'),
+		'reporttm' => array('ReportToMod.php', 'ReportToModerator'),
 		'requestmembers' => array('Subs-Auth.php', 'RequestMembers'),
 		'restoretopic' => array('RemoveTopic.php', 'RestoreTopic'),
 		'search' => array('Search.php', 'PlushSearch1'),
 		'search2' => array('Search.php', 'PlushSearch2'),
-		'sendtopic' => array('SendTopic.php', 'EmailUser'),
+		'sendactivation' => array('Register.php', 'SendActivation'),
 		'smstats' => array('Stats.php', 'SMStats'),
 		'suggest' => array('Subs-Editor.php', 'AutoSuggestHandler'),
 		'spellcheck' => array('Subs-Post.php', 'SpellCheck'),
@@ -340,8 +342,7 @@ function smf_main()
 		'sticky' => array('Topic.php', 'Sticky'),
 		'theme' => array('Themes.php', 'ThemesMain'),
 		'trackip' => array('Profile-View.php', 'trackIP'),
-		'about:mozilla' => array('Karma.php', 'BookOfUnknown'),
-		'about:unknown' => array('Karma.php', 'BookOfUnknown'),
+		'about:unknown' => array('Likes.php', 'BookOfUnknown'),
 		'unread' => array('Recent.php', 'UnreadTopics'),
 		'unreadreplies' => array('Recent.php', 'UnreadTopics'),
 		'unwatchtopic' => array('Notify.php', 'TopicUnwatch'),
@@ -368,6 +369,14 @@ function smf_main()
 			return 'WrapAction';
 		}
 
+		$fallbackActions = call_integration_hook('integrate_fallback_action');
+		foreach ($fallbackActions as $fallbackAction)
+		{
+			$call = call_hook_helper($fallbackAction);
+			if (!empty($call) && is_callable($call))
+				return $call;
+		}
+
 		// Fall through to the board index then...
 		require_once($sourcedir . '/BoardIndex.php');
 		return 'BoardIndex';
@@ -375,7 +384,9 @@ function smf_main()
 
 	// Otherwise, it was set - so let's go to that action.
 	require_once($sourcedir . '/' . $actionArray[$_REQUEST['action']][0]);
-	return $actionArray[$_REQUEST['action']][1];
+
+	// Do the right thing.
+	return call_hook_helper($actionArray[$_REQUEST['action']][1]);
 }
 
 ?>

@@ -7,9 +7,8 @@
  * Simple Machines Forum (SMF)
  *
  * @package SMF
- * @author Simple Machines
- *
- * @copyright 2013 Simple Machines and individual contributors
+ * @author Simple Machines http://www.simplemachines.org
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -439,7 +438,7 @@ function processAttachments()
 		if (empty($errors))
 		{
 			$_SESSION['temp_attachments'][$attachID] = array(
-				'name' => htmlspecialchars(basename($_FILES['attachment']['name'][$n])),
+				'name' => $smcFunc['htmlspecialchars'](basename($_FILES['attachment']['name'][$n])),
 				'tmp_name' => $destName,
 				'size' => $_FILES['attachment']['size'][$n],
 				'type' => $_FILES['attachment']['type'][$n],
@@ -460,7 +459,7 @@ function processAttachments()
 		else
 		{
 			$_SESSION['temp_attachments'][$attachID] = array(
-				'name' => htmlspecialchars(basename($_FILES['attachment']['name'][$n])),
+				'name' => $smcFunc['htmlspecialchars'](basename($_FILES['attachment']['name'][$n])),
 				'tmp_name' => $destName,
 				'errors' => $errors,
 			);
@@ -587,7 +586,7 @@ function attachmentChecks($attachID)
 		}
 
 		// // No room left.... What to do now???
-		if (!empty($modSettings['attachmentDirFileLimit']) && $context['dir_files'] + 2 > $modSettings['attachmentDirFileLimit']
+		if (!empty($modSettings['attachmentDirFileLimit']) && $context['dir_files'] > $modSettings['attachmentDirFileLimit']
 			|| (!empty($modSettings['attachmentDirSizeLimit']) && $context['dir_size'] > $modSettings['attachmentDirSizeLimit'] * 1024))
 		{
 			if (!empty($modSettings['automanage_attachments']) && $modSettings['automanage_attachments'] == 1)
@@ -704,6 +703,14 @@ function createAttachment(&$attachmentOptions)
 		// Otherwise a valid one?
 		elseif (isset($validImageTypes[$size[2]]))
 			$attachmentOptions['mime_type'] = 'image/' . $validImageTypes[$size[2]];
+	}
+
+	// It is possible we might have a MIME type that isn't actually an image but still have a size.
+	// For example, Shockwave files will be able to return size but be 'application/shockwave' or similar.
+	if (!empty($attachmentOptions['mime_type']) && strpos($attachmentOptions['mime_type'], 'image/') !== 0)
+	{
+		$attachmentOptions['width'] = 0;
+		$attachmentOptions['height'] = 0;
 	}
 
 	// Get the hash if no hash has been given yet.

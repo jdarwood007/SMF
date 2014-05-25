@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -26,7 +26,7 @@ if (!defined('SMF'))
  */
 function DisplayStats()
 {
-	global $txt, $scripturl, $modSettings, $user_info, $context, $smcFunc;
+	global $txt, $scripturl, $modSettings, $context, $smcFunc;
 
 	isAllowedTo('view_stats');
 	// Page disabled - redirect them out
@@ -70,6 +70,7 @@ function DisplayStats()
 
 	loadLanguage('Stats');
 	loadTemplate('Stats');
+	loadJavascriptFile('stats.js', array('default_theme' => true, 'defer' => false), 'smf_stats');
 
 	// Build the link tree......
 	$context['linktree'][] = array(
@@ -155,38 +156,20 @@ function DisplayStats()
 		if (($context['gender'] = cache_get_data('stats_gender', 240)) == null)
 		{
 			$result = $smcFunc['db_query']('', '
-				SELECT COUNT(*) AS total_members, gender
-				FROM {db_prefix}members
-				GROUP BY gender',
-				array(
-				)
+				SELECT COUNT(*) AS total_members, c.value AS gender
+				FROM {db_prefix}members AS m
+				INNER JOIN {db_prefix}themes AS c ON c.variable = "cust_gender"
+				GROUP BY c.value',
+				array()
 			);
 			$context['gender'] = array();
 			while ($row = $smcFunc['db_fetch_assoc']($result))
 			{
 				// Assuming we're telling... male or female?
 				if (!empty($row['gender']))
-					$context['gender'][$row['gender'] == 2 ? 'females' : 'males'] = $row['total_members'];
+					$context['gender'][$row['gender']]++;
 			}
 			$smcFunc['db_free_result']($result);
-
-			// Set these two zero if the didn't get set at all.
-			if (empty($context['gender']['males']))
-				$context['gender']['males'] = 0;
-			if (empty($context['gender']['females']))
-				$context['gender']['females'] = 0;
-
-			// Try and come up with some "sensible" default states in case of a non-mixed board.
-			if ($context['gender']['males'] == $context['gender']['females'])
-				$context['gender']['ratio'] = '1:1';
-			elseif ($context['gender']['males'] == 0)
-				$context['gender']['ratio'] = '0:1';
-			elseif ($context['gender']['females'] == 0)
-				$context['gender']['ratio'] = '1:0';
-			elseif ($context['gender']['males'] > $context['gender']['females'])
-				$context['gender']['ratio'] = round($context['gender']['males'] / $context['gender']['females'], 1) . ':1';
-			elseif ($context['gender']['females'] > $context['gender']['males'])
-				$context['gender']['ratio'] = '1:' . round($context['gender']['females'] / $context['gender']['males'], 1);
 
 			cache_put_data('stats_gender', $context['gender'], 240);
 		}

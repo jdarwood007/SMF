@@ -8,7 +8,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -42,7 +42,14 @@ function Login()
 	{
 		loadLanguage('Login');
 		loadTemplate('Login');
+
 		$context['sub_template'] = 'login';
+
+		if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest')
+		{
+			$context['from_ajax'] = true;
+			$context['template_layers'] = array();
+		}
 	}
 
 	// Get the template ready.... not really much else to do.
@@ -62,6 +69,9 @@ function Login()
 		$_SESSION['login_url'] = $_SESSION['old_url'];
 	else
 		unset($_SESSION['login_url']);
+
+	// Need some js goodies.
+	loadJavascriptFile('sha1.js', array('default_theme' => true), 'smf_sha1');
 
 	// Create a one time token.
 	createToken('login');
@@ -88,7 +98,7 @@ function Login2()
 
 	if (isset($_GET['sa']) && $_GET['sa'] == 'salt' && !$user_info['is_guest'])
 	{
-		if (isset($_COOKIE[$cookiename]) && preg_match('~^a:[34]:\{i:0;(i:\d{1,6}|s:[1-8]:"\d{1,8}");i:1;s:(0|40):"([a-fA-F0-9]{40})?";i:2;[id]:\d{1,14};(i:3;i:\d;)?\}$~', $_COOKIE[$cookiename]) === 1)
+		if (isset($_COOKIE[$cookiename]) && preg_match('~^a:[34]:\{i:0;i:\d{1,7};i:1;s:(0|40):"([a-fA-F0-9]{40})?";i:2;[id]:\d{1,14};(i:3;i:\d;)?\}$~', $_COOKIE[$cookiename]) === 1)
 			list (, , $timeout) = @unserialize($_COOKIE[$cookiename]);
 		elseif (isset($_SESSION['login_' . $cookiename]))
 			list (, , $timeout) = @unserialize($_SESSION['login_' . $cookiename]);
@@ -139,7 +149,7 @@ function Login2()
 		redirectexit();
 
 	// Are you guessing with a script?
-	checkSession('post');
+	checkSession();
 	$tk = validateToken('login');
 	spamProtection('login');
 
@@ -167,8 +177,9 @@ function Login2()
 		$context['sub_template'] = 'login';
 	}
 
+
 	// Set up the default/fallback stuff.
-	$context['default_username'] = isset($_POST['user']) ? preg_replace('~&amp;#(\\d{1,7}|x[0-9a-fA-F]{1,6});~', '&#\\1;', htmlspecialchars($_POST['user'])) : '';
+	$context['default_username'] = isset($_POST['user']) ? preg_replace('~&amp;#(\\d{1,7}|x[0-9a-fA-F]{1,6});~', '&#\\1;', $smcFunc['htmlspecialchars']($_POST['user'])) : '';
 	$context['default_password'] = '';
 	$context['never_expire'] = $modSettings['cookieTime'] == 525600 || $modSettings['cookieTime'] == 3153600;
 	$context['login_errors'] = array($txt['error_occured']);
@@ -206,6 +217,13 @@ function Login2()
 	{
 		$context['login_errors'] = array($txt['error_invalid_characters_username']);
 		return;
+	}
+
+	// And if it's too long, trim it back.
+	if ($smcFunc['strlen']($_POST['user']) > 80)
+	{
+		$_POST['user'] = $smcFunc['substr']($_POST['user'], 0, 79);
+		$context['default_username'] = preg_replace('~&amp;#(\\d{1,7}|x[0-9a-fA-F]{1,6});~', '&#\\1;', $smcFunc['htmlspecialchars']($_POST['user']));
 	}
 
 	// Are we using any sort of integration to validate the login?
@@ -614,6 +632,11 @@ function Logout($internal = false, $redirect = true)
 
 	// Empty the cookie! (set it in the past, and for id_member = 0)
 	setLoginCookie(-3600, 0);
+
+	// And some other housekeeping while we're at it.
+	session_destroy();
+	if (!empty($user_info['id']))
+		updateMemberData($user_info['id'], array('password_salt' => substr(md5(mt_rand()), 0, 4)));
 
 	// Off to the merry board index we go!
 	if ($redirect)

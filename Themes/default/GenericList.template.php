@@ -3,8 +3,8 @@
  * Simple Machines Forum (SMF)
  *
  * @package SMF
- * @author Simple Machines
- * @copyright 2013 Simple Machines and individual contributors
+ * @author Simple Machines http://www.simplemachines.org
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -12,10 +12,12 @@
 
 function template_show_list($list_id = null)
 {
-	global $context, $settings, $options, $scripturl, $txt, $modSettings;
+	global $context, $scripturl, $txt, $modSettings;
 
 	// Get a shortcut to the current list.
-	$list_id = $list_id === null ? $context['default_list'] : $list_id;
+	$list_id = $list_id === null ? (!empty($context['default_list']) ? $context['default_list'] : '') : $list_id;
+	if (empty($list_id) || empty($context[$list_id]))
+		return;
 	$cur_list = &$context[$list_id];
 
 	// These are the main tabs that is used all around the template.
@@ -72,7 +74,7 @@ function template_show_list($list_id = null)
 	}
 
 	echo '
-			<table class="table_grid" cellspacing="0" width="', !empty($cur_list['width']) ? $cur_list['width'] : '100%', '">';
+			<table class="table_grid" cellspacing="0"', !empty($cur_list['width']) ? ' style="width:' . $cur_list['width'] . '"' : '', '>';
 
 	// Show the column headers.
 	$header_count = count($cur_list['headers']);
@@ -93,7 +95,7 @@ function template_show_list($list_id = null)
 				$col_header['class'] = empty($col_header['class']) ? 'last_th' : 'last_th ' . $col_header['class'];
 
 			echo '
-					<th scope="col" id="header_', $list_id, '_', $col_header['id'], '"', empty($col_header['class']) ? '' : ' class="' . $col_header['class'] . '"', empty($col_header['style']) ? '' : ' style="' . $col_header['style'] . '"', empty($col_header['colspan']) ? '' : ' colspan="' . $col_header['colspan'] . '"', '>', empty($col_header['href']) ? '' : '<a href="' . $col_header['href'] . '" rel="nofollow">', empty($col_header['label']) ? '&nbsp;' : $col_header['label'], empty($col_header['href']) ? '' : (empty($col_header['sort_image']) ? '</a>' : ' <img class="sort" src="' . $settings['images_url'] . '/sort_' . $col_header['sort_image'] . '.png" alt="" /></a>'), '</th>';
+					<th scope="col" id="header_', $list_id, '_', $col_header['id'], '"', empty($col_header['class']) ? '' : ' class="' . $col_header['class'] . '"', empty($col_header['style']) ? '' : ' style="' . $col_header['style'] . '"', empty($col_header['colspan']) ? '' : ' colspan="' . $col_header['colspan'] . '"', '>', empty($col_header['href']) ? '' : '<a href="' . $col_header['href'] . '" rel="nofollow">', empty($col_header['label']) ? '&nbsp;' : $col_header['label'], empty($col_header['href']) ? '' : (empty($col_header['sort_image']) ? '</a>' : ' <span class="sort sort_' . $col_header['sort_image'] . '"></span></a>'), '</th>';
 		}
 
 		echo '
@@ -161,7 +163,7 @@ function template_show_list($list_id = null)
 	{
 		foreach ($cur_list['form']['hidden_fields'] as $name => $value)
 			echo '
-			<input type="hidden" name="', $name, '" value="', $value, '" />';
+			<input type="hidden" name="', $name, '" value="', $value, '">';
 
 		echo '
 		</div>
@@ -178,15 +180,13 @@ function template_show_list($list_id = null)
 
 	if (isset($cur_list['javascript']))
 		echo '
-	<script type="text/javascript"><!-- // --><![CDATA[
+	<script><!-- // --><![CDATA[
 		', $cur_list['javascript'], '
 	// ]]></script>';
 }
 
 function template_additional_rows($row_position, $cur_list)
 {
-	global $context, $settings, $options;
-
 	foreach ($cur_list['additional_rows'][$row_position] as $row)
 		echo '
 			<div class="additional_row', empty($row['class']) ? '' : ' ' . $row['class'], '"', empty($row['style']) ? '' : ' style="' . $row['style'] . '"', '>', $row['value'], '</div>';
@@ -194,7 +194,7 @@ function template_additional_rows($row_position, $cur_list)
 
 function template_create_list_menu($list_menu, $direction = 'top')
 {
-	global $context, $settings;
+	global $context;
 
 	/**
 		// This is use if you want your generic lists to have tabs.

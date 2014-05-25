@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -24,7 +24,7 @@ if (!defined('SMF'))
  */
 function getLastPosts($latestPostOptions)
 {
-	global $scripturl, $txt, $user_info, $modSettings, $smcFunc, $context;
+	global $scripturl, $txt, $modSettings, $smcFunc, $context;
 
 	// Find all the posts.  Newer ones will have higher IDs.  (assuming the last 20 * number are accessable...)
 	// @todo SLOW This query is now slow, NEEDS to be fixed.  Maybe break into two?
@@ -58,7 +58,7 @@ function getLastPosts($latestPostOptions)
 		censorText($row['subject']);
 		censorText($row['body']);
 
-		$row['body'] = strip_tags(strtr(parse_bbc($row['body'], $row['smileys_enabled'], $row['id_msg']), array('<br />' => '&#10;')));
+		$row['body'] = strip_tags(strtr(parse_bbc($row['body'], $row['smileys_enabled'], $row['id_msg']), array('<br>' => '&#10;')));
 		if ($smcFunc['strlen']($row['body']) > 128)
 			$row['body'] = $smcFunc['substr']($row['body'], 0, 128) . '...';
 

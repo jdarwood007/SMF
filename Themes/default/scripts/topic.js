@@ -117,7 +117,7 @@ QuickModifyTopic.prototype.set_hidden_topic_areas = function (set_style)
 QuickModifyTopic.prototype.modify_topic_show_edit = function (subject)
 {
 	// Just template the subject.
-	setInnerHTML(this.oCurSubjectDiv, '<input type="text" name="subject" value="' + subject + '" size="60" style="width: 95%;" maxlength="80" class="input_text" /><input type="hidden" name="topic" value="' + this.iCurTopicId + '" /><input type="hidden" name="msg" value="' + this.sCurMessageId.substr(4) + '" />');
+	setInnerHTML(this.oCurSubjectDiv, '<input type="text" name="subject" value="' + subject + '" size="60" style="width: 95%;" maxlength="80" class="input_text"><input type="hidden" name="topic" value="' + this.iCurTopicId + '"><input type="hidden" name="msg" value="' + this.sCurMessageId.substr(4) + '">');
 
 	// attach mouse over and out events to this new div
 	this.oCurSubjectDiv.instanceRef = this;
@@ -290,7 +290,7 @@ QuickReply.prototype.onQuoteReceived = function (oXMLDoc)
 // The function handling the swapping of the quick reply.
 QuickReply.prototype.swap = function ()
 {
-	document.getElementById(this.opt.sImageId).src = this.opt.sImagesUrl + "/" + (this.bCollapsed ? this.opt.sImageCollapsed : this.opt.sImageExpanded);
+	$('#' + this.opt.sImageId).toggleClass(this.opt.sClassCollapsed + ' ' + this.opt.sClassExpanded);
 	$('#' + this.opt.sContainerId).slideToggle();
 
 	this.bCollapsed = !this.bCollapsed;
@@ -587,7 +587,7 @@ InTopicModeration.prototype.handleClick = function(oCheckbox)
 		else
 		{
 			var oNewDiv = document.createElement('div');
-			var oNewList = document.createElement('ul');
+			var oNewList = document.createElement('a');
 
 			oNewDiv.id = this.opt.sButtonStripDisplay;
 			oNewDiv.className = this.opt.sButtonStripClass ? this.opt.sButtonStripClass : 'buttonlist floatbottom';
@@ -637,19 +637,19 @@ InTopicModeration.prototype.handleClick = function(oCheckbox)
 	if (this.opt.bCanRemove && !this.opt.bUseImageButton)
 	{
 		setInnerHTML(document.getElementById(this.opt.sSelf + '_remove_button_text'), this.opt.sRemoveButtonLabel + ' [' + this.iNumSelected + ']');
-		document.getElementById(this.opt.sSelf + '_remove_button').style.display = this.iNumSelected < 1 ? "none" : "";
+		document.getElementById(this.opt.sSelf + '_remove_button_text').style.display = this.iNumSelected < 1 ? "none" : "";
 	}
 
 	if (this.opt.bCanRestore && !this.opt.bUseImageButton)
 	{
 		setInnerHTML(document.getElementById(this.opt.sSelf + '_restore_button_text'), this.opt.sRestoreButtonLabel + ' [' + this.iNumSelected + ']');
-		document.getElementById(this.opt.sSelf + '_restore_button').style.display = this.iNumSelected < 1 ? "none" : "";
+		document.getElementById(this.opt.sSelf + '_restore_button_text').style.display = this.iNumSelected < 1 ? "none" : "";
 	}
 
 	if (this.opt.bCanSplit && !this.opt.bUseImageButton)
 	{
 		setInnerHTML(document.getElementById(this.opt.sSelf + '_split_button_text'), this.opt.sSplitButtonLabel + ' [' + this.iNumSelected + ']');
-		document.getElementById(this.opt.sSelf + '_split_button').style.display = this.iNumSelected < 1 ? "none" : "";
+		document.getElementById(this.opt.sSelf + '_split_button_text').style.display = this.iNumSelected < 1 ? "none" : "";
 	}
 
 	if(typeof smf_fixButtonClass == 'function')
@@ -741,7 +741,8 @@ function ignore_toggles(msgids, text)
 				'msg_' + msgid + '_footer',
 				'msg_' + msgid + '_quick_mod',
 				'modify_button_' + msgid,
-				'msg_' + msgid + '_signature'
+				'msg_' + msgid + '_signature',
+				'msg_' + msgid + '_likes'
 
 			],
 			aSwapLinks: [
@@ -754,3 +755,39 @@ function ignore_toggles(msgids, text)
 		});
 	}
 }
+
+// Likes count for messages.
+$(function() {
+	$(document).on('click', '.like_count a', function(e){
+		e.preventDefault();
+		var title = $(this).parent().text(),
+			url = $(this).attr('href') + ';js=1';
+		return reqOverlayDiv(url, title);
+	});
+});
+
+// Message likes.
+$(function() {
+	$(document).on('click', '.msg_like', function(event){
+		var obj = $(this);
+		event.preventDefault();
+		ajax_indicator(true);
+		$.ajax({
+			type: 'GET',
+			url: obj.attr('href') + ';js=1;',
+			cache: false,
+			dataType: 'html',
+			success: function(html)
+			{
+				ajax_indicator(false);
+				obj.closest('ul').replaceWith(html);
+			},
+			error: function (html)
+			{
+				ajax_indicator(false);
+			}
+		});
+
+		return false;
+	});
+});

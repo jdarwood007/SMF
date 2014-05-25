@@ -14,6 +14,8 @@ var is_safari = ua.indexOf('applewebkit') != -1 && !is_chrome;
 var is_webkit = ua.indexOf('applewebkit') != -1;
 
 var is_ie = ua.indexOf('msie') != -1 && !is_opera;
+// Stupid Microsoft...
+var is_ie11 = ua.indexOf('trident') != -1 && ua.indexOf('gecko') != -1;
 var is_iphone = ua.indexOf('iphone') != -1 || ua.indexOf('ipod') != -1;
 var is_android = ua.indexOf('android') != -1;
 
@@ -311,7 +313,7 @@ function reqWin(desktopURL, alternateWidth, alternateHeight, noScrollbars)
 function reqOverlayDiv(desktopURL, sHeader, sIcon)
 {
 	// Set up our div details
-	var sAjax_indicator = '<div class="centertext"><img src="' + smf_images_url + '/loading.gif" ></div>';
+	var sAjax_indicator = '<div class="centertext"><img src="' + smf_images_url + '/loading_sm.gif"></div>';
 	var sIcon = smf_images_url + '/' + (typeof(sIcon) == 'string' ? sIcon : 'helptopics.png');
 	var sHeader = typeof(sHeader) == 'string' ? sHeader : help_popup_heading_text;
 
@@ -337,6 +339,77 @@ function reqOverlayDiv(desktopURL, sHeader, sIcon)
 	return false;
 }
 
+// Create the popup menus for the top level/user menu area.
+function smc_PopupMenu(oOptions)
+{
+	this.opt = (typeof oOptions == 'object') ? oOptions : {};
+	this.opt.menus = {};
+}
+
+smc_PopupMenu.prototype.add = function (sItem, sUrl)
+{
+	var $menu = $('#' + sItem + '_menu'), $item = $('#' + sItem + '_menu_top');
+	if ($item.length == 0)
+		return;
+
+	this.opt.menus[sItem] = {open: false, loaded: false, sUrl: sUrl, itemObj: $item, menuObj: $menu };
+
+	$item.click({obj: this}, function (e) {
+		e.preventDefault();
+		if (e.target != this)
+			return;
+
+		e.data.obj.toggle(sItem);
+	});
+}
+
+smc_PopupMenu.prototype.toggle = function (sItem)
+{
+	if (!!this.opt.menus[sItem].open)
+		this.close(sItem);
+	else
+		this.open(sItem);
+}
+
+smc_PopupMenu.prototype.open = function (sItem)
+{
+	this.closeAll();
+
+	if (!this.opt.menus[sItem].loaded)
+	{
+		this.opt.menus[sItem].menuObj.html('<div class="loading">' + (typeof(ajax_notification_text) != null ? ajax_notification_text : '') + '</div>');
+		this.opt.menus[sItem].menuObj.load(this.opt.menus[sItem].sUrl);
+		this.opt.menus[sItem].loaded = true;
+	}
+
+	this.opt.menus[sItem].menuObj.addClass('visible');
+	this.opt.menus[sItem].itemObj.addClass('open');
+	this.opt.menus[sItem].open = true;
+
+	// Now set up closing the menu if we click off.
+	$(document).on('click.menu', {obj: this}, function(e) {
+		if ($(e.target).closest(e.data.obj.opt.menus[sItem].menuObj.parent()).length)
+			return;
+		e.data.obj.closeAll();
+		$(document).off('click.menu');
+	});
+}
+
+smc_PopupMenu.prototype.close = function (sItem)
+{
+	this.opt.menus[sItem].menuObj.removeClass('visible');
+	this.opt.menus[sItem].itemObj.removeClass('open');
+	this.opt.menus[sItem].open = false;
+	$(document).off('click.menu');
+}
+
+smc_PopupMenu.prototype.closeAll = function ()
+{
+	for (var prop in this.opt.menus)
+		if (!!this.opt.menus[prop].open)
+			this.close(prop);
+}
+
 // *** smc_Popup class.
 function smc_Popup(oOptions)
 {
@@ -348,14 +421,17 @@ function smc_Popup(oOptions)
 smc_Popup.prototype.show = function ()
 {
 	popup_class = 'popup_window ' + (this.opt.custom_class ? this.opt.custom_class : 'description');
-	icon = this.opt.icon ? '<img src="' + this.opt.icon + '" class="icon" alt="" /> ' : '';
+	if (this.opt.icon_class)
+		icon = '<span class="' + this.opt.icon_class + '"></span> ';
+	else
+		icon = this.opt.icon ? '<img src="' + this.opt.icon + '" class="icon" alt=""> ' : '';
 
 	// Create the div that will be shown
 	$('body').append('<div id="' + this.popup_id + '" class="popup_container"><div class="' + popup_class + '"><div class="catbg popup_heading"><a href="javascript:void(0);" class="hide_popup"></a>' + icon + this.opt.heading + '</div><div class="popup_content">' + this.opt.content + '</div></div></div>');
 
 	// Show it
 	this.popup_body = $('#' + this.popup_id).children('.popup_window');
-	this.popup_body.css({top: '25%', left: '50%', margin: '-' + ($(this.popup_body).height() / 2) + 'px 0 0 -' + ($(this.popup_body).width() / 2) + 'px'}).parent().fadeIn(300);
+	this.popup_body.css({top: '25%', left: 'calc(50% - 240px)', margin: '-' + ($(this.popup_body).height() / 2) + 'px 0 0 -' + ($(this.popup_body).width() / 2) + 'px'}).parent().fadeIn(300);
 
 	// Trigger hide on escape or mouse click
 	var popup_instance = this;
@@ -571,10 +647,10 @@ function selectRadioByName(oRadioGroup, sName)
 	return false;
 }
 
-function selectAllRadio(oInvertCheckbox, oForm, sMask, sValue)
+function selectAllRadio(oInvertCheckbox, oForm, sMask, sValue, bIgnoreDisabled)
 {
 	for (var i = 0; i < oForm.length; i++)
-		if (oForm[i].name != undefined && oForm[i].name.substr(0, sMask.length) == sMask && oForm[i].value == sValue)
+		if (oForm[i].name != undefined && oForm[i].name.substr(0, sMask.length) == sMask && oForm[i].value == sValue && (!oForm[i].disabled || (typeof(bIgnoreDisabled) == 'boolean' && bIgnoreDisabled)))
 			oForm[i].checked = true;
 }
 
@@ -624,47 +700,6 @@ function smf_setThemeOption(option, value, theme, cur_session_id, cur_session_va
 	var tempImage = new Image();
 	tempImage.src = smf_prepareScriptUrl(smf_scripturl) + 'action=jsoption;var=' + option + ';val=' + value + ';' + cur_session_var + '=' + cur_session_id + additional_vars + (theme == null ? '' : '&th=' + theme) + ';time=' + (new Date().getTime());
 }
-
-function smf_avatarResize()
-{
-	var possibleAvatars = document.getElementsByTagName('img');
-
-	for (var i = 0; i < possibleAvatars.length; i++)
-	{
-		var tempAvatars = []; j = 0;
-		if (possibleAvatars[i].className != 'avatar')
-			continue;
-
-		// Image.prototype.avatar = possibleAvatars[i];
-		tempAvatars[j] = new Image();
-		tempAvatars[j].avatar = possibleAvatars[i];
-
-		tempAvatars[j].onload = function()
-		{
-			this.avatar.width = this.width;
-			this.avatar.height = this.height;
-			if (smf_avatarMaxWidth != 0 && this.width > smf_avatarMaxWidth)
-			{
-				this.avatar.height = (smf_avatarMaxWidth * this.height) / this.width;
-				this.avatar.width = smf_avatarMaxWidth;
-			}
-			if (smf_avatarMaxHeight != 0 && this.avatar.height > smf_avatarMaxHeight)
-			{
-				this.avatar.width = (smf_avatarMaxHeight * this.avatar.width) / this.avatar.height;
-				this.avatar.height = smf_avatarMaxHeight;
-			}
-		}
-		tempAvatars[j].src = possibleAvatars[i].src;
-		j++;
-	}
-
-	if (typeof(window_oldAvatarOnload) != 'undefined' && window_oldAvatarOnload)
-	{
-		window_oldAvatarOnload();
-		window_oldAvatarOnload = null;
-	}
-}
-
 
 function hashLoginPassword(doForm, cur_session_id, token)
 {
@@ -809,31 +844,36 @@ smc_Toggle.prototype.init = function ()
 			this.opt.bCurrentlyCollapsed = cookieValue == '1';
 	}
 
-	// If the init state is set to be collapsed, collapse it.
-	if (this.opt.bCurrentlyCollapsed)
-		this.changeState(true, true);
-
 	// Initialize the images to be clickable.
 	if ('aSwapImages' in this.opt)
 	{
 		for (var i = 0, n = this.opt.aSwapImages.length; i < n; i++)
 		{
+			this.opt.aSwapImages[i].isCSS = (typeof this.opt.aSwapImages[i].srcCollapsed == 'undefined');
+			if (this.opt.aSwapImages[i].isCSS)
+			{
+				if (!this.opt.aSwapImages[i].cssCollapsed)
+					this.opt.aSwapImages[i].cssCollapsed = 'toggle_down';
+				if (!this.opt.aSwapImages[i].cssExpanded)
+					this.opt.aSwapImages[i].cssExpanded = 'toggle_up';
+			}
+			else
+			{
+				// Preload the collapsed image.
+				smc_preCacheImage(this.opt.aSwapImages[i].srcCollapsed);
+			}
+
+			// Display the image in case it was hidden.
+			$('#' + this.opt.aSwapImages[i].sId).show();
 			var oImage = document.getElementById(this.opt.aSwapImages[i].sId);
 			if (typeof(oImage) == 'object' && oImage != null)
 			{
-				// Display the image in case it was hidden.
-				if (oImage.style.display == 'none')
-					oImage.style.display = '';
-
 				oImage.instanceRef = this;
 				oImage.onclick = function () {
 					this.instanceRef.toggle();
 					this.blur();
 				}
 				oImage.style.cursor = 'pointer';
-
-				// Preload the collapsed image.
-				smc_preCacheImage(this.opt.aSwapImages[i].srcCollapsed);
 			}
 		}
 	}
@@ -859,6 +899,10 @@ smc_Toggle.prototype.init = function ()
 			}
 		}
 	}
+
+	// If the init state is set to be collapsed, collapse it.
+	if (this.opt.bCurrentlyCollapsed)
+		this.changeState(true, true);
 }
 
 // Collapse or expand the section.
@@ -888,15 +932,22 @@ smc_Toggle.prototype.changeState = function(bCollapse, bInit)
 	{
 		for (var i = 0, n = this.opt.aSwapImages.length; i < n; i++)
 		{
-			var oImage = document.getElementById(this.opt.aSwapImages[i].sId);
-			if (typeof(oImage) == 'object' && oImage != null)
+			if (this.opt.aSwapImages[i].isCSS)
 			{
-				// Only (re)load the image if it's changed.
-				var sTargetSource = bCollapse ? this.opt.aSwapImages[i].srcCollapsed : this.opt.aSwapImages[i].srcExpanded;
-				if (oImage.src != sTargetSource)
-					oImage.src = sTargetSource;
+				$('#' + this.opt.aSwapImages[i].sId).toggleClass(this.opt.aSwapImages[i].cssCollapsed, bCollapse).toggleClass(this.opt.aSwapImages[i].cssExpanded, !bCollapse).attr('title', bCollapse ? this.opt.aSwapImages[i].altCollapsed : this.opt.aSwapImages[i].altExpanded);
+			}
+			else
+			{
+				var oImage = document.getElementById(this.opt.aSwapImages[i].sId);
+				if (typeof(oImage) == 'object' && oImage != null)
+				{
+					// Only (re)load the image if it's changed.
+					var sTargetSource = bCollapse ? this.opt.aSwapImages[i].srcCollapsed : this.opt.aSwapImages[i].srcExpanded;
+					if (oImage.src != sTargetSource)
+						oImage.src = sTargetSource;
 
-				oImage.alt = oImage.title = bCollapse ? this.opt.aSwapImages[i].altCollapsed : this.opt.aSwapImages[i].altExpanded;
+					oImage.alt = oImage.title = bCollapse ? this.opt.aSwapImages[i].altCollapsed : this.opt.aSwapImages[i].altExpanded;
+				}
 			}
 		}
 	}
@@ -921,10 +972,17 @@ smc_Toggle.prototype.changeState = function(bCollapse, bInit)
 		var oContainer = document.getElementById(this.opt.aSwappableContainers[i]);
 		if (typeof(oContainer) == 'object' && oContainer != null)
 		{
-			if (bCollapse)
-				$(oContainer).slideUp();
+			if (!!this.opt.bNoAnimate || bInit)
+			{
+				$(oContainer).toggle(!bCollapse);
+			}
 			else
-				$(oContainer).slideDown();
+			{
+				if (bCollapse)
+					$(oContainer).slideUp();
+				else
+					$(oContainer).slideDown();
+			}
 		}
 	}
 
@@ -971,22 +1029,6 @@ function create_ajax_indicator_ele()
 
 	// Set the id so it'll load the style properly.
 	ajax_indicator_ele.id = 'ajax_in_progress';
-
-	// Add the image in and link to turn it off.
-	var cancel_link = document.createElement('a');
-	cancel_link.href = 'javascript:ajax_indicator(false)';
-	var cancel_img = document.createElement('img');
-	cancel_img.src = smf_images_url + '/icons/quick_remove.png';
-
-	if (typeof(ajax_notification_cancel_text) != 'undefined')
-	{
-		cancel_img.alt = ajax_notification_cancel_text;
-		cancel_img.title = ajax_notification_cancel_text;
-	}
-
-	// Add the cancel link and image to the indicator.
-	cancel_link.appendChild(cancel_img);
-	ajax_indicator_ele.appendChild(cancel_link);
 
 	// Set the text.  (Note:  You MUST append here and not overwrite.)
 	ajax_indicator_ele.innerHTML += ajax_notification_text;
@@ -1075,7 +1117,7 @@ JumpTo.prototype.showSelect = function ()
 	var sChildLevelPrefix = '';
 	for (var i = this.opt.iCurBoardChildLevel; i > 0; i--)
 		sChildLevelPrefix += this.opt.sBoardChildLevelIndicator;
-	setInnerHTML(document.getElementById(this.opt.sContainerId), this.opt.sJumpToTemplate.replace(/%select_id%/, this.opt.sContainerId + '_select').replace(/%dropdown_list%/, '<select ' + (this.opt.bDisabled == true ? 'disabled="disabled" ' : '') + (this.opt.sClassName != undefined ? 'class="' + this.opt.sClassName + '" ' : '') + 'name="' + (this.opt.sCustomName != undefined ? this.opt.sCustomName : this.opt.sContainerId + '_select') + '" id="' + this.opt.sContainerId + '_select" ' + ('implementation' in document ? '' : 'onmouseover="grabJumpToContent(this);" ') + ('onbeforeactivate' in document ? 'onbeforeactivate' : 'onfocus') + '="grabJumpToContent(this);"><option value="' + (this.opt.bNoRedirect != undefined && this.opt.bNoRedirect == true ? this.opt.iCurBoardId : '?board=' + this.opt.iCurBoardId + '.0') + '">' + sChildLevelPrefix + this.opt.sBoardPrefix + this.opt.sCurBoardName.removeEntities() + '</option></select>&nbsp;' + (this.opt.sGoButtonLabel != undefined ? '<input type="button" class="button_submit" value="' + this.opt.sGoButtonLabel + '" onclick="window.location.href = \'' + smf_prepareScriptUrl(smf_scripturl) + 'board=' + this.opt.iCurBoardId + '.0\';" />' : '')));
+	setInnerHTML(document.getElementById(this.opt.sContainerId), this.opt.sJumpToTemplate.replace(/%select_id%/, this.opt.sContainerId + '_select').replace(/%dropdown_list%/, '<select ' + (this.opt.bDisabled == true ? 'disabled ' : '') + (this.opt.sClassName != undefined ? 'class="' + this.opt.sClassName + '" ' : '') + 'name="' + (this.opt.sCustomName != undefined ? this.opt.sCustomName : this.opt.sContainerId + '_select') + '" id="' + this.opt.sContainerId + '_select" ' + ('implementation' in document ? '' : 'onmouseover="grabJumpToContent(this);" ') + ('onbeforeactivate' in document ? 'onbeforeactivate' : 'onfocus') + '="grabJumpToContent(this);"><option value="' + (this.opt.bNoRedirect != undefined && this.opt.bNoRedirect == true ? this.opt.iCurBoardId : '?board=' + this.opt.iCurBoardId + '.0') + '">' + sChildLevelPrefix + this.opt.sBoardPrefix + this.opt.sCurBoardName.removeEntities() + '</option></select>&nbsp;' + (this.opt.sGoButtonLabel != undefined ? '<input type="button" class="button_submit" value="' + this.opt.sGoButtonLabel + '" onclick="window.location.href = \'' + smf_prepareScriptUrl(smf_scripturl) + 'board=' + this.opt.iCurBoardId + '.0\';">' : '')));
 	this.dropdownList = document.getElementById(this.opt.sContainerId + '_select');
 }
 
@@ -1177,7 +1219,7 @@ IconList.prototype.initIcons = function ()
 {
 	for (var i = document.images.length - 1, iPrefixLength = this.opt.sIconIdPrefix.length; i >= 0; i--)
 		if (document.images[i].id.substr(0, iPrefixLength) == this.opt.sIconIdPrefix)
-			setOuterHTML(document.images[i], '<div title="' + this.opt.sLabelIconList + '" onclick="' + this.opt.sBackReference + '.openPopup(this, ' + document.images[i].id.substr(iPrefixLength) + ')" onmouseover="' + this.opt.sBackReference + '.onBoxHover(this, true)" onmouseout="' + this.opt.sBackReference + '.onBoxHover(this, false)" style="background: ' + this.opt.sBoxBackground + '; cursor: pointer; padding: 3px; text-align: center;"><img src="' + document.images[i].src + '" alt="' + document.images[i].alt + '" id="' + document.images[i].id + '" style="margin: 0px; padding: ' + (is_ie ? '3px' : '3px 0px 3px 0px') + ';" /></div>');
+			setOuterHTML(document.images[i], '<div title="' + this.opt.sLabelIconList + '" onclick="' + this.opt.sBackReference + '.openPopup(this, ' + document.images[i].id.substr(iPrefixLength) + ')" onmouseover="' + this.opt.sBackReference + '.onBoxHover(this, true)" onmouseout="' + this.opt.sBackReference + '.onBoxHover(this, false)" style="background: ' + this.opt.sBoxBackground + '; cursor: pointer; padding: 3px; text-align: center;"><img src="' + document.images[i].src + '" alt="' + document.images[i].alt + '" id="' + document.images[i].id + '" style="margin: 0px; padding: ' + (is_ie ? '3px' : '3px 0px 3px 0px') + ';"></div>');
 }
 
 // Event for the mouse hovering over the original icon.
@@ -1233,7 +1275,7 @@ IconList.prototype.onIconsReceived = function (oXMLDoc)
 	var sItems = '';
 
 	for (var i = 0, n = icons.length; i < n; i++)
-		sItems += '<span onmouseover="' + this.opt.sBackReference + '.onItemHover(this, true)" onmouseout="' + this.opt.sBackReference + '.onItemHover(this, false);" onmousedown="' + this.opt.sBackReference + '.onItemMouseDown(this, \'' + icons[i].getAttribute('value') + '\');" style="padding: 2px 3px; line-height: 20px; border: ' + this.opt.sItemBorder + '; background: ' + this.opt.sItemBackground + '"><img src="' + icons[i].getAttribute('url') + '" alt="' + icons[i].getAttribute('name') + '" title="' + icons[i].firstChild.nodeValue + '" style="vertical-align: middle" /></span>';
+		sItems += '<span onmouseover="' + this.opt.sBackReference + '.onItemHover(this, true)" onmouseout="' + this.opt.sBackReference + '.onItemHover(this, false);" onmousedown="' + this.opt.sBackReference + '.onItemMouseDown(this, \'' + icons[i].getAttribute('value') + '\');" style="padding: 2px 3px; line-height: 20px; border: ' + this.opt.sItemBorder + '; background: ' + this.opt.sItemBackground + '"><img src="' + icons[i].getAttribute('url') + '" alt="' + icons[i].getAttribute('name') + '" title="' + icons[i].firstChild.nodeValue + '" style="vertical-align: middle"></span>';
 
 	setInnerHTML(this.oContainerDiv, sItems);
 	this.oContainerDiv.style.display = 'block';
@@ -1501,12 +1543,16 @@ function pollOptions()
 function generateDays(offset)
 {
 	// Work around JavaScript's lack of support for default values...
-	offset = typeof(offset) != 'undefined' ? offset : 0;
+	offset = typeof(offset) != 'undefined' ? offset : '';
 
 	var days = 0, selected = 0;
 	var dayElement = document.getElementById("day" + offset), yearElement = document.getElementById("year" + offset), monthElement = document.getElementById("month" + offset);
 
-	monthLength[1] = 28;
+	var monthLength = [
+		31, 28, 31, 30,
+		31, 30, 31, 31,
+		30, 31, 30, 31
+	];
 	if (yearElement.options[yearElement.selectedIndex].value % 4 == 0)
 		monthLength[1] = 29;
 
@@ -1546,22 +1592,6 @@ function selectBoards(ids, aFormID)
 		aForm["brd" + ids[i]].checked = !toggle;
 }
 
-function expandCollapseBoards()
-{
-	var current = document.getElementById("searchBoardsExpand").style.display != "none";
-
-	$("#searchBoardsExpand").slideToggle(300);
-	document.getElementById("expandBoardsIcon").src = smf_images_url + (current ? "/expand.png" : "/collapse.png");
-}
-
-function expandCollapseLabels()
-{
-	var current = document.getElementById("searchLabelsExpand").style.display != "none";
-
-	$("#searchLabelsExpand").slideToggle();
-	document.getElementById("expandLabelsIcon").src = smf_images_url + (current ? "/expand.png" : "/collapse.png");
-}
-
 function updateRuleDef(optNum)
 {
 	if (document.getElementById("ruletype" + optNum).value == "gid")
@@ -1591,15 +1621,6 @@ function updateActionDef(optNum)
 	{
 		document.getElementById("labdiv" + optNum).style.display = "none";
 	}
-}
-
-function smfSetLatestPackages()
-{
-	if (typeof(window.smfLatestPackages) != "undefined")
-		setInnerHTML(document.getElementById("packagesLatest"), window.smfLatestPackages);
-
-	if (tempOldOnload)
-	tempOldOnload();
 }
 
 function updateAuthMethod()
@@ -1637,3 +1658,31 @@ function updateAuthMethod()
 		document.getElementById("auth_pass_div").style.display = "none";
 	}
 }
+
+$(document).ready(function() {
+	if (smf_member_id > 0)
+		$('div.boardindex_table div.cat_bar').each(function(index, el)
+		{
+			var catid = el.id.replace('category_', '');
+			new smc_Toggle({
+				bToggleEnabled: true,
+				bCurrentlyCollapsed: $('#category_' + catid + '_upshrink').data('collapsed'),
+				aSwappableContainers: [
+					'category_' + catid + '_boards'
+				],
+				aSwapImages: [
+					{
+						sId: 'category_' + catid + '_upshrink',
+						msgExpanded: '',
+						msgCollapsed: ''
+					}
+				],
+				oThemeOptions: {
+					bUseThemeSettings: true,
+					sOptionName: 'collapse_category_' + catid,
+					sSessionVar: smf_session_var,
+					sSessionId: smf_session_id
+				}
+			});
+		});
+});

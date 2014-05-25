@@ -8,7 +8,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -155,6 +155,7 @@ function is_not_guest($message = '')
 	else
 	{
 		loadTemplate('Login');
+		loadJavascriptFile('sha1.js', array('default_theme' => true), 'smf_sha1');
 		$context['sub_template'] = 'kick_guest';
 		$context['robot_no_index'] = true;
 	}
@@ -354,6 +355,7 @@ function is_not_banned($forceCheck = false)
 
 		// A goodbye present.
 		require_once($sourcedir . '/Subs-Auth.php');
+		require_once($sourcedir . '/LogInOut.php');
 		$cookie_url = url_parts(!empty($modSettings['localCookies']), !empty($modSettings['globalCookies']));
 		smf_setcookie($cookiename . '_', implode(',', $_SESSION['ban']['cannot_access']['ids']), time() + 3153600, $cookie_url[1], $cookie_url[0], false, false);
 
@@ -362,9 +364,10 @@ function is_not_banned($forceCheck = false)
 		$_GET['board'] = '';
 		$_GET['topic'] = '';
 		writeLog(true);
-
+		Logout(true, false);
+		
 		// You banned, sucka!
-		fatal_error(sprintf($txt['your_ban'], $old_name) . (empty($_SESSION['ban']['cannot_access']['reason']) ? '' : '<br />' . $_SESSION['ban']['cannot_access']['reason']) . '<br />' . (!empty($_SESSION['ban']['expire_time']) ? sprintf($txt['your_ban_expires'], timeformat($_SESSION['ban']['expire_time'], false)) : $txt['your_ban_expires_never']), !empty($modSettings['log_ban_hits']) ? 'ban' : false);
+		fatal_error(sprintf($txt['your_ban'], $old_name) . (empty($_SESSION['ban']['cannot_access']['reason']) ? '' : '<br>' . $_SESSION['ban']['cannot_access']['reason']) . '<br>' . (!empty($_SESSION['ban']['expire_time']) ? sprintf($txt['your_ban_expires'], timeformat($_SESSION['ban']['expire_time'], false)) : $txt['your_ban_expires_never']), !empty($modSettings['log_ban_hits']) ? 'ban' : false);
 
 		// If we get here, something's gone wrong.... but let's try anyway.
 		trigger_error('Hacking attempt...', E_USER_ERROR);
@@ -410,7 +413,7 @@ function is_not_banned($forceCheck = false)
 		require_once($sourcedir . '/LogInOut.php');
 		Logout(true, false);
 
-		fatal_error(sprintf($txt['your_ban'], $old_name) . (empty($_SESSION['ban']['cannot_login']['reason']) ? '' : '<br />' . $_SESSION['ban']['cannot_login']['reason']) . '<br />' . (!empty($_SESSION['ban']['expire_time']) ? sprintf($txt['your_ban_expires'], timeformat($_SESSION['ban']['expire_time'], false)) : $txt['your_ban_expires_never']) . '<br />' . $txt['ban_continue_browse'], !empty($modSettings['log_ban_hits']) ? 'ban' : false);
+		fatal_error(sprintf($txt['your_ban'], $old_name) . (empty($_SESSION['ban']['cannot_login']['reason']) ? '' : '<br>' . $_SESSION['ban']['cannot_login']['reason']) . '<br>' . (!empty($_SESSION['ban']['expire_time']) ? sprintf($txt['your_ban_expires'], timeformat($_SESSION['ban']['expire_time'], false)) : $txt['your_ban_expires_never']) . '<br>' . $txt['ban_continue_browse'], !empty($modSettings['log_ban_hits']) ? 'ban' : false);
 	}
 
 	// Fix up the banning permissions.
@@ -443,13 +446,13 @@ function banPermissions()
 			'manage_attachments', 'manage_smileys', 'manage_boards', 'admin_forum', 'manage_permissions',
 			'moderate_forum', 'manage_membergroups', 'manage_bans', 'send_mail', 'edit_news',
 			'profile_identity_any', 'profile_extra_any', 'profile_title_any',
+			'profile_forum_any', 'profile_other_any', 'profile_signature_any',
 			'post_new', 'post_reply_own', 'post_reply_any',
 			'delete_own', 'delete_any', 'delete_replies',
 			'make_sticky',
 			'merge_any', 'split_any',
 			'modify_own', 'modify_any', 'modify_replies',
 			'move_any',
-			'send_topic',
 			'lock_own', 'lock_any',
 			'remove_own', 'remove_any',
 			'post_unapproved_topics', 'post_unapproved_replies_own', 'post_unapproved_replies_any',
@@ -493,11 +496,22 @@ function banPermissions()
 		$context['open_mod_reports'] = $_SESSION['rc']['reports'];
 	elseif ($_SESSION['mc']['bq'] != '0=1')
 	{
-		require_once($sourcedir . '/ModerationCenter.php');
-		recountOpenReports();
+		require_once($sourcedir . '/Subs-ReportedContent.php');
+		recountOpenReports('posts');
 	}
 	else
 		$context['open_mod_reports'] = 0;
+
+	if (isset($_SESSION['rmc']) && $_SESSION['rmc']['time'] > $modSettings['last_mod_report_action'] && $_SESSION['rmc']['id'] == $user_info['id'])
+		$contexct['open_member_reports'] = $_SESSION['rmc']['reports'];
+	elseif (allowedTo('moderate_forum'))
+	{
+		require_once($sourcedir . '/Subs-ReportedContent.php');
+		recountOpenReports('members');
+	}
+	else
+		$context['open_member_reports'] = 0;
+
 }
 
 /**
@@ -777,8 +791,6 @@ function createToken($action, $type = 'post')
  */
 function validateToken($action, $type = 'post', $reset = true)
 {
-	global $modSettings, $db_show_debug;
-
 	$type = $type == 'get' || $type == 'request' ? $type : 'post';
 
 	// Logins are special: the token is used to has the password with javascript before POST it
@@ -911,7 +923,7 @@ function checkSubmitOnce($action, $is_fatal = true)
  */
 function allowedTo($permission, $boards = null)
 {
-	global $user_info, $modSettings, $smcFunc;
+	global $user_info, $smcFunc;
 
 	// You're always allowed to do nothing. (unless you're a working man, MR. LAZY :P!)
 	if (empty($permission))
@@ -925,14 +937,13 @@ function allowedTo($permission, $boards = null)
 	if ($user_info['is_admin'])
 		return true;
 
+	if (!is_array($permission))
+		$permission = array($permission);
+
 	// Are we checking the _current_ board, or some other boards?
 	if ($boards === null)
 	{
-		// Check if they can do it.
-		if (!is_array($permission) && in_array($permission, $user_info['permissions']))
-			return true;
-		// Search for any of a list of permissions.
-		elseif (is_array($permission) && count(array_intersect($permission, $user_info['permissions'])) != 0)
+		if (count(array_intersect($permission, $user_info['permissions'])) != 0)
 			return true;
 		// You aren't allowed, by default.
 		else
@@ -946,10 +957,10 @@ function allowedTo($permission, $boards = null)
 		FROM {db_prefix}boards AS b
 			INNER JOIN {db_prefix}board_permissions AS bp ON (bp.id_profile = b.id_profile)
 			LEFT JOIN {db_prefix}moderators AS mods ON (mods.id_board = b.id_board AND mods.id_member = {int:current_member})
-			LEFT JOIN {db_prefix}moderator_groups AS modgs ON (modgs.id_board = b.id_board AND b.id_group IN ({array_int:group_list})
+			LEFT JOIN {db_prefix}moderator_groups AS modgs ON (modgs.id_board = b.id_board AND modgs.id_group IN ({array_int:group_list}))
 		WHERE b.id_board IN ({array_int:board_list})
 			AND bp.id_group IN ({array_int:group_list}, {int:moderator_group})
-			AND bp.permission {raw:permission_list}
+			AND bp.permission IN ({array_string:permission_list})
 			AND (mods.id_member IS NOT NULL OR modgs.id_group IS NOT NULL OR bp.id_group != {int:moderator_group})
 		GROUP BY b.id_board',
 		array(
@@ -957,7 +968,7 @@ function allowedTo($permission, $boards = null)
 			'board_list' => $boards,
 			'group_list' => $user_info['groups'],
 			'moderator_group' => 3,
-			'permission_list' => (is_array($permission) ? 'IN (\'' . implode('\', \'', $permission) . '\')' : ' = \'' . $permission . '\''),
+			'permission_list' => $permission,
 		)
 	);
 
@@ -1047,7 +1058,7 @@ function isAllowedTo($permission, $boards = null)
  */
 function boardsAllowedTo($permissions, $check_access = true, $simple = true)
 {
-	global $user_info, $modSettings, $smcFunc;
+	global $user_info, $smcFunc;
 
 	// Arrays are nice, most of the time.
 	if (!is_array($permissions))
@@ -1138,45 +1149,6 @@ function boardsAllowedTo($permissions, $check_access = true, $simple = true)
 }
 
 /**
- * Returns whether an email address should be shown and how.
- * Possible outcomes are
- *  'yes': show the full email address
- *  'yes_permission_override': show the full email address, either you
- *   are a moderator or it's your own email address.
- *  'no_through_forum': don't show the email address, but do allow
- *    things to be mailed using the built-in forum mailer.
- *  'no': keep the email address hidden.
- *
- * @param bool $userProfile_hideEmail
- * @param int $userProfile_id
- * @return string (yes, yes_permission_override, no_through_forum, no)
- */
-function showEmailAddress($userProfile_hideEmail, $userProfile_id)
-{
-	global $modSettings, $user_info;
-
-	// Should this user's email address be shown?
-	// If you're guest and the forum is set to hide email for guests: no.
-	// If the user is post-banned: no.
-	// If it's your own profile and you've set your address hidden: yes_permission_override.
-	// If you're a moderator with sufficient permissions: yes_permission_override.
-	// If the user has set their email address to be hidden: no.
-	// If the forum is set to show full email addresses: yes.
-	// Otherwise: no_through_forum.
-
-	if ((!empty($modSettings['guest_hideContacts']) && $user_info['is_guest']) || isset($_SESSION['ban']['cannot_post']))
-		return 'no';
-	elseif ((!$user_info['is_guest'] && $user_info['id'] == $userProfile_id && !$userProfile_hideEmail) || allowedTo('moderate_forum'))
-		return 'yes_permission_override';
-	elseif ($userProfile_hideEmail)
-		return 'no';
-	elseif (!empty($modSettings['make_email_viewable']) )
-		return 'yes';
-	else
-		return 'no_through_forum';
-}
-
-/**
  * This function attempts to protect from spammed messages and the like.
  * The time taken depends on error_type - generally uses the modSetting.
  *
@@ -1185,14 +1157,13 @@ function showEmailAddress($userProfile_hideEmail, $userProfile_id)
  */
 function spamProtection($error_type)
 {
-	global $modSettings, $txt, $user_info, $smcFunc;
+	global $modSettings, $user_info, $smcFunc;
 
 	// Certain types take less/more time.
 	$timeOverrides = array(
 		'login' => 2,
 		'register' => 2,
 		'remind' => 30,
-		'sendtopic' => $modSettings['spamWaitTime'] * 4,
 		'sendmail' => $modSettings['spamWaitTime'] * 5,
 		'reporttm' => $modSettings['spamWaitTime'] * 4,
 		'search' => !empty($modSettings['search_floodcontrol_time']) ? $modSettings['search_floodcontrol_time'] : 1,
@@ -1372,6 +1343,10 @@ function frameOptionsHeader($override = null)
 
 	// Finally set it.
 	header('X-Frame-Options: ' . $option);
+
+	// And some other useful ones.
+	header('X-XSS-Protection: 1');
+	header('X-Content-Type-Options: nosniff');
 }
 
 ?>

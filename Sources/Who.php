@@ -8,7 +8,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -29,7 +29,7 @@ if (!defined('SMF'))
  */
 function Who()
 {
-	global $context, $scripturl, $user_info, $txt, $modSettings, $memberContext, $smcFunc;
+	global $context, $scripturl, $txt, $modSettings, $memberContext, $smcFunc;
 
 	// Permissions, permissions, permissions.
 	isAllowedTo('who_view');
@@ -105,18 +105,14 @@ function Who()
 		$_REQUEST['show'] = $_REQUEST['show_top'];
 	// Does the user wish to apply a filter?
 	if (isset($_REQUEST['show']) && isset($show_methods[$_REQUEST['show']]))
-	{
 		$context['show_by'] = $_SESSION['who_online_filter'] = $_REQUEST['show'];
-		$conditions[] = $show_methods[$_REQUEST['show']];
-	}
 	// Perhaps we saved a filter earlier in the session?
 	elseif (isset($_SESSION['who_online_filter']))
-	{
 		$context['show_by'] = $_SESSION['who_online_filter'];
-		$conditions[] = $show_methods[$_SESSION['who_online_filter']];
-	}
 	else
-		$context['show_by'] = $_SESSION['who_online_filter'] = 'all';
+		$context['show_by'] = 'members';
+
+	$conditions[] = $show_methods[$context['show_by']];
 
 	// Get the total amount of members online.
 	$request = $smcFunc['db_query']('', '
@@ -265,7 +261,7 @@ function Who()
  */
 function determineActions($urls, $preferred_prefix = false)
 {
-	global $txt, $user_info, $modSettings, $smcFunc, $context;
+	global $txt, $user_info, $modSettings, $smcFunc;
 
 	if (!allowedTo('who_view'))
 		return array();
@@ -484,8 +480,10 @@ function determineActions($urls, $preferred_prefix = false)
 		$smcFunc['db_free_result']($result);
 	}
 
-	// Load member names for the profile.
-	if (!empty($profile_ids) && (allowedTo('profile_view_any') || allowedTo('profile_view_own')))
+	// Load member names for the profile. (is_not_guest permission for viewing their own profile)
+	$allow_view_own = allowedTo('is_not_guest');
+	$allow_view_any = allowedTo('profile_view');
+	if (!empty($profile_ids) && ($allow_view_any || $allow_view_own))
 	{
 		$result = $smcFunc['db_query']('', '
 			SELECT id_member, real_name
@@ -499,7 +497,7 @@ function determineActions($urls, $preferred_prefix = false)
 		while ($row = $smcFunc['db_fetch_assoc']($result))
 		{
 			// If they aren't allowed to view this person's profile, skip it.
-			if (!allowedTo('profile_view_any') && $user_info['id'] != $row['id_member'])
+			if (!$allow_view_any && ($user_info['id'] != $row['id_member']))
 				continue;
 
 			// Set their action on each - session/text to sprintf.
@@ -522,7 +520,7 @@ function determineActions($urls, $preferred_prefix = false)
  */
 function Credits($in_admin = false)
 {
-	global $context, $smcFunc, $modSettings, $forum_copyright, $forum_version, $boardurl, $txt, $user_info;
+	global $context, $smcFunc, $forum_copyright, $forum_version, $software_year, $txt, $user_info;
 
 	// Don't blink. Don't even blink. Blink and you're dead.
 	loadLanguage('Who');
@@ -771,7 +769,7 @@ function Credits($in_admin = false)
 	$context['credits_modifications'] = $mods;
 
 	$context['copyrights'] = array(
-		'smf' => sprintf($forum_copyright, $forum_version),
+		'smf' => sprintf($forum_copyright, $forum_version, $software_year),
 		/* Modification Authors:  You may add a copyright statement to this array for your mods.
 			Copyright statements should be in the form of a value only without a array key.  I.E.:
 				'Some Mod by Thantos &copy; 2010',

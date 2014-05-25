@@ -3,8 +3,8 @@
  * Simple Machines Forum (SMF)
  *
  * @package SMF
- * @author Simple Machines
- * @copyright 2013 Simple Machines and individual contributors
+ * @author Simple Machines http://www.simplemachines.org
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -13,8 +13,6 @@
 // This is the header for WAP 1.1 output. You can view it with ?wap in the URL.
 function template_wap_above()
 {
-	global $context, $settings, $options;
-
 	// Show the xml declaration...
 	echo '<?xml version="1.0"?', '>
 <!DOCTYPE wml PUBLIC "-//WAPFORUM//DTD WML 1.1//EN" "http://www.wapforum.org/DTD/wml_1.1.xml">
@@ -26,7 +24,7 @@ function template_wap_above()
 // This is the board index (main page) in WAP 1.1.
 function template_wap_boardindex()
 {
-	global $context, $settings, $options, $scripturl;
+	global $context, $scripturl;
 
 	// This is the "main" card...
 	echo '
@@ -67,7 +65,7 @@ function template_wap_boardindex()
 // This is the message index (list of topics in a board) for WAP 1.1.
 function template_wap_messageindex()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 	<card id="main" title="', $context['page_title'], '">
@@ -101,7 +99,7 @@ function template_wap_messageindex()
 
 function template_wap_display()
 {
-	global $context, $settings, $options, $txt;
+	global $context, $txt;
 
 	echo '
 	<card id="main" title="', $context['page_title'], '">
@@ -181,7 +179,7 @@ function template_wap_login()
 
 function template_wap_recent()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 	<card id="recent" title="', $context['page_title'], '">
@@ -207,7 +205,7 @@ function template_wap_recent()
 
 function template_wap_error()
 {
-	global $context, $settings, $options, $txt, $scripturl;
+	global $context, $txt, $scripturl;
 
 	echo '
 	<card id="main" title="', $context['page_title'], '">
@@ -219,7 +217,7 @@ function template_wap_error()
 
 function template_wap_below()
 {
-	global $context, $settings, $options, $txt;
+	global $context, $txt;
 
 	echo '
 	<card id="switch" title="', $txt['wireless_go_to_full_version'], '">
@@ -233,7 +231,7 @@ function template_wap_below()
 // The cHTML protocol used for i-mode starts here.
 function template_imode_above()
 {
-	global $context, $settings, $options, $user_info;
+	global $context, $user_info;
 
 	echo '<!DOCTYPE HTML PUBLIC "-//W3C//DTD Compact HTML 1.0 Draft//EN">
 <html', $context['right_to_left'] ? ' dir="rtl"' : '', '>
@@ -253,11 +251,16 @@ function template_imode_above()
 
 function template_imode_boardindex()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<table border="0" cellspacing="0" cellpadding="0">
 			<tr bgcolor="#6d92aa"><td><font color="#ffffff">', $context['forum_name_html_safe'], '</font></td></tr>';
+	if (!$context['user']['is_guest'])
+		echo '
+			<tr><td><a href="', $scripturl, '?action=unread;imode">', $txt['wireless_recent_unread_posts'], '</a></td></tr>
+			<tr><td><a href="', $scripturl, '?action=unreadreplies;imode">', $txt['wireless_recent_unread_replies'], '</a></td></tr>';
+
 	$count = 0;
 	foreach ($context['categories'] as $category)
 	{
@@ -283,8 +286,6 @@ function template_imode_boardindex()
 			echo '
 			<tr><td><a href="', $scripturl, '?action=pm;imode">', empty($context['user']['unread_messages']) ? $txt['wireless_pm_inbox'] : sprintf($txt['wireless_pm_inbox_new'], $context['user']['unread_messages']), '</a></td></tr>';
 		echo '
-			<tr><td><a href="', $scripturl, '?action=unread;imode">', $txt['wireless_recent_unread_posts'], '</a></td></tr>
-			<tr><td><a href="', $scripturl, '?action=unreadreplies;imode">', $txt['wireless_recent_unread_replies'], '</a></td></tr>
 			<tr><td><a href="', $scripturl, '?action=logout;', $context['session_var'], '=', $context['session_id'], ';imode">', $txt['wireless_options_logout'], '</a></td></tr>';
 	}
 	echo '
@@ -293,7 +294,7 @@ function template_imode_boardindex()
 
 function template_imode_messageindex()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<table border="0" cellspacing="0" cellpadding="0">
@@ -302,7 +303,7 @@ function template_imode_messageindex()
 	if (!empty($context['boards']))
 	{
 		echo '
-		<tr bgcolor="#b6dbff"><td>', $txt['parent_boards'], '</td></tr>';
+		<tr bgcolor="#b6dbff"><td>', $txt['sub_boards'], '</td></tr>';
 		foreach ($context['boards'] as $board)
 			echo '
 		<tr><td>', $board['new'] ? '<font color="#ff0000">-</font> ' : ($board['children_new'] ? '-<font color="#ff0000">.</font>' : '- '), '<a href="', $scripturl, '?board=', $board['id'], '.0;imode">', $board['name'], '</a></td></tr>';
@@ -332,7 +333,7 @@ function template_imode_messageindex()
 
 function template_imode_display()
 {
-	global $context, $settings, $options, $scripturl, $board, $txt;
+	global $context, $scripturl, $board, $txt;
 
 	echo '
 		<table border="0" cellspacing="0" cellpadding="0">
@@ -396,7 +397,7 @@ function template_imode_display()
 
 function template_imode_post()
 {
-	global $context, $settings, $options, $scripturl, $txt, $modSettings;
+	global $context, $options, $scripturl, $txt, $modSettings;
 
 	// @todo $modSettings['guest_post_no_email']
 	echo '
@@ -452,7 +453,7 @@ function template_imode_post()
 
 function template_imode_login()
 {
-	global $context, $settings, $options, $scripturl, $txt, $modSettings;
+	global $context, $scripturl, $txt, $modSettings;
 
 	echo '
 		<form action="', $scripturl, '?action=login2;imode" method="post">
@@ -485,7 +486,7 @@ function template_imode_login()
 
 function template_imode_pm()
 {
-	global $context, $settings, $options, $scripturl, $txt, $user_info;
+	global $context, $scripturl, $txt, $user_info;
 
 	if ($_REQUEST['action'] == 'findmember')
 	{
@@ -701,7 +702,7 @@ function template_imode_pm()
 
 function template_imode_recent()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<table border="0" cellspacing="0" cellpadding="0">
@@ -732,7 +733,7 @@ function template_imode_recent()
 
 function template_imode_error()
 {
-	global $context, $settings, $options, $txt, $scripturl;
+	global $context, $txt, $scripturl;
 
 	echo '
 		<table border="0" cellspacing="0" cellpadding="0">
@@ -744,7 +745,7 @@ function template_imode_error()
 
 function template_imode_profile()
 {
-	global $context, $settings, $options, $scripturl, $board, $txt;
+	global $context, $scripturl, $board, $txt;
 
 	echo '
 		<table border="0" cellspacing="0" cellpadding="0">
@@ -794,7 +795,7 @@ function template_imode_profile()
 
 function template_imode_ban_edit()
 {
-	global $context, $settings, $options, $scripturl, $board, $txt, $modSettings;
+	global $context, $scripturl, $board, $txt, $modSettings;
 
 	echo '
 	<form action="', $scripturl, '?action=admin;area=ban;sa=add;imode" method="post">
@@ -877,7 +878,7 @@ function template_imode_ban_edit()
 
 function template_imode_below()
 {
-	global $context, $settings, $options, $txt;
+	global $context, $txt;
 
 	echo '
 		<br /><a href="', $context['linktree'][count($context['linktree']) - 1]['url'], (count($context['linktree']) > 1 ? ';' : '?'), 'nowap" rel="nofollow">', $txt['wireless_go_to_full_version'], '</a>
@@ -888,7 +889,7 @@ function template_imode_below()
 // XHTMLMP (XHTML Mobile Profile) templates used for WAP 2.0 start here
 function template_wap2_above()
 {
-	global $context, $settings, $options, $user_info;
+	global $context, $settings, $user_info, $modSettings;
 
 	echo '<?xml version="1.0" encoding="', $context['character_set'], '"?', '>
 <!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN" "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
@@ -902,17 +903,21 @@ function template_wap2_above()
 		<link rel="canonical" href="', $context['canonical_url'], '" />';
 
 	echo '
-		<link rel="stylesheet" href="', $settings['default_theme_url'], '/css/wireless.css" type="text/css" />
+		<link rel="stylesheet" href="', $settings['default_theme_url'], '/css/wireless.css" type="text/css', $modSettings['browser_cache'] ,'" />
 	</head>
 	<body>';
 }
 
 function template_wap2_boardindex()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<p class="catbg">', $context['forum_name_html_safe'], '</p>';
+	if (!$context['user']['is_guest'])
+		echo '
+		<p class="windowbg"><a href="', $scripturl, '?action=unread;wap2">', $txt['wireless_recent_unread_posts'], '</a></p>
+		<p class="windowbg"><a href="', $scripturl, '?action=unreadreplies;wap2">', $txt['wireless_recent_unread_replies'], '</a></p>';
 
 	$count = 0;
 	foreach ($context['categories'] as $category)
@@ -940,15 +945,13 @@ function template_wap2_boardindex()
 			echo '
 			<p class="windowbg"><a href="', $scripturl, '?action=pm;wap2">', empty($context['user']['unread_messages']) ? $txt['wireless_pm_inbox'] : sprintf($txt['wireless_pm_inbox_new'], $context['user']['unread_messages']), '</a></p>';
 		echo '
-		<p class="windowbg"><a href="', $scripturl, '?action=unread;wap2">', $txt['wireless_recent_unread_posts'], '</a></p>
-		<p class="windowbg"><a href="', $scripturl, '?action=unreadreplies;wap2">', $txt['wireless_recent_unread_replies'], '</a></p>
 		<p class="windowbg"><a href="', $scripturl, '?action=logout;', $context['session_var'], '=', $context['session_id'], ';wap2">', $txt['wireless_options_logout'], '</a></p>';
 	}
 }
 
 function template_wap2_messageindex()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<p class="catbg">', $context['name'], '</p>';
@@ -956,7 +959,7 @@ function template_wap2_messageindex()
 	if (!empty($context['boards']))
 	{
 		echo '
-		<p class="titlebg">', $txt['parent_boards'], '</p>';
+		<p class="titlebg">', $txt['sub_boards'], '</p>';
 		foreach ($context['boards'] as $board)
 			echo '
 		<p class="windowbg">', $board['new'] ? '<span class="updated">[-] </span>' : ($board['children_new'] ? '[-<span class="updated">] </span>' : '[-] '), '<a href="', $scripturl, '?board=', $board['id'], '.0;wap2">', $board['name'], '</a></p>';
@@ -986,7 +989,7 @@ function template_wap2_messageindex()
 
 function template_wap2_display()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<p class="titlebg">' . $context['linktree'][1]['name'] . ' > ' . $context['linktree'][count($context['linktree']) - 2]['name'] . '</p>
@@ -1081,7 +1084,7 @@ function template_wap2_login()
 
 function template_wap2_post()
 {
-	global $context, $settings, $options, $scripturl, $txt, $modSettings;
+	global $context, $options, $scripturl, $txt, $modSettings;
 
 	echo '
 		<form action="', $scripturl, '?action=', $context['destination'], ';board=', $context['current_board'], '.0;wap2" method="post">
@@ -1143,7 +1146,7 @@ function template_wap2_post()
 
 function template_wap2_pm()
 {
-	global $context, $settings, $options, $scripturl, $txt, $user_info;
+	global $context, $scripturl, $txt, $user_info;
 
 	if ($_REQUEST['action'] == 'findmember')
 	{
@@ -1349,7 +1352,7 @@ function template_wap2_pm()
 
 function template_wap2_recent()
 {
-	global $context, $settings, $options, $scripturl, $txt;
+	global $context, $scripturl, $txt;
 
 	echo '
 		<p class="catbg">', $_REQUEST['action'] == 'unread' ? $txt['wireless_recent_unread_posts'] : $txt['wireless_recent_unread_replies'], '</p>';
@@ -1378,7 +1381,7 @@ function template_wap2_recent()
 
 function template_wap2_error()
 {
-	global $context, $settings, $options, $txt, $scripturl;
+	global $context, $txt, $scripturl;
 
 	echo '
 		<p class="catbg">', $context['error_title'], '</p>
@@ -1388,7 +1391,7 @@ function template_wap2_error()
 
 function template_wap2_profile()
 {
-	global $context, $settings, $options, $scripturl, $board, $txt;
+	global $context, $scripturl, $board, $txt;
 
 	echo '
 		<p class="catbg">', $txt['summary'], ' - ', $context['member']['name'], '</p>
@@ -1426,7 +1429,7 @@ function template_wap2_profile()
 
 function template_wap2_ban_edit()
 {
-	global $context, $settings, $options, $scripturl, $board, $txt, $modSettings;
+	global $context, $scripturl, $board, $txt, $modSettings;
 
 	echo '
 	<form action="', $scripturl, '?action=admin;area=ban;sa=add;wap2" method="post">
@@ -1508,7 +1511,7 @@ function template_wap2_ban_edit()
 
 function template_wap2_below()
 {
-	global $context, $settings, $options, $txt;
+	global $context, $txt;
 
 	echo '
 		<a href="', $context['linktree'][count($context['linktree']) - 1]['url'], (count($context['linktree']) > 1 ? ';' : '?'), 'nowap" rel="nofollow">', $txt['wireless_go_to_full_version'], '</a>

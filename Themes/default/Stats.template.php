@@ -3,8 +3,8 @@
  * Simple Machines Forum (SMF)
  *
  * @package SMF
- * @author Simple Machines
- * @copyright 2013 Simple Machines and individual contributors
+ * @author Simple Machines http://www.simplemachines.org
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -12,86 +12,86 @@
 
 function template_main()
 {
-	global $context, $settings, $options, $txt, $scripturl, $modSettings;
+	global $context, $settings, $txt, $scripturl, $modSettings;
 
 	echo '
 	<div id="statistics" class="main_section">
 		<div class="cat_bar">
 			<h3 class="catbg">', $context['page_title'], '</h3>
 		</div>
-		<div class="flow_hidden">
+		<div class="roundframe title_top">
 			<div class="title_bar">
-				<h4 class="titlebg statstitle">
-					<img src="', $settings['images_url'], '/stats_info.png" class="icon" alt="" /> ', $txt['general_stats'], '
+				<h4 class="titlebg">
+					<span class="stats_icon general"></span>', $txt['general_stats'], '
 				</h4>
 			</div>
-			<div id="stats_left">
-				<div class="windowbg2">
-					<div class="content top_row">
-						<dl class="stats">
-							<dt>', $txt['total_members'], ':</dt>
-							<dd>', $context['show_member_list'] ? '<a href="' . $scripturl . '?action=mlist">' . $context['num_members'] . '</a>' : $context['num_members'], '</dd>
-							<dt>', $txt['total_posts'], ':</dt>
-							<dd>', $context['num_posts'], '</dd>
-							<dt>', $txt['total_topics'], ':</dt>
-							<dd>', $context['num_topics'], '</dd>
-							<dt>', $txt['total_cats'], ':</dt>
-							<dd>', $context['num_categories'], '</dd>
-							<dt>', $txt['users_online'], ':</dt>
-							<dd>', $context['users_online'], '</dd>
-							<dt>', $txt['most_online'], ':</dt>
-							<dd>', $context['most_members_online']['number'], ' - ', $context['most_members_online']['date'], '</dd>
-							<dt>', $txt['users_online_today'], ':</dt>
-							<dd>', $context['online_today'], '</dd>';
+			<div class="stats_left half top_row">
+				<dl class="stats">
+					<dt>', $txt['total_members'], ':</dt>
+					<dd>', $context['show_member_list'] ? '<a href="' . $scripturl . '?action=mlist">' . $context['num_members'] . '</a>' : $context['num_members'], '</dd>
+					<dt>', $txt['total_posts'], ':</dt>
+					<dd>', $context['num_posts'], '</dd>
+					<dt>', $txt['total_topics'], ':</dt>
+					<dd>', $context['num_topics'], '</dd>
+					<dt>', $txt['total_cats'], ':</dt>
+					<dd>', $context['num_categories'], '</dd>
+					<dt>', $txt['users_online'], ':</dt>
+					<dd>', $context['users_online'], '</dd>
+					<dt>', $txt['most_online'], ':</dt>
+					<dd>', $context['most_members_online']['number'], ' - ', $context['most_members_online']['date'], '</dd>
+					<dt>', $txt['users_online_today'], ':</dt>
+					<dd>', $context['online_today'], '</dd>';
 
 	if (!empty($modSettings['hitStats']))
 		echo '
-							<dt>', $txt['num_hits'], ':</dt>
-							<dd>', $context['num_hits'], '</dd>';
+					<dt>', $txt['num_hits'], ':</dt>
+					<dd>', $context['num_hits'], '</dd>';
 
 	echo '
-						</dl>
-					</div>
-				</div>
+				</dl>
 			</div>
-			<div id="stats_right">
-				<div class="windowbg2">
-					<div class="content top_row">
-						<dl class="stats">
-							<dt>', $txt['average_members'], ':</dt>
-							<dd>', $context['average_members'], '</dd>
-							<dt>', $txt['average_posts'], ':</dt>
-							<dd>', $context['average_posts'], '</dd>
-							<dt>', $txt['average_topics'], ':</dt>
-							<dd>', $context['average_topics'], '</dd>
-							<dt>', $txt['total_boards'], ':</dt>
-							<dd>', $context['num_boards'], '</dd>
-							<dt>', $txt['latest_member'], ':</dt>
-							<dd>', $context['common_stats']['latest_member']['link'], '</dd>
-							<dt>', $txt['average_online'], ':</dt>
-							<dd>', $context['average_online'], '</dd>';
+			<div class="stats_right half top_row">
+				<dl class="stats">
+					<dt>', $txt['average_members'], ':</dt>
+					<dd>', $context['average_members'], '</dd>
+					<dt>', $txt['average_posts'], ':</dt>
+					<dd>', $context['average_posts'], '</dd>
+					<dt>', $txt['average_topics'], ':</dt>
+					<dd>', $context['average_topics'], '</dd>
+					<dt>', $txt['total_boards'], ':</dt>
+					<dd>', $context['num_boards'], '</dd>
+					<dt>', $txt['latest_member'], ':</dt>
+					<dd>', $context['common_stats']['latest_member']['link'], '</dd>
+					<dt>', $txt['average_online'], ':</dt>
+					<dd>', $context['average_online'], '</dd>';
 
 	if (!empty($context['gender']))
+	{
 		echo '
-							<dt>', $txt['gender_ratio'], ':</dt>
-							<dd>', $context['gender']['ratio'], '</dd>';
+					<dt><b>', $txt['gender_stats'], ':</b></dt>
+					<dd>';
+					
+		foreach ($context['gender'] as $g => $n)
+			echo $g, ': ', $n, '<br>';
+			
+		echo '</dd>';
+					
+	}
 
 	if (!empty($modSettings['hitStats']))
 		echo '
-							<dt>', $txt['average_hits'], ':</dt>
-							<dd>', $context['average_hits'], '</dd>';
+					<dt>', $txt['average_hits'], ':</dt>
+					<dd>', $context['average_hits'], '</dd>';
 
 	echo '
-						</dl>
-					</div>
-				</div>
+				</dl>
 			</div>
 		</div>
-		<div class="flow_hidden">
-			<div id="top_posters">
+		<div class="roundframe title_top">
+			<div class="half_content">
 				<div class="title_bar">
-					<h4 class="titlebg statstitle">
-						<img src="', $settings['images_url'], '/stats_posters.png" class="icon" alt="" /> ', $txt['top_posters'], '
+					<h4 class="titlebg">
+						<span class="stats_icon posters"></span>', $txt['top_posters'], '
 					</h4>
 				</div>
 					<div class="windowbg2">
@@ -125,10 +125,10 @@ function template_main()
 						</div>
 					</div>
 			</div>
-			<div id="top_boards">
+			<div class="half_content">
 				<div class="title_bar">
-					<h4 class="titlebg statstitle">
-						<img src="', $settings['images_url'], '/stats_board.png" class="icon" alt="" /> ', $txt['top_boards'], '
+					<h4 class="titlebg">
+						<span class="stats_icon boards"></span>', $txt['top_boards'], '
 					</h4>
 				</div>
 					<div class="windowbg2">
@@ -163,11 +163,11 @@ function template_main()
 					</div>
 			</div>
 		</div>
-		<div class="flow_hidden">
-			<div id="top_topics_replies">
+		<div class="roundframe title_top">
+			<div class="half_content">
 				<div class="title_bar">
-					<h4 class="titlebg statstitle">
-						<img src="', $settings['images_url'], '/stats_replies.png" class="icon" alt="" /> ', $txt['top_topics_replies'], '
+					<h4 class="titlebg">
+						<span class="stats_icon replies"></span>', $txt['top_topics_replies'], '
 					</h4>
 				</div>
 					<div class="windowbg2">
@@ -200,10 +200,10 @@ function template_main()
 					</div>
 			</div>
 
-			<div id="top_topics_views">
+			<div class="half_content">
 				<div class="title_bar">
-					<h4 class="titlebg statstitle">
-						<img src="', $settings['images_url'], '/stats_views.png" class="icon" alt="" /> ', $txt['top_topics_views'], '
+					<h4 class="titlebg">
+						<span class="stats_icon views"></span>', $txt['top_topics_views'], '
 					</h4>
 				</div>
 				<div class="windowbg2">
@@ -236,11 +236,11 @@ function template_main()
 				</div>
 			</div>
 		</div>
-		<div class="flow_hidden">
-			<div id="top_topics_starter">
+		<div class="roundframe title_top">
+			<div class="half_content">
 				<div class="title_bar">
-					<h4 class="titlebg statstitle">
-						<img src="', $settings['images_url'], '/stats_replies.png" class="icon" alt="" /> ', $txt['top_starters'], '
+					<h4 class="titlebg">
+						<span class="stats_icon starters"></span>', $txt['top_starters'], '
 					</h4>
 				</div>
 				<div class="windowbg2">
@@ -271,10 +271,10 @@ function template_main()
 					</div>
 				</div>
 			</div>
-			<div id="most_online">
+			<div class="half_content">
 				<div class="title_bar">
-					<h4 class="titlebg statstitle">
-						<img src="', $settings['images_url'], '/stats_views.png" class="icon" alt="" /> ', $txt['most_time_online'], '
+					<h4 class="titlebg">
+						<span class="stats_icon history"></span>', $txt['most_time_online'], '
 					</h4>
 				</div>
 				<div class="windowbg2">
@@ -309,25 +309,25 @@ function template_main()
 				</div>
 			</div>
 		</div>
-		<br class="clear" />
+		<br class="clear">
 		<div class="cat_bar">
 			<h3 class="catbg">
-				<img src="', $settings['images_url'], '/stats_history.png" class="icon" alt="" /> ', $txt['forum_history'], '
+				<span class="stats_icon history"></span>', $txt['forum_history'], '
 			</h3>
 		</div>
-		<div class="flow_hidden">';
+		<div class="roundframe title_top">';
 
 	if (!empty($context['yearly']))
 	{
 		echo '
-		<table border="0" width="100%" cellspacing="1" cellpadding="4" class="table_grid" id="stats">
+		<table border="0" cellspacing="1" cellpadding="4" class="table_grid" id="stats">
 			<thead>
-				<tr class="titlebg" valign="middle" align="center">
-					<th class="first_th lefttext" width="25%">', $txt['yearly_summary'], '</th>
-					<th width="15%">', $txt['stats_new_topics'], '</th>
-					<th width="15%">', $txt['stats_new_posts'], '</th>
-					<th width="15%">', $txt['stats_new_members'], '</th>
-					<th', empty($modSettings['hitStats']) ? ' class="last_th"' : '', ' width="15%">', $txt['most_online'], '</th>';
+				<tr class="catbg" valign="middle" align="center">
+					<th class="first_th lefttext">', $txt['yearly_summary'], '</th>
+					<th>', $txt['stats_new_topics'], '</th>
+					<th>', $txt['stats_new_posts'], '</th>
+					<th>', $txt['stats_new_members'], '</th>
+					<th', empty($modSettings['hitStats']) ? ' class="last_th"' : '', '>', $txt['most_online'], '</th>';
 
 		if (!empty($modSettings['hitStats']))
 			echo '
@@ -342,13 +342,13 @@ function template_main()
 		{
 			echo '
 				<tr class="windowbg2" valign="middle" align="center" id="year_', $id, '">
-					<th class="lefttext" width="25%">
-						<img id="year_img_', $id, '" src="', $settings['images_url'], '/selected_open.png" alt="*" /> <a href="#year_', $id, '" id="year_link_', $id, '">', $year['year'], '</a>
+					<th class="lefttext">
+						<img id="year_img_', $id, '" src="', $settings['images_url'], '/selected_open.png" alt="*"> <a href="#year_', $id, '" id="year_link_', $id, '">', $year['year'], '</a>
 					</th>
-					<th width="15%">', $year['new_topics'], '</th>
-					<th width="15%">', $year['new_posts'], '</th>
-					<th width="15%">', $year['new_members'], '</th>
-					<th width="15%">', $year['most_members_online'], '</th>';
+					<th>', $year['new_topics'], '</th>
+					<th>', $year['new_posts'], '</th>
+					<th>', $year['new_members'], '</th>
+					<th>', $year['most_members_online'], '</th>';
 
 			if (!empty($modSettings['hitStats']))
 				echo '
@@ -362,12 +362,12 @@ function template_main()
 				echo '
 				<tr class="windowbg2" valign="middle" align="center" id="tr_month_', $month['id'], '">
 					<th class="stats_month">
-						<img src="', $settings['images_url'], '/', $month['expanded'] ? 'selected_open.png' : 'selected.png', '" alt="" id="img_', $month['id'], '" /> <a id="m', $month['id'], '" href="', $month['href'], '" onclick="return doingExpandCollapse;">', $month['month'], ' ', $month['year'], '</a>
+						<img src="', $settings['images_url'], '/', $month['expanded'] ? 'selected_open.png' : 'selected.png', '" alt="" id="img_', $month['id'], '"> <a id="m', $month['id'], '" href="', $month['href'], '" onclick="return doingExpandCollapse;">', $month['month'], ' ', $month['year'], '</a>
 					</th>
-					<th width="15%">', $month['new_topics'], '</th>
-					<th width="15%">', $month['new_posts'], '</th>
-					<th width="15%">', $month['new_members'], '</th>
-					<th width="15%">', $month['most_members_online'], '</th>';
+					<th>', $month['new_topics'], '</th>
+					<th>', $month['new_posts'], '</th>
+					<th>', $month['new_members'], '</th>
+					<th>', $month['most_members_online'], '</th>';
 
 				if (!empty($modSettings['hitStats']))
 					echo '
@@ -404,8 +404,7 @@ function template_main()
 		</table>
 		</div>
 	</div>
-	<script type="text/javascript" src="', $settings['default_theme_url'], '/scripts/stats.js"></script>
-	<script type="text/javascript"><!-- // --><![CDATA[
+	<script><!-- // --><![CDATA[
 		var oStatsCenter = new smf_StatsCenter({
 			sTableId: \'stats\',
 

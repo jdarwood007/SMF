@@ -9,7 +9,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -34,7 +34,9 @@ function preparsecode(&$message, $previewing = false)
 	$message = preg_replace('~&amp;#(\d{4,5}|[2-9]\d{2,4}|1[2-9]\d);~', '&#$1;', $message);
 
 	// Clean up after nobbc ;).
-	$message = preg_replace_callback('~\[nobbc\](.+?)\[/nobbc\]~i', create_function('$m', ' return "[nobbc]" . strtr("$m[1]", array("[" => "&#91;", "]" => "&#93;", ":" => "&#58;", "@" => "&#64;")) . "[/nobbc]";'), $message);
+	$message = preg_replace_callback('~\[nobbc\](.+?)\[/nobbc\]~is', function ($a) {
+		return '[nobbc]' . strtr($a[1], array('[' => '&#91;', ']' => '&#93;', ':' => '&#58;', '@' => '&#64;')) . '[/nobbc]';
+	}, $message);
 
 	// Remove \r's... they're evil!
 	$message = strtr($message, array("\r" => ''));
@@ -242,7 +244,7 @@ function preparsecode(&$message, $previewing = false)
 
 	// Put it back together!
 	if (!$previewing)
-		$message = strtr(implode('', $parts), array('  ' => '&nbsp; ', "\n" => '<br />', $context['utf8'] ? "\xC2\xA0" : "\xA0" => '&nbsp;'));
+		$message = strtr(implode('', $parts), array('  ' => '&nbsp; ', "\n" => '<br>', $context['utf8'] ? "\xC2\xA0" : "\xA0" => '&nbsp;'));
 	else
 		$message = strtr(implode('', $parts), array('  ' => '&nbsp; ', $context['utf8'] ? "\xC2\xA0" : "\xA0" => '&nbsp;'));
 
@@ -267,7 +269,10 @@ function un_preparsecode($message)
 		// If $i is a multiple of four (0, 4, 8, ...) then it's not a code section...
 		if ($i % 4 == 0)
 		{
-			$parts[$i] = preg_replace_callback('~\[html\](.+?)\[/html\]~i', create_function('$m', 'return "[html]" . strtr(htmlspecialchars("$m[1]", ENT_QUOTES), array("\\&quot;" => "&quot;", "&amp;#13;" => "<br />", "&amp;#32;" => " ", "&amp;#91;" => "[", "&amp;#93;" => "]")) . "[/html]";'), $parts[$i]);
+			$parts[$i] = preg_replace_callback('~\[html\](.+?)\[/html\]~i', create_function('$m', '
+				global $smcFunc;
+
+			return "[html]" . strtr($smcFunc[\'htmlspecialchars\']("$m[1]", ENT_QUOTES), array("\\&quot;" => "&quot;", "&amp;#13;" => "<br>", "&amp;#32;" => " ", "&amp;#91;" => "[", "&amp;#93;" => "]")) . "[/html]";'), $parts[$i]);
 
 			// Attempt to un-parse the time to something less awful.
 			$parts[$i] = preg_replace_callback('~\[time\](\d{0,10})\[/time\]~i', create_function('$m', ' return "[time]" . timeformat("$m[1]", false) . "[/time]";'), $parts[$i]);
@@ -570,7 +575,7 @@ function sendmail($to, $subject, $message, $from = null, $message_id = null, $se
 	if ($hotmail_fix && !$send_html)
 	{
 		$send_html = true;
-		$message = strtr($message, array($line_break => '<br />' . $line_break));
+		$message = strtr($message, array($line_break => '<br>' . $line_break));
 		$message = preg_replace('~(' . preg_quote($scripturl, '~') . '(?:[?/][\w\-_%\.,\?&;=#]+)?)~', '<a href="$1">$1</a>', $message);
 	}
 
@@ -578,7 +583,7 @@ function sendmail($to, $subject, $message, $from = null, $message_id = null, $se
 	list (, $subject) = mimespecialchars($subject, true, $hotmail_fix, $line_break);
 
 	// Construct the mail headers...
-	$headers = 'From: "' . $from_name . '" <' . (empty($modSettings['mail_from']) ? $webmaster_email : $modSettings['mail_from']) . '>' . $line_break;
+	$headers = 'From: ' . $from_name . ' <' . (empty($modSettings['mail_from']) ? $webmaster_email : $modSettings['mail_from']) . '>' . $line_break;
 	$headers .= $from !== null ? 'Reply-To: <' . $from . '>' . $line_break : '';
 	$headers .= 'Return-Path: ' . (empty($modSettings['mail_from']) ? $webmaster_email : $modSettings['mail_from']) . $line_break;
 	$headers .= 'Date: ' . gmdate('D, d M Y H:i:s') . ' -0000' . $line_break;
@@ -638,11 +643,11 @@ function sendmail($to, $subject, $message, $from = null, $message_id = null, $se
 	}
 
 	// Are we using the mail queue, if so this is where we butt in...
-	if (!empty($modSettings['mail_queue']) && $priority != 0)
+	if ($priority != 0)
 		return AddMailQueue(false, $to_array, $subject, $message, $headers, $send_html, $priority, $is_private);
 
 	// If it's a priority mail, send it now - note though that this should NOT be used for sending many at once.
-	elseif (!empty($modSettings['mail_queue']) && !empty($modSettings['mail_limit']))
+	elseif (!empty($modSettings['mail_limit']))
 	{
 		list ($last_mail_time, $mails_this_minute) = @explode('|', $modSettings['mail_recent']);
 		if (empty($mails_this_minute) || time() > $last_mail_time + 60)
@@ -736,11 +741,10 @@ function AddMailQueue($flush = false, $to_array = array(), $subject = '', $messa
 		$smcFunc['db_query']('', '
 			UPDATE {db_prefix}settings
 			SET value = {string:nextSendTime}
-			WHERE variable = {string:mail_next_send}
+			WHERE variable = {literal:mail_next_send}
 				AND value = {string:no_outstanding}',
 			array(
 				'nextSendTime' => $nextSendTime,
-				'mail_next_send' => 'mail_next_send',
 				'no_outstanding' => '0',
 			)
 		);
@@ -821,9 +825,6 @@ function sendpm($recipients, $subject, $message, $store_outbox = false, $from = 
 			'name' => $user_info['name'],
 			'username' => $user_info['username']
 		);
-	// Probably not needed.  /me something should be of the typer.
-	else
-		$user_info['name'] = $from['name'];
 
 	// This is the one that will go in their inbox.
 	$htmlmessage = $smcFunc['htmlspecialchars']($message, ENT_QUOTES);
@@ -1120,7 +1121,7 @@ function sendpm($recipients, $subject, $message, $store_outbox = false, $from = 
 	if (empty($modSettings['disallow_sendBody']))
 	{
 		censorText($message);
-		$message = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc(htmlspecialchars($message), false), array('<br />' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
+		$message = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($smcFunc['htmlspecialchars']($message), false), array('<br>' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
 	}
 	else
 		$message = '';
@@ -1443,7 +1444,7 @@ function server_parse($message, $socket, $response)
 
 /**
  * Spell checks the post for typos ;).
- * It uses the pspell library, which MUST be installed.
+ * It uses the pspell or enchant library, one of which MUST be installed.
  * It has problems with internationalization.
  * It is accessed via ?action=spellcheck.
  */
@@ -1457,24 +1458,10 @@ function SpellCheck()
 	loadLanguage('Post');
 	loadTemplate('Post');
 
-	// Okay, this looks funny, but it actually fixes a weird bug.
-	ob_start();
-	$old = error_reporting(0);
+	// Create a pspell or enchant dictionary resource
+	$dict = spell_init();
 
-	// See, first, some windows machines don't load pspell properly on the first try.  Dumb, but this is a workaround.
-	pspell_new('en');
-
-	// Next, the dictionary in question may not exist. So, we try it... but...
-	$pspell_link = pspell_new($txt['lang_dictionary'], $txt['lang_spelling'], '', strtr($context['character_set'], array('iso-' => 'iso', 'ISO-' => 'iso')), PSPELL_FAST | PSPELL_RUN_TOGETHER);
-
-	// Most people don't have anything but English installed... So we use English as a last resort.
-	if (!$pspell_link)
-		$pspell_link = pspell_new('en', '', '', '', PSPELL_FAST | PSPELL_RUN_TOGETHER);
-
-	error_reporting($old);
-	ob_end_clean();
-
-	if (!isset($_POST['spellstring']) || !$pspell_link)
+	if (!isset($_POST['spellstring']) || !$dict)
 		die;
 
 	// Construct a bit of Javascript code.
@@ -1493,7 +1480,7 @@ function SpellCheck()
 		$check_word = explode('|', $alphas[$i]);
 
 		// If the word is a known word, or spelled right...
-		if (in_array($smcFunc['strtolower']($check_word[0]), $known_words) || pspell_check($pspell_link, $check_word[0]) || !isset($check_word[2]))
+		if (in_array($smcFunc['strtolower']($check_word[0]), $known_words) || spell_check($dict, $check_word[0]) || !isset($check_word[2]))
 			continue;
 
 		// Find the word, and move up the "last occurance" to here.
@@ -1504,7 +1491,7 @@ function SpellCheck()
 			new misp("' . strtr($check_word[0], array('\\' => '\\\\', '"' => '\\"', '<' => '', '&gt;' => '')) . '", ' . (int) $check_word[1] . ', ' . (int) $check_word[2] . ', [';
 
 		// If there are suggestions, add them in...
-		$suggestions = pspell_suggest($pspell_link, $check_word[0]);
+		$suggestions = spell_suggest($dict, $check_word[0]);
 		if (!empty($suggestions))
 		{
 			// But first check they aren't going to be censored - no naughty words!
@@ -1529,6 +1516,13 @@ function SpellCheck()
 	// And instruct the template system to just show the spellcheck sub template.
 	$context['template_layers'] = array();
 	$context['sub_template'] = 'spellcheck';
+
+	// Free resources for enchant...
+	if (isset($context['enchant_broker']))
+	{
+		enchant_broker_free_dict($dict);
+		enchant_broker_free($context['enchant_broker']);
+	}
 }
 
 /**
@@ -1579,7 +1573,7 @@ function sendNotifications($topics, $type, $exclude = array(), $members_only = a
 		censorText($row['subject']);
 		censorText($row['body']);
 		$row['subject'] = un_htmlspecialchars($row['subject']);
-		$row['body'] = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($row['body'], false, $row['id_last_msg']), array('<br />' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
+		$row['body'] = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($row['body'], false, $row['id_last_msg']), array('<br>' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
 
 		$topicData[$row['id_topic']] = array(
 			'subject' => $row['subject'],
@@ -1955,13 +1949,9 @@ function createPost(&$msgOptions, &$topicOptions, &$posterOptions)
 				'unapproved_posts = unapproved_posts + {int:counter_increment}',
 			);
 		if ($topicOptions['lock_mode'] !== null)
-			$topics_columns = array(
-				'locked = {int:locked}',
-			);
+			$topics_columns[] = 'locked = {int:locked}';
 		if ($topicOptions['sticky_mode'] !== null)
-			$topics_columns = array(
-				'is_sticky = {int:is_sticky}',
-			);
+			$topics_columns[] = 'is_sticky = {int:is_sticky}';
 
 		call_integration_hook('integrate_modify_topic', array(&$topics_columns, &$update_parameters, &$msgOptions, &$topicOptions, &$posterOptions));
 
@@ -2139,6 +2129,7 @@ function modifyPost(&$msgOptions, &$topicOptions, &$posterOptions)
 	{
 		$messages_columns['modified_time'] = $msgOptions['modify_time'];
 		$messages_columns['modified_name'] = $msgOptions['modify_name'];
+		$messages_columns['modified_reason'] = $msgOptions['modify_reason'];
 		$messages_columns['id_msg_modified'] = $modSettings['maxMsgID'];
 	}
 	if (isset($msgOptions['smileys_enabled']))
@@ -2533,7 +2524,7 @@ function sendApprovalNotifications(&$topicData)
 			censorText($topicData[$topic][$msgKey]['subject']);
 			censorText($topicData[$topic][$msgKey]['body']);
 			$topicData[$topic][$msgKey]['subject'] = un_htmlspecialchars($topicData[$topic][$msgKey]['subject']);
-			$topicData[$topic][$msgKey]['body'] = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($topicData[$topic][$msgKey]['body'], false), array('<br />' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
+			$topicData[$topic][$msgKey]['body'] = trim(un_htmlspecialchars(strip_tags(strtr(parse_bbc($topicData[$topic][$msgKey]['body'], false), array('<br>' => "\n", '</div>' => "\n", '</li>' => "\n", '&#91;' => '[', '&#93;' => ']')))));
 
 			$topics[] = $msg['id'];
 			$digest_insert[] = array($msg['topic'], $msg['id'], 'reply', $user_info['id']);
@@ -2795,11 +2786,7 @@ function updateLastMessages($setboards, $id_msg = 0)
  */
 function adminNotify($type, $memberID, $member_name = null)
 {
-	global $txt, $modSettings, $language, $scripturl, $user_info, $context, $smcFunc;
-
-	// If the setting isn't enabled then just exit.
-	if (empty($modSettings['notify_new_registration']))
-		return;
+	global $txt, $modSettings, $language, $scripturl, $context, $smcFunc;
 
 	if ($member_name == null)
 	{
@@ -2817,69 +2804,18 @@ function adminNotify($type, $memberID, $member_name = null)
 		$smcFunc['db_free_result']($request);
 	}
 
-	$toNotify = array();
-	$groups = array();
-
-	// All membergroups who can approve members.
-	$request = $smcFunc['db_query']('', '
-		SELECT id_group
-		FROM {db_prefix}permissions
-		WHERE permission = {string:moderate_forum}
-			AND add_deny = {int:add_deny}
-			AND id_group != {int:id_group}',
-		array(
-			'add_deny' => 1,
-			'id_group' => 0,
-			'moderate_forum' => 'moderate_forum',
-		)
+	// This is really just a wrapper for making a new background task to deal with all the fun.
+	$smcFunc['db_insert']('insert',
+		'{db_prefix}background_tasks',
+		array('task_file' => 'string', 'task_class' => 'string', 'task_data' => 'string', 'claimed_time' => 'int'),
+		array('$sourcedir/tasks/Register-Notify.php', 'Register_Notify_Background', serialize(array(
+			'new_member_id' => $memberID,
+			'new_member_name' => $member_name,
+			'notify_type' => $type,
+			'time' => time(),
+		)), 0),
+		array('id_task')
 	);
-	while ($row = $smcFunc['db_fetch_assoc']($request))
-		$groups[] = $row['id_group'];
-	$smcFunc['db_free_result']($request);
-
-	// Add administrators too...
-	$groups[] = 1;
-	$groups = array_unique($groups);
-
-	// Get a list of all members who have ability to approve accounts - these are the people who we inform.
-	$request = $smcFunc['db_query']('', '
-		SELECT id_member, lngfile, email_address
-		FROM {db_prefix}members
-		WHERE (id_group IN ({array_int:group_list}) OR FIND_IN_SET({raw:group_array_implode}, additional_groups) != 0)
-			AND notify_types != {int:notify_types}
-		ORDER BY lngfile',
-		array(
-			'group_list' => $groups,
-			'notify_types' => 4,
-			'group_array_implode' => implode(', additional_groups) != 0 OR FIND_IN_SET(', $groups),
-		)
-	);
-
-	$current_language = $user_info['language'];
-	while ($row = $smcFunc['db_fetch_assoc']($request))
-	{
-		$replacements = array(
-			'USERNAME' => $member_name,
-			'PROFILELINK' => $scripturl . '?action=profile;u=' . $memberID
-		);
-		$emailtype = 'admin_notify';
-
-		// If they need to be approved add more info...
-		if ($type == 'approval')
-		{
-			$replacements['APPROVALLINK'] = $scripturl . '?action=admin;area=viewmembers;sa=browse;type=approve';
-			$emailtype .= '_approval';
-		}
-
-		$emaildata = loadEmailTemplate($emailtype, $replacements, empty($row['lngfile']) || empty($modSettings['userLanguage']) ? $language : $row['lngfile']);
-
-		// And do the actual sending...
-		sendmail($row['email_address'], $emaildata['subject'], $emaildata['body'], null, null, false, 0);
-	}
-	$smcFunc['db_free_result']($request);
-
-	if (isset($current_language) && $current_language != $user_info['language'])
-		loadLanguage('Login');
 }
 
 /**
@@ -2892,7 +2828,7 @@ function adminNotify($type, $memberID, $member_name = null)
  */
 function loadEmailTemplate($template, $replacements = array(), $lang = '', $loadLang = true)
 {
-	global $txt, $mbname, $scripturl, $settings, $user_info;
+	global $txt, $mbname, $scripturl, $settings;
 
 	// First things first, load up the email templates language file, if we need to.
 	if ($loadLang)
@@ -2968,4 +2904,153 @@ function user_info_callback($matches)
 	return $use_ref ? $ref : $matches[0];
 }
 
+
+/**
+ * spell_init()
+ *
+ * Sets up a dictionary resource handle. Tries enchant first then falls through to pspell.
+ *
+ * @return resource|bool An enchant or pspell dictionary resource handle or false if the dictionary couldn't be loaded
+ */
+function spell_init()
+{
+	global $context, $txt;
+
+	// Check for UTF-8 and strip ".utf8" off the lang_locale string for enchant
+	$context['spell_utf8'] = ($txt['lang_character_set'] == 'UTF-8');
+	$lang_locale = str_replace('.utf8', '', $txt['lang_locale']);
+
+	// Try enchant first since PSpell is (supposedly) deprecated as of PHP 5.3
+	// enchant only does UTF-8, so we need iconv if you aren't using UTF-8
+	if (function_exists('enchant_broker_init') && ($context['spell_utf8'] || function_exists('iconv')))
+	{
+		// We'll need this to free resources later...
+		$context['enchant_broker'] = enchant_broker_init();
+
+		// Try locale first, then general...
+		if (!empty($lang_locale) && enchant_broker_dict_exists($context['enchant_broker'], $lang_locale))
+		{
+			$enchant_link = enchant_broker_request_dict($context['enchant_broker'], $lang_locale);
+		}
+		elseif (enchant_broker_dict_exists($context['enchant_broker'], $txt['lang_dictionary']))
+		{
+			$enchant_link = enchant_broker_request_dict($context['enchant_broker'], $txt['lang_dictionary']);
+		}
+
+		// Success
+		if ($enchant_link)
+		{
+			$context['provider'] = 'enchant';
+			return $enchant_link;
+		}
+		else
+		{
+			// Free up any resources used...
+			@enchant_broker_free($context['enchant_broker']);
+		}
+	}
+
+	// Fall through to pspell if enchant didn't work
+	if (function_exists('pspell_new'))
+	{
+		// Okay, this looks funny, but it actually fixes a weird bug.
+		ob_start();
+		$old = error_reporting(0);
+
+		// See, first, some windows machines don't load pspell properly on the first try.  Dumb, but this is a workaround.
+		pspell_new('en');
+
+		// Next, the dictionary in question may not exist. So, we try it... but...
+		$pspell_link = pspell_new($txt['lang_dictionary'], $txt['lang_spelling'], '', strtr($context['character_set'], array('iso-' => 'iso', 'ISO-' => 'iso')), PSPELL_FAST | PSPELL_RUN_TOGETHER);
+
+		// Most people don't have anything but English installed... So we use English as a last resort.
+		if (!$pspell_link)
+			$pspell_link = pspell_new('en', '', '', '', PSPELL_FAST | PSPELL_RUN_TOGETHER);
+
+		error_reporting($old);
+		ob_end_clean();
+
+		// If we have pspell, exit now...
+		if ($pspell_link)
+		{
+			$context['provider'] = 'pspell';
+			return $pspell_link;
+		}
+	}
+
+	// If we get this far, we're doomed
+	return false;
+}
+
+/**
+ * spell_check()
+ *
+ * Determines whether or not the specified word is spelled correctly
+ *
+ * @param resource $dict An enchant or pspell dictionary resource set up by {@link spell_init()}
+ * @param string $word A word to check the spelling of
+ * @return bool Whether or not the specified word is spelled properly
+ */
+function spell_check($dict, $word)
+{
+	global $context, $txt;
+
+	// Enchant or pspell?
+	if ($context['provider'] == 'enchant')
+	{
+		// This is a bit tricky here...
+		if (!$context['spell_utf8'])
+		{
+			// Convert the word to UTF-8 with iconv
+			$word = iconv($txt['lang_charset'], 'UTF-8', $word);
+		}
+		return enchant_dict_check($dict, $word);
+	}
+	elseif ($context['provider'] == 'pspell')
+	{
+		return pspell_check($dict, $word);
+	}
+}
+
+/**
+ * spell_suggest()
+ *
+ * Returns an array of suggested replacements for the specified word
+ *
+ * @param resource $dict An enchant or pspell dictioary resource
+ * @param string $word A misspelled word
+ * @return array An array of suggested replacements for the misspelled word
+ */
+function spell_suggest($dict, $word)
+{
+	global $context, $txt;
+
+	if ($context['provider'] == 'enchant')
+	{
+		// If we're not using UTF-8, we need iconv to handle some stuff...
+		if (!$context['spell_utf8'])
+		{
+			// Convert the word to UTF-8 before getting suggestions
+			$word = iconv($txt['lang_charset'], 'UTF-8', $word);
+			$suggestions = enchant_dict_suggest($dict, $word);
+
+			// Go through the suggestions and convert them back to the proper character set
+			foreach($suggestions as $index => $suggestion)
+			{
+				// //TRANSLIT makes it use similar-looking characters for incompatible ones...
+				$suggestions[$index] = iconv('UTF-8', $txt['lang_charset'] . '//TRANSLIT', $suggestion);
+			}
+
+			return $suggestions;
+		}
+		else
+		{
+			return enchant_dict_suggest($dict, $word);
+		}
+	}
+	elseif ($context['provider'] == 'pspell')
+	{
+		return pspell_suggest($dict, $word);
+	}
+}
 ?>

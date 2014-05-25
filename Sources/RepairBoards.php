@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -22,7 +22,7 @@ if (!defined('SMF'))
  * Calls createSalvageArea() to create a new board, if necesary.
  * Accessed by ?action=admin;area=repairboards.
  *
- * @uses raw_data sub-template.
+ * @uses repair_boards sub-template.
  */
 function RepairBoards()
 {
@@ -615,7 +615,7 @@ function loadForumTests()
 					AND t.id_topic BETWEEN {STEP_LOW} AND {STEP_HIGH}
 				GROUP BY t.id_board',
 			'fix_processing' => create_function('$row', '
-				global $smcFunc, $salvageCatID;
+				global $smcFunc, $salvageCatID, $txt;
 				createSalvageArea();
 
 				$row[\'my_num_topics\'] = (int) $row[\'my_num_topics\'];
@@ -624,7 +624,7 @@ function loadForumTests()
 				$smcFunc[\'db_insert\'](\'\',
 					\'{db_prefix}boards\',
 					array(\'id_cat\' => \'int\', \'name\' => \'string\', \'description\' => \'string\', \'num_topics\' => \'int\', \'num_posts\' => \'int\', \'member_groups\' => \'string\'),
-					array($salvageCatID, \'Salvaged board\', \'\', $row[\'my_num_topics\'], $row[\'my_num_posts\'], \'1\'),
+					array($salvageCatID, $txt[\'salvaged_board_name\'], $txt[\'salvaged_board_description\'], $row[\'my_num_topics\'], $row[\'my_num_posts\'], \'1\'),
 					array(\'id_board\')
 				);
 				$newBoardID = $smcFunc[\'db_insert_id\'](\'{db_prefix}boards\', \'id_board\');

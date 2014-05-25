@@ -10,7 +10,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -31,7 +31,7 @@ if (!defined('SMF'))
  */
 function read_tgz_file($gzfilename, $destination, $single_file = false, $overwrite = false, $files_to_extract = null)
 {
-	if (substr($gzfilename, 0, 7) == 'http://')
+	if (substr($gzfilename, 0, 7) == 'http://' || substr($gzfilename, 0, 8) == 'https://')
 	{
 		$data = fetch_web_data($gzfilename);
 
@@ -376,7 +376,6 @@ function url_exists($url)
 
 /**
  * Loads and returns an array of installed packages.
- * - gets this information from Packages/installed.list.
  * - returns the array of data.
  * - default sort order is package_installed time
  *
@@ -384,27 +383,11 @@ function url_exists($url)
  */
 function loadInstalledPackages()
 {
-	global $boarddir, $packagesdir, $smcFunc;
-
-	// First, check that the database is valid, installed.list is still king.
-	$install_file = implode('', file($packagesdir . '/installed.list'));
-	if (trim($install_file) == '')
-	{
-		$smcFunc['db_query']('', '
-			UPDATE {db_prefix}log_packages
-			SET install_state = {int:not_installed}',
-			array(
-				'not_installed' => 0,
-			)
-		);
-
-		// Don't have anything left, so send an empty array.
-		return array();
-	}
+	global $smcFunc;
 
 	// Load the packages from the database - note this is ordered by install time to ensure latest package uninstalled first.
 	$request = $smcFunc['db_query']('', '
-		SELECT id_install, package_id, filename, name, version
+		SELECT id_install, package_id, filename, name, version, time_installed
 		FROM {db_prefix}log_packages
 		WHERE install_state != {int:not_installed}
 		ORDER BY time_installed DESC',
@@ -428,6 +411,7 @@ function loadInstalledPackages()
 			'filename' => $row['filename'],
 			'package_id' => $row['package_id'],
 			'version' => $row['version'],
+			'time_installed' => !empty($row['time_installed']) ? $row['time_installed'] : 0,
 		);
 	}
 	$smcFunc['db_free_result']($request);
@@ -450,7 +434,7 @@ function getPackageInfo($gzfilename)
 	global $boarddir, $sourcedir, $packagesdir, $smcFunc;
 
 	// Extract package-info.xml from downloaded file. (*/ is used because it could be in any directory.)
-	if (strpos($gzfilename, 'http://') !== false)
+	if (strpos($gzfilename, 'http://') !== false || strpos($gzfilename, 'https://') !== false)
 		$packageInfo = read_tgz_data(fetch_web_data($gzfilename, '', true), '*/package-info.xml', true);
 	else
 	{
@@ -619,12 +603,12 @@ function create_chmod_control($chmodFiles = array(), $chmodOptions = array(), $r
 				),
 				'check' => array(
 					'header' => array(
-						'value' => '<input type="checkbox" onclick="invertAll(this, this.form);" class="input_check" />',
+						'value' => '<input type="checkbox" onclick="invertAll(this, this.form);" class="input_check">',
 						'class' => 'centercol',
 					),
 					'data' => array(
 						'sprintf' => array(
-							'format' => '<input type="checkbox" name="restore_files[]" value="%1$s" class="input_check" />',
+							'format' => '<input type="checkbox" name="restore_files[]" value="%1$s" class="input_check">',
 							'params' => array(
 								'path' => false,
 							),
@@ -652,7 +636,7 @@ function create_chmod_control($chmodFiles = array(), $chmodOptions = array(), $r
 			'additional_rows' => array(
 				array(
 					'position' => 'below_table_data',
-					'value' => '<input type="submit" name="restore_perms" value="' . $txt['package_restore_permissions_restore'] . '" class="button_submit" />',
+					'value' => '<input type="submit" name="restore_perms" value="' . $txt['package_restore_permissions_restore'] . '" class="button_submit">',
 					'class' => 'titlebg',
 				),
 				array(
@@ -1031,7 +1015,7 @@ function packageRequireFTP($destination_url, $files = null, $return = false)
  */
 function parsePackageInfo(&$packageXML, $testing_only = true, $method = 'install', $previous_version = '')
 {
-	global $boarddir, $packagesdir, $forum_version, $context, $temp_path, $language;
+	global $boarddir, $packagesdir, $forum_version, $context, $temp_path, $language, $smcFunc;
 
 	// Mayday!  That action doesn't exist!!
 	if (empty($packageXML) || !$packageXML->exists($method))
@@ -1113,12 +1097,12 @@ function parsePackageInfo(&$packageXML, $testing_only = true, $method = 'install
 						if (isset($context[$type]['selected']) && $context[$type]['selected'] == 'default')
 							$context[$type][] = 'default';
 
-						$context[$type]['selected'] = htmlspecialchars($action->fetch('@lang'));
+						$context[$type]['selected'] = $smcFunc['htmlspecialchars']($action->fetch('@lang'));
 					}
 					else
 					{
 						// We don't want this now, but we'll allow the user to select to read it.
-						$context[$type][] = htmlspecialchars($action->fetch('@lang'));
+						$context[$type][] = $smcFunc['htmlspecialchars']($action->fetch('@lang'));
 						continue;
 					}
 				}
@@ -1570,7 +1554,7 @@ function compareVersions($version1, $version2)
 
 		// Build an array of parts.
 		$versions[$id] = array(
-			'major' => (int) $parts[1],
+			'major' => !empty($parts[1]) ? (int) $parts[1] : 0,
 			'minor' => !empty($parts[2]) ? (int) $parts[2] : 0,
 			'patch' => !empty($parts[3]) ? (int) $parts[3] : 0,
 			'type' => empty($parts[4]) ? 'stable' : $parts[4],
@@ -1665,8 +1649,7 @@ function deltree($dir, $delete_dir = true)
 		if ($delete_dir && isset($package_ftp))
 		{
 			$ftp_file = strtr($dir, array($_SESSION['pack_ftp']['root'] => ''));
-			// @todo $entryname is never set
-			if (!is_writable($dir . '/' . $entryname))
+			if (!is_dir($dir))
 				$package_ftp->chmod($ftp_file, 0777);
 			$package_ftp->unlink($ftp_file);
 		}
@@ -1884,7 +1867,7 @@ function listtree($path, $sub_path = '')
  */
 function parseModification($file, $testing = true, $undo = false, $theme_paths = array())
 {
-	global $boarddir, $sourcedir, $settings, $txt, $modSettings, $package_ftp;
+	global $boarddir, $sourcedir, $txt, $modSettings, $package_ftp;
 
 	@set_time_limit(600);
 	require_once($sourcedir . '/Class-Package.php');
@@ -2968,14 +2951,19 @@ function package_create_backup($id = 'backup')
 	{
 		$fwrite = 'gzwrite';
 		$fclose = 'gzclose';
-		$output = gzopen($output_file, 'wb');
+		$output = @gzopen($output_file, 'wb');
 	}
 	else
 	{
 		$fwrite = 'fwrite';
 		$fclose = 'fclose';
-		$output = fopen($output_file, 'wb');
+		$output = @fopen($output_file, 'wb');
 	}
+
+	// If we don't have a file handle, that means for whatever reason the file could not be opened.
+	// Could be permissions, could be a file already exists that shouldn't, etc.
+	if (!$output)
+		return false;
 
 	foreach ($files as $real_file => $file)
 	{
@@ -2997,16 +2985,23 @@ function package_create_backup($id = 'backup')
 		if ($stat['size'] == 0)
 			continue;
 
-		$fp = fopen($real_file, 'rb');
-		while (!feof($fp))
-			$fwrite($output, fread($fp, 16384));
-		fclose($fp);
+		$fp = @fopen($real_file, 'rb');
+		while ($fp && !feof($fp))
+		{
+			$buffer = fread($fp, 16384);
+			if (strlen($buffer) == 0)
+				break;
+			$fwrite($output, $buffer);
+		}
+		@fclose($fp);
 
 		$fwrite($output, pack('a' . (512 - $stat['size'] % 512), ''));
 	}
 
 	$fwrite($output, pack('a1024', ''));
 	$fclose($output);
+
+	return true;
 }
 
 /**

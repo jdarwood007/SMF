@@ -3,6 +3,11 @@
 
 global $scripturl, $context;
 
+// Some of the things from the popup need their own descriptions
+$txt['popup_summary'] = 'My Profile';
+$txt['popup_showposts'] = 'My Posts';
+$txt['popup_ignore'] = 'Ignore People';
+
 $txt['no_profile_edit'] = 'You are not allowed to change this person\'s profile.';
 $txt['website_title'] = 'Website title';
 $txt['website_url'] = 'Website URL';
@@ -37,10 +42,9 @@ $txt['dob_year'] = 'Year (YYYY)';
 $txt['password_strength'] = 'For best security, you should use eight or more characters with a combination of letters, numbers, and symbols.';
 $txt['include_website_url'] = 'This must be included if you specify a URL below.';
 $txt['complete_url'] = 'This must be a complete URL.';
-$txt['your_icq'] = 'This is your ICQ number.';
-$txt['your_aim'] = 'This is your AOL Instant Messenger nickname.';
-$txt['your_yim'] = 'This is your Yahoo! Instant Messenger nickname.';
 $txt['sig_info'] = 'Signatures are displayed at the bottom of each post or personal message. BBCode and smileys may be used in your signature.';
+$txt['no_signature_set'] = 'No signature set.';
+$txt['no_signature_preview'] = 'No signature to preview.';
 $txt['max_sig_characters'] = 'Max characters: %1$d; characters remaining: ';
 $txt['send_member_pm'] = 'Send this member a personal message';
 $txt['hidden'] = 'hidden';
@@ -54,6 +58,7 @@ $txt['invalid_registration'] = 'Invalid Date Registered value, valid example:';
 $txt['current_password'] = 'Current Password';
 // Don't use entities in the below string, except the main ones. (lt, gt, quot.)
 $txt['required_security_reasons'] = 'For security reasons, your current password is required to make changes to your account.';
+$txt['email_change_logout'] = 'Since you decided to change your email, you will need to reactivate your account. You will now be logged out.';
 
 $txt['timeoffset_autodetect'] = 'auto detect';
 
@@ -65,7 +70,7 @@ $txt['secret_ask'] = 'Ask me my question';
 $txt['cant_retrieve'] = 'You can\'t retrieve your password, but you can set a new one by following a link sent to you by email.  You also have the option of setting a new password by answering your secret question.';
 $txt['incorrect_answer'] = 'Sorry, but you did not specify a valid combination of Secret Question and Answer in your profile.  Please click on the back button, and use the default method of obtaining your password.';
 $txt['enter_new_password'] = 'Please enter the answer to your question, and the password you would like to use.  Your password will be changed to the one you select provided you answer the question correctly.';
-$txt['password_success'] = 'Your password was changed successfully.<br />Click <a href="' . $scripturl . '?action=login">here</a> to login.';
+$txt['password_success'] = 'Your password was changed successfully.<br>Click <a href="' . $scripturl . '?action=login">here</a> to login.';
 $txt['secret_why_blank'] = 'why is this blank?';
 
 $txt['authentication_reminder'] = 'Authentication Reminder';
@@ -76,7 +81,7 @@ $txt['authentication_openid_secret'] = 'Answer my &quot;secret question&quot; to
 $txt['authentication_password_email'] = 'Email me a new password';
 $txt['authentication_password_secret'] = 'Let me set a new password by answering my &quot;secret question&quot;';
 $txt['openid_secret_reminder'] = 'Please enter your answer to the question below. If you get it correct your OpenID identity will be shown.';
-$txt['reminder_openid_is'] = 'The OpenID identity associated with your account is:<br />&nbsp;&nbsp;&nbsp;&nbsp;<strong>%1$s</strong><br /><br />Please make a note of this for future reference.';
+$txt['reminder_openid_is'] = 'The OpenID identity associated with your account is:<br>&nbsp;&nbsp;&nbsp;&nbsp;<strong>%1$s</strong><br><br>Please make a note of this for future reference.';
 $txt['reminder_continue'] = 'Continue';
 
 $txt['current_theme'] = 'Current Theme';
@@ -91,6 +96,14 @@ $txt['custom_title'] = 'Custom Title';
 
 $txt['lastLoggedIn'] = 'Last Active';
 
+$txt['alert_prefs'] = 'Notification Preferences';
+$txt['alert_prefs_desc'] = 'This page will allow you to configure when and how you get notified about new content.';
+$txt['watched_topics'] = 'Watched Topics';
+$txt['watched_topics_desc'] = 'This page lets you review which topics you are watching; when topics that you are watching have been replied to, you can be notified.';
+$txt['watched_boards'] = 'Watched Boards';
+$txt['watched_boards_desc'] = 'This page lets you review which boards you are watching; when boards that you are watching have new topics, you can be notified.';
+
+$txt['notification_general'] = 'General Settings';
 $txt['notify_settings'] = 'Notification Settings:';
 $txt['notify_save'] = 'Save settings';
 $txt['notify_important_email'] = 'Receive forum newsletters, announcements and important notifications by email.';
@@ -106,6 +119,38 @@ $txt['notify_send_type_everything_own'] = 'Moderation only if I started the topi
 $txt['notify_send_type_only_replies'] = 'Only replies';
 $txt['notify_send_type_nothing'] = 'Nothing at all';
 $txt['notify_send_body'] = 'When sending notification of a reply to a topic, send the post in the email (but please don\'t reply to these emails.)';
+
+$txt['notify_what_how'] = 'Alert Preferences';
+$txt['receive_alert'] = 'Receive alert';
+$txt['receive_mail'] = 'Receive email';
+$txt['alert_group_msg'] = 'Posts and Topics';
+$txt['alert_opt_msg_auto_notify'] = 'Follow topics I reply to.';
+$txt['alert_opt_msg_notify_pref'] = 'How frequently to tell me:';
+$txt['alert_opt_msg_notify_pref_nothing'] = 'Nothing, just make a note of it';
+$txt['alert_opt_msg_notify_pref_instant'] = 'Straight away';
+$txt['alert_opt_msg_notify_pref_first'] = 'Straight away (but only for the first unread message)';
+$txt['alert_opt_msg_notify_pref_daily'] = 'Send me a daily email digest';
+$txt['alert_opt_msg_notify_pref_weekly'] = 'Send me a weekly email digest';
+$txt['alert_topic_notify'] = 'When a topic I follow gets a reply, I normally want to know via...';
+$txt['alert_board_notify'] = 'When a board I follow gets a topic, I normally want to know via...';
+$txt['alert_msg_mention'] = 'When my @name is mentioned in a message';
+$txt['alert_msg_quote'] = 'When a message of mine is quoted (when I\'m not already watching that topic)';
+$txt['alert_msg_like'] = 'When a message of mine is liked';
+$txt['alert_group_pm'] = 'Personal Messages';
+$txt['alert_pm_new'] = 'When I receive a new personal message';
+$txt['alert_pm_reply'] = 'When a personal message I sent gets replied to';
+$txt['alert_group_moderation'] = 'Moderation';
+$txt['alert_msg_report'] = 'When a message is reported';
+$txt['alert_msg_report_reply'] = 'When a post report I\'ve replied to gets replied to';
+$txt['alert_group_members'] = 'Members';
+$txt['alert_member_register'] = 'When a new person registers';
+$txt['alert_warn_any'] = 'When other members receive a warning';
+$txt['alert_group_calendar'] = 'Calendar';
+$txt['alert_event_new'] = 'When a new event goes into the calendar';
+$txt['alert_request_group'] = 'When someone requests to join a group I moderate';
+$txt['alert_member_report'] = 'When another member\'s profile is reported';
+$txt['alert_member_report_reply'] = 'When a member report I\'ve replied to gets replied to';
+
 
 $txt['notifications_topics'] = 'Current Topic Notifications';
 $txt['notifications_topics_list'] = 'You are being notified of replies to the following topics';
@@ -141,9 +186,9 @@ $txt['deleteAccount_warning'] = 'Warning - These actions are irreversible!';
 $txt['deleteAccount_desc'] = 'From this page you can delete this user\'s account and posts.';
 $txt['deleteAccount_member'] = 'Delete this member\'s account';
 $txt['deleteAccount_posts'] = 'Remove posts made by this member';
-$txt['deleteAccount_none'] = 'None';
-$txt['deleteAccount_all_posts'] = 'All Posts';
+$txt['deleteAccount_all_posts'] = 'Replies to Topics';
 $txt['deleteAccount_topics'] = 'Topics and Posts';
+$txt['deleteAccount_votes'] = 'Remove poll votes made by this member';
 $txt['deleteAccount_confirm'] = 'Are you completely sure you want to delete this account?';
 $txt['deleteAccount_approval'] = 'Please note that the forum moderators will have to approve this account\'s deletion before it will be removed.';
 
@@ -158,6 +203,8 @@ $txt['showAttachments'] = 'Attachments';
 $txt['viewWarning_help'] = 'This section allows you to view all warnings issued to this member.';
 $txt['statPanel'] = 'Show Stats';
 $txt['editBuddyIgnoreLists'] = 'Buddies/Ignore List';
+$txt['could_not_add_person'] = 'You could not add that person to your list';
+$txt['could_not_remove_person'] = 'You could not remove that person from your list';
 $txt['editBuddies'] = 'Edit Buddies';
 $txt['editIgnoreList'] = 'Edit Ignore List';
 $txt['trackUser'] = 'Track User';
@@ -168,7 +215,6 @@ $txt['trackLogins'] = 'Logins';
 $txt['authentication'] = 'Authentication';
 $txt['change_authentication'] = 'From this section you can change how you login to the forum. You may choose to either use an OpenID account for your authentication, or alternatively switch to use a username and password.';
 
-$txt['profileEdit'] = 'Modify Profile';
 $txt['account_info'] = 'These are your account settings. This page holds all critical information that identifies you on this forum. For security reasons, you will need to enter your (current) password to make changes to this information.';
 $txt['forumProfile_info'] = 'You can change your personal information on this page. This information will be displayed throughout ' . $context['forum_name_html_safe'] . '. If you aren\'t comfortable with sharing some information, simply skip it - nothing here is required.';
 $txt['theme_info'] = 'This section allows you to customize the look and layout of the forum.';
@@ -176,9 +222,8 @@ $txt['notification'] = 'Notifications';
 $txt['notification_info'] = 'SMF allows you to be notified of replies to posts, newly posted topics, and forum announcements. You can change those settings here, or oversee the topics and boards you are currently receiving notifications for.';
 $txt['groupmembership'] = 'Group Membership';
 $txt['groupMembership_info'] = 'In this section of your profile you can change which groups you belong to.';
-$txt['ignoreboards'] = 'Ignore Boards Options';
+$txt['ignoreboards'] = 'Ignore Boards';
 $txt['ignoreboards_info'] = 'This page lets you ignore particular boards.  When a board is ignored, the new post indicator will not show up on the board index.  New posts will not show up using the "unread post" search link (when searching it will not look in those boards) however, ignored boards will still appear on the board index and upon entering will show which topics have new posts.  When using the "unread replies" link, new posts in an ignored board will still be shown.';
-$txt['pmprefs'] = 'Personal Messaging';
 
 $txt['profileAction'] = 'Actions';
 $txt['deleteAccount'] = 'Delete this account';
@@ -213,9 +258,9 @@ $txt['own_profile_confirm'] = 'Are you sure you want to delete your account?';
 $txt['view_ips_by'] = 'View IPs used by';
 
 $txt['avatar_will_upload'] = 'Upload an avatar';
-
-$txt['activate_changed_email_title'] = 'Email Address Changed';
-$txt['activate_changed_email_desc'] = 'You\'ve changed your email address. In order to validate this address you will receive an email. Click the link in that email to reactivate your account.';
+$txt['avatar_max_size_wh'] = 'Max size: %1$spx by %2$spx';
+$txt['avatar_max_size_w'] = 'Max size: %1$spx wide';
+$txt['avatar_max_size_h'] = 'Max size: %2$spx high';
 
 // Use numeric entities in the below three strings.
 $txt['no_reminder_email'] = 'Unable to send reminder email.';
@@ -261,7 +306,6 @@ $txt['ban_type_access'] = 'access forum';
 $txt['show_online'] = 'Show others my online status';
 
 $txt['return_to_post'] = 'Return to topics after posting by default.';
-$txt['no_new_reply_warning'] = 'Don\'t warn on new replies made while posting.';
 $txt['posts_apply_ignore_list'] = 'Hide messages posted by members on my ignore list.';
 $txt['recent_posts_at_top'] = 'Show most recent posts at the top.';
 $txt['recent_pms_at_top'] = 'Show most recent personal messages at top.';
@@ -276,8 +320,7 @@ $txt['timeformat_easy5'] = 'DD-MM-YYYY, HH:MM:SS';
 
 $txt['poster'] = 'Poster';
 
-$txt['board_desc_inside'] = 'Show board descriptions inside boards.';
-$txt['show_children'] = 'Show child boards on every page inside boards, not just the first.';
+$txt['show_children'] = 'Show sub-boards on every page inside boards, not just the first.';
 $txt['show_no_avatars'] = 'Don\'t show users\' avatars.';
 $txt['show_no_signatures'] = 'Don\'t show users\' signatures.';
 $txt['show_no_censored'] = 'Leave words uncensored.';
@@ -285,15 +328,11 @@ $txt['topics_per_page'] = 'Topics to display per page:';
 $txt['messages_per_page'] = 'Messages to display per page:';
 $txt['per_page_default'] = 'forum default';
 $txt['calendar_start_day'] = 'First day of the week on the calendar';
-$txt['display_quick_reply'] = 'Use quick reply on topic display: ';
-$txt['display_quick_reply1'] = 'don\'t show at all';
-$txt['display_quick_reply2'] = 'show, off by default';
-$txt['display_quick_reply3'] = 'show, on by default';
 $txt['use_editor_quick_reply'] = 'Use full editor in Quick Reply';
-$txt['display_quick_mod'] = 'Show quick-moderation as ';
-$txt['display_quick_mod_none'] = 'don\'t show.';
-$txt['display_quick_mod_check'] = 'checkboxes.';
-$txt['display_quick_mod_image'] = 'icons.';
+$txt['display_quick_mod'] = 'Show quick-moderation as';
+$txt['display_quick_mod_none'] = 'don\'t show';
+$txt['display_quick_mod_check'] = 'checkboxes';
+$txt['display_quick_mod_image'] = 'icons';
 
 $txt['whois_title'] = 'Look up IP on a regional whois-server';
 $txt['whois_afrinic'] = 'AfriNIC (Africa)';
@@ -348,7 +387,7 @@ $txt['ignore_add_button'] = 'Add';
 $txt['no_ignore'] = 'Your ignore list is currently empty';
 
 $txt['regular_members'] = 'Registered Members';
-$txt['regular_members_desc'] = 'Every member of the forum is a member of this group.';
+$txt['regular_members_desc'] = 'Every member of the forum, without a different badge or title, is a member of this group.';
 $txt['group_membership_msg_free'] = 'Your group membership was successfully updated.';
 $txt['group_membership_msg_request'] = 'Your request has been submitted, please be patient while the request is considered.';
 $txt['group_membership_msg_primary'] = 'Your primary group has been updated';
@@ -472,4 +511,17 @@ $txt['trackEdit_action_email_address'] = 'Email Address';
 $txt['trackEdit_action_id_group'] = 'Primary Membergroup';
 $txt['trackEdit_action_additional_groups'] = 'Additional Membergroups';
 
+$txt['trackGroupRequests'] = 'Group Requests';
+$txt['trackGroupRequests_title'] = 'Group Requests for %1$s';
+$txt['requested_group'] = 'Requested Group';
+$txt['requested_group_reason'] = 'Reason Given';
+$txt['requested_group_time'] = 'Date';
+$txt['requested_group_outcome'] = 'Outcome';
+$txt['requested_none'] = 'There are no requests made by this user.';
+$txt['outcome_pending'] = 'Open';
+$txt['outcome_approved'] = 'Approved by %1$s on %2$s';
+$txt['outcome_refused'] = 'Refused by %1$s on %2$s';
+$txt['outcome_refused_reason'] = 'Refused by %1$s on %2$s, reason given: %3$s';
+
+$txt['report_profile'] = 'Report This Member';
 ?>

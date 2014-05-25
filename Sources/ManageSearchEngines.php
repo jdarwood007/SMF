@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -21,25 +21,36 @@ if (!defined('SMF'))
  */
 function SearchEngines()
 {
-	global $context, $txt, $scripturl;
+	global $context, $txt, $scripturl, $modSettings;
 
 	isAllowedTo('admin_forum');
 
 	loadLanguage('Search');
 	loadTemplate('ManageSearch');
 
-	$subActions = array(
-		'editspiders' => 'EditSpider',
-		'logs' => 'SpiderLogs',
-		'settings' => 'ManageSearchEngineSettings',
-		'spiders' => 'ViewSpiders',
-		'stats' => 'SpiderStats',
-	);
+	if (!empty($modSettings['spider_mode']))
+	{
+		$subActions = array(
+			'editspiders' => 'EditSpider',
+			'logs' => 'SpiderLogs',
+			'settings' => 'ManageSearchEngineSettings',
+			'spiders' => 'ViewSpiders',
+			'stats' => 'SpiderStats',
+		);
+		$default = 'stats';
+	}
+	else
+	{
+		$subActions = array(
+			'settings' => 'ManageSearchEngineSettings',
+		);
+		$default = 'settings';
+	}
 
 	call_integration_hook('integrate_manage_search_engines', array(&$subActions));
 
 	// Ensure we have a valid subaction.
-	$context['sub_action'] = isset($_REQUEST['sa']) && isset($subActions[$_REQUEST['sa']]) ? $_REQUEST['sa'] : 'stats';
+	$context['sub_action'] = isset($_REQUEST['sa']) && isset($subActions[$_REQUEST['sa']]) ? $_REQUEST['sa'] : $default;
 
 	$context['page_title'] = $txt['search_engines'];
 
@@ -60,7 +71,7 @@ function SearchEngines()
  */
 function ManageSearchEngineSettings($return_config = false)
 {
-	global $context, $txt, $modSettings, $scripturl, $sourcedir, $smcFunc;
+	global $context, $txt, $scripturl, $sourcedir, $smcFunc;
 
 	$config_vars = array(
 		// How much detail?
@@ -127,16 +138,14 @@ function ManageSearchEngineSettings($return_config = false)
 		call_integration_hook('integrate_save_search_engine_settings');
 		saveDBSettings($config_vars);
 		recacheSpiderNames();
+		$_SESSION['adm-save'] = true;
 		redirectexit('action=admin;area=sengines;sa=settings');
 	}
 
 	// Final settings...
 	$context['post_url'] = $scripturl . '?action=admin;area=sengines;save;sa=settings';
 	$context['settings_title'] = $txt['settings'];
-	$context['settings_insert_below'] = '
-		<script type="text/javascript"><!-- // --><![CDATA[
-			' . $javascript_function . '
-		// ]]></script>';
+	addInlineJavascript($javascript_function, true);
 
 	// Prepare the settings...
 	prepareDBSettingContext($config_vars);
@@ -230,9 +239,9 @@ function ViewSpiders()
 				),
 				'data' => array(
 					'function' => create_function('$rowData', '
-						global $scripturl;
+						global $scripturl, $smcFunc;
 
-						return sprintf(\'<a href="%1$s?action=admin;area=sengines;sa=editspiders;sid=%2$d">%3$s</a>\', $scripturl, $rowData[\'id_spider\'], htmlspecialchars($rowData[\'spider_name\']));
+						return sprintf(\'<a href="%1$s?action=admin;area=sengines;sa=editspiders;sid=%2$d">%3$s</a>\', $scripturl, $rowData[\'id_spider\'], $smcFunc[\'htmlspecialchars\']($rowData[\'spider_name\']));
 					'),
 				),
 				'sort' => array(
@@ -279,12 +288,12 @@ function ViewSpiders()
 			),
 			'check' => array(
 				'header' => array(
-					'value' => '<input type="checkbox" onclick="invertAll(this, this.form);" class="input_check" />',
+					'value' => '<input type="checkbox" onclick="invertAll(this, this.form);" class="input_check">',
 					'class' => 'centercol',
 				),
 				'data' => array(
 					'sprintf' => array(
-						'format' => '<input type="checkbox" name="remove[]" value="%1$d" class="input_check" />',
+						'format' => '<input type="checkbox" name="remove[]" value="%1$d" class="input_check">',
 						'params' => array(
 							'id_spider' => false,
 						),
@@ -301,8 +310,8 @@ function ViewSpiders()
 			array(
 				'position' => 'bottom_of_list',
 				'value' => '
-					<input type="submit" name="removeSpiders" value="' . $txt['spiders_remove_selected'] . '" onclick="return confirm(\'' . $txt['spider_remove_selected_confirm'] . '\');" class="button_submit" />
-					<input type="submit" name="addSpider" value="' . $txt['spiders_add'] . '" class="button_submit" />
+					<input type="submit" name="removeSpiders" value="' . $txt['spiders_remove_selected'] . '" onclick="return confirm(\'' . $txt['spider_remove_selected_confirm'] . '\');" class="button_submit">
+					<input type="submit" name="addSpider" value="' . $txt['spiders_add'] . '" class="button_submit">
 				',
 			),
 		),
@@ -416,10 +425,8 @@ function EditSpider()
 				array('id_spider')
 			);
 
-		// Order by user agent length.
-		sortSpiderTable();
 
-		cache_put_data('spider_search', null, 300);
+		cache_put_data('spider_search', null);
 		recacheSpiderNames();
 
 		redirectexit('action=admin;area=sengines;sa=spiders');
@@ -471,12 +478,13 @@ function SpiderCheck()
 		unset($_SESSION['id_robot']);
 	$_SESSION['robot_check'] = time();
 
-	// We cache the spider data for five minutes if we can.
-	if (($spider_data = cache_get_data('spider_search', 300)) === null)
+	// We cache the spider data for ten minutes if we can.
+	if (($spider_data = cache_get_data('spider_search', 600)) === null)
 	{
-		$request = $smcFunc['db_query']('spider_check', '
+		$request = $smcFunc['db_query']('', '
 			SELECT id_spider, user_agent, ip_info
-			FROM {db_prefix}spiders',
+			FROM {db_prefix}spiders
+			ORDER BY LENGTH(user_agent) DESC',
 			array(
 			)
 		);
@@ -485,7 +493,7 @@ function SpiderCheck()
 			$spider_data[] = $row;
 		$smcFunc['db_free_result']($request);
 
-		cache_put_data('spider_search', $spider_data, 300);
+		cache_put_data('spider_search', $spider_data, 600);
 	}
 
 	if (empty($spider_data))
@@ -757,7 +765,7 @@ function SpiderLogs()
 			),
 			array(
 				'position' => 'below_table_data',
-				'value' => '<input type="submit" name="removeAll" value="' . $txt['spider_log_empty_log'] . '" onclick="return confirm(\'' . $txt['spider_log_empty_log_confirm'] . '\');" class="button_submit" />',
+				'value' => '<input type="submit" name="removeAll" value="' . $txt['spider_log_empty_log'] . '" onclick="return confirm(\'' . $txt['spider_log_empty_log_confirm'] . '\');" class="button_submit">',
 			),
 		),
 	);
@@ -920,12 +928,12 @@ function SpiderStats()
 	else
 		foreach ($date_choices as $id => $text)
 			$date_select .= '
-			<option value="' . $id . '"' . ($current_date == $id ? ' selected="selected"' : '') . '>' . $text . '</option>';
+			<option value="' . $id . '"' . ($current_date == $id ? ' selected' : '') . '>' . $text . '</option>';
 
 	$date_select .= '
 		</select>
 		<noscript>
-			<input type="submit" name="go" value="' . $txt['go'] . '" class="button_submit" />
+			<input type="submit" name="go" value="' . $txt['go'] . '" class="button_submit">
 		</noscript>';
 
 	// If we manually jumped to a date work out the offset.
@@ -1089,39 +1097,6 @@ function recacheSpiderNames()
 	$smcFunc['db_free_result']($request);
 
 	updateSettings(array('spider_name_cache' => serialize($spiders)));
-}
-
-/**
- * Sort the search engine table by user agent name to avoid misidentification of engine.
- */
-function sortSpiderTable()
-{
-	global $smcFunc;
-
-	db_extend('packages');
-
-	// Add a sorting column.
-	$smcFunc['db_add_column']('{db_prefix}spiders', array('name' => 'temp_order', 'size' => 8, 'type' => 'mediumint', 'null' => false));
-
-	// Set the contents of this column.
-	$smcFunc['db_query']('set_spider_order', '
-		UPDATE {db_prefix}spiders
-		SET temp_order = LENGTH(user_agent)',
-		array(
-		)
-	);
-
-	// Order the table by this column.
-	$smcFunc['db_query']('alter_table_spiders', '
-		ALTER TABLE {db_prefix}spiders
-		ORDER BY temp_order DESC',
-		array(
-			'db_error_skip' => true,
-		)
-	);
-
-	// Remove the sorting column.
-	$smcFunc['db_remove_column']('{db_prefix}spiders', 'temp_order');
 }
 
 ?>

@@ -7,7 +7,7 @@
  *
  * @package SMF
  * @author Simple Machines http://www.simplemachines.org
- * @copyright 2013 Simple Machines and individual contributors
+ * @copyright 2014 Simple Machines and individual contributors
  * @license http://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 2.1 Alpha 1
@@ -119,7 +119,7 @@ $db_error_send = 0;
 ########## Cache Info ##########
 /**
  * Select a cache system. You want to leave this up to the cache area of the admin panel for
- * proper detection of apc, eaccelerator, memcache, mmcache, output_cache, smf, or xcache
+ * proper detection of apc, memcache, output_cache, smf, or xcache
  * (you can add more with a mod).
  * @var string
  */

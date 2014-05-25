@@ -12,7 +12,7 @@ $txt['repair_stats_topics_5'] = 'Topic #%1$d has the wrong approval flag set.';
 $txt['repair_missing_boards'] = 'Topic #%1$d is in board #%2$d, which is missing.';
 $txt['repair_missing_categories'] = 'Board #%1$d is in category #%2$d, which is missing.';
 $txt['repair_missing_posters'] = 'Message #%1$d was posted by member #%2$d, who is now missing.';
-$txt['repair_missing_parents'] = 'Board #%1$d is a child of board #%2$d, which is missing.';
+$txt['repair_missing_parents'] = 'Board #%1$d is a sub-board of board #%2$d, which is missing.';
 $txt['repair_missing_polls'] = 'Topic #%1$d is tied to non-existent poll #%2$d.';
 $txt['repair_polls_missing_topics'] = 'Poll #%1$d is tied to non-existent topic #%2$d.';
 $txt['repair_missing_calendar_topics'] = 'Event #%1$d is tied to topic #%2$d, which is missing.';
@@ -48,7 +48,7 @@ $txt['repair_operation_stats_topics3'] = 'Topics with the wrong unapproved post 
 $txt['repair_operation_missing_boards'] = 'Topics in a non-existent board';
 $txt['repair_operation_missing_categories'] = 'Boards in a non-existent category';
 $txt['repair_operation_missing_posters'] = 'Messages linked to non-existent members';
-$txt['repair_operation_missing_parents'] = 'Child boards with non-existent parents';
+$txt['repair_operation_missing_parents'] = 'Sub-boards with non-existent parents';
 $txt['repair_operation_missing_polls'] = 'Topics linked to non-existent polls';
 $txt['repair_operation_missing_calendar_topics'] = 'Events linked to non-existent topics';
 $txt['repair_operation_missing_log_topics'] = 'Topic logs linked to non-existent topics';
@@ -124,6 +124,10 @@ $txt['errortype_template'] = 'Template';
 $txt['errortype_template_desc'] = 'Errors related to the loading of templates.';
 $txt['errortype_user'] = 'User';
 $txt['errortype_user_desc'] = 'Errors resulting from user errors.  Includes failed passwords, trying to login when banned, and trying to do an action for which they do not have permission.';
+$txt['errortype_cron'] = 'Cron';
+$txt['errortype_cron_desc'] = 'Errors resulting from background tasks.';
+$txt['errortype_paidsubs'] = 'Paid Subs';
+$txt['errortype_paidsubs'] = 'Errors resulting from paid subscriptions, which can include notification of payment failures.';
 
 $txt['maintain_recount'] = 'Recount all forum totals and statistics';
 $txt['maintain_recount_info'] = 'Should the total replies of a topic or the number of PMs in your inbox be incorrect: this function will recount all saved counts and statistics for you.';
@@ -213,6 +217,10 @@ $txt['move_topics_from'] = 'Move topics from';
 $txt['move_topics_to'] = 'to';
 $txt['move_topics_now'] = 'Move now';
 $txt['move_topics_confirm'] = 'Are you sure you want to move ALL the topics from &quot;%board_from%&quot; to &quot;%board_to%&quot;?';
+$txt['move_topics_older_than'] = 'Move topics not posted in for ';
+$txt['move_type_sticky'] = 'Sticky topics';
+$txt['move_type_locked'] = 'Locked topics';
+$txt['move_zero_all'] = 'Enter 0 to move all topics';
 
 $txt['maintain_reattribute_posts'] = 'Reattribute User Posts';
 $txt['reattribute_guest_posts'] = 'Attribute guest posts made with';
@@ -230,7 +238,7 @@ $txt['reattribute_cannot_find_member'] = 'Could not find member to attribute pos
 $txt['maintain_recountposts'] = 'Recount User Posts';
 $txt['maintain_recountposts_info'] = 'Run this maintenance task to update your users total post count.  It will recount all (countable) posts made by each user and then update their profile post count totals';
 
-$txt['safe_mode_enabled'] = '<a href="http://php.net/manual/en/features.safe-mode.php">safe_mode</a> is enabled on your server!<br />The backup done with this tool cannot be considered reliable!';
+$txt['safe_mode_enabled'] = '<a href="http://php.net/manual/en/features.safe-mode.php">safe_mode</a> is enabled on your server!<br>The backup done with this tool cannot be considered reliable!';
 $txt['use_external_tool'] = 'Please consider using an external tool to backup your database, any backup created with this utility cannot be considered 100% reliable.';
 $txt['zipped_file'] = 'If you want you can create a compressed (zipped) backup.';
 $txt['plain_text'] = 'The best method to backup your database is to create a plain text file, a compressed package may not be completely reliable.';
