@@ -1623,48 +1623,34 @@ class Server implements ActionInterface
 			return true;
 		}
 
-		$fp = @fsockopen('www.simplemachines.org', 443, $errno, $errstr);
+		$data = fetch_web_data('https://www.simplemachines.org/smf/stats/register_stats.php?site=' . base64_encode($boardurl));
 
-		if (!$fp) {
-			$fp = @fsockopen('www.simplemachines.org', 80, $errno, $errstr);
+		// Try one more time, this time without https.
+		if (empty($data)) {
+			$data = fetch_web_data('http://www.simplemachines.org/smf/stats/collect_stats.php?site=' . base64_encode($boardurl));
 		}
 
-		if ($fp) {
-			$out = 'GET /smf/stats/register_stats.php?site=' . base64_encode(Config::$boardurl) . ' HTTP/1.1' . "\r\n";
-			$out .= 'Host: www.simplemachines.org' . "\r\n";
-			$out .= 'Connection: Close' . "\r\n\r\n";
-			fwrite($fp, $out);
+		// Get the unique site ID.
+		preg_match('~SITE-ID:\s(\w{10})~', $data, $ID);
 
-			$return_data = '';
-
-			while (!feof($fp)) {
-				$return_data .= fgets($fp, 128);
-			}
-
-			fclose($fp);
-
-			// Get the unique site ID.
-			preg_match('~SITE-ID:\s(\w{10})~', $return_data, $ID);
-
-			if (!empty($ID[1])) {
-				Db::$db->insert(
-					'replace',
-					'{db_prefix}settings',
+		if (!empty($ID[1])) {
+			Db::$db->insert(
+				'replace',
+				'{db_prefix}settings',
+				[
+					'variable' => 'string',
+					'value' => 'string',
+				],
+				[
 					[
-						'variable' => 'string',
-						'value' => 'string',
+						'sm_stats_key',
+						$ID[1],
 					],
-					[
-						[
-							'sm_stats_key',
-							$ID[1],
-						],
-					],
-					['variable'],
-				);
+				],
+				['variable'],
+			);
 
-				return true;
-			}
+			return true;
 		}
 
 		return false;

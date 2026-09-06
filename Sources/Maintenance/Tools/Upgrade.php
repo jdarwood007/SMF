@@ -1563,31 +1563,15 @@ class Upgrade extends ToolsBase implements ToolsInterface
 			Maintenance::$context['allow_sm_stats'] = true;
 
 			// Attempt to register the site etc.
-			$fp = @fsockopen('www.simplemachines.org', 443, $errno, $errstr);
+			$data = fetch_web_data('https://www.simplemachines.org/smf/stats/register_stats.php?site=' . base64_encode(Config::$boardurl));
 
-			if (!$fp) {
-				$fp = @fsockopen('www.simplemachines.org', 80, $errno, $errstr);
+			// Try one more time, this time without https.
+			if (empty($data)) {
+				$data = fetch_web_data('http://www.simplemachines.org/smf/stats/collect_stats.php?site=' . base64_encode(Config::$boardurl));
 			}
-
-			if (!$fp) {
-				return;
-			}
-
-			$out = 'GET /smf/stats/register_stats.php?site=' . base64_encode(Config::$boardurl) . ' HTTP/1.1' . "\r\n";
-			$out .= 'Host: www.simplemachines.org' . "\r\n";
-			$out .= 'Connection: Close' . "\r\n\r\n";
-			fwrite($fp, $out);
-
-			$return_data = '';
-
-			while (!feof($fp)) {
-				$return_data .= fgets($fp, 128);
-			}
-
-			fclose($fp);
 
 			// Get the unique site ID.
-			preg_match('~SITE-ID:\s(\w{10})~', $return_data, $ID);
+			preg_match('~SITE-ID:\s(\w{10})~', $data, $ID);
 
 			if (!empty($ID[1])) {
 				$settings['sm_stats_key'] = $ID[1];
