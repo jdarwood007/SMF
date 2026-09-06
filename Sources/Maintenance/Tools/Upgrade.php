@@ -31,6 +31,7 @@ use SMF\QueryString;
 use SMF\Sapi;
 use SMF\SecurityToken;
 use SMF\Session;
+use SMF\Statistics;
 use SMF\Themes\default\MaintenanceTemplate;
 use SMF\Time;
 use SMF\User;
@@ -1562,19 +1563,10 @@ class Upgrade extends ToolsBase implements ToolsInterface
 		) {
 			Maintenance::$context['allow_sm_stats'] = true;
 
-			// Attempt to register the site etc.
-			$data = fetch_web_data('https://www.simplemachines.org/smf/stats/register_stats.php?site=' . base64_encode(Config::$boardurl));
+			$uid = Statistics::register();
 
-			// Try one more time, this time without https.
-			if (empty($data)) {
-				$data = fetch_web_data('http://www.simplemachines.org/smf/stats/collect_stats.php?site=' . base64_encode(Config::$boardurl));
-			}
-
-			// Get the unique site ID.
-			preg_match('~SITE-ID:\s(\w{10})~', $data, $ID);
-
-			if (!empty($ID[1])) {
-				$settings['sm_stats_key'] = $ID[1];
+			if (!empty($uid)) {
+				$settings['sm_stats_key'] = $uid;
 				$settings['enable_sm_stats'] = 1;
 			}
 		}

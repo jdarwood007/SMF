@@ -27,6 +27,7 @@ use SMF\Lang;
 use SMF\Menu;
 use SMF\Sapi;
 use SMF\SecurityToken;
+use SMF\Statistics;
 use SMF\Theme;
 use SMF\Url;
 use SMF\User;
@@ -252,12 +253,16 @@ class Server implements ActionInterface
 
 			// Are we saving the stat collection?
 			if (!empty($_POST['enable_sm_stats']) && empty(Config::$modSettings['sm_stats_key'])) {
-				$registerSMStats = $this->registerSMStats();
+				$registerSMStats = Statistics::register();
 
 				// Failed to register, disable it again.
 				if (empty($registerSMStats)) {
 					$_POST['enable_sm_stats'] = 0;
 				}
+			}
+			// Clear the registration.
+			elseif (empty($_POST['enable_sm_stats']) && !empty(Config::$modSettings['sm_stats_key'])) {
+				Statistics::clear();
 			}
 
 			// Ensure all URLs are aligned with the new force_ssl setting
@@ -1109,19 +1114,6 @@ class Server implements ActionInterface
 
 		IntegrationHook::call('integrate_general_security_settings', [&$config_vars]);
 
-		if (isset($_GET['save'])) {
-			// If we have saved the proxy_ip_servers, lets ensure that the list has valid entries
-			if (!empty($_POST['proxy_ip_servers'])) {
-				$proxy_server_ips = explode(',', $_POST['proxy_ip_servers']);
-
-				foreach ($proxy_server_ips as &$ip) {
-					$ip = trim($ip);
-				}
-
-				$_POST['proxy_ip_servers'] = implode(',', $proxy_server_ips);
-			}
-		}
-
 		return $config_vars;
 	}
 
@@ -1605,54 +1597,5 @@ class Server implements ActionInterface
 		$result = strpos($urlpath, $boardurlpath);
 
 		return $result === false || $result != 0 ? false : true;
-	}
-
-	/**
-	 * Registers the site with the Simple Machines Stat collection. This function
-	 * purposely does not use Config::updateModSettings() as it will be called shortly after
-	 * this process completes by the saveSettings() function.
-	 *
-	 * @see SMStats() for more information.
-	 * @link https://www.simplemachines.org/about/stats.php for more info.
-	 * @return bool Returns true if we are registered or successfully registered, otherwise false.
-	 */
-	protected function registerSMStats(): bool
-	{
-		// Already have a key?  Can't register again.
-		if (!empty(Config::$modSettings['sm_stats_key'])) {
-			return true;
-		}
-
-		$data = fetch_web_data('https://www.simplemachines.org/smf/stats/register_stats.php?site=' . base64_encode($boardurl));
-
-		// Try one more time, this time without https.
-		if (empty($data)) {
-			$data = fetch_web_data('http://www.simplemachines.org/smf/stats/collect_stats.php?site=' . base64_encode($boardurl));
-		}
-
-		// Get the unique site ID.
-		preg_match('~SITE-ID:\s(\w{10})~', $data, $ID);
-
-		if (!empty($ID[1])) {
-			Db::$db->insert(
-				'replace',
-				'{db_prefix}settings',
-				[
-					'variable' => 'string',
-					'value' => 'string',
-				],
-				[
-					[
-						'sm_stats_key',
-						$ID[1],
-					],
-				],
-				['variable'],
-			);
-
-			return true;
-		}
-
-		return false;
 	}
 }
