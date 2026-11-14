@@ -8,15 +8,16 @@
  * @copyright 2024 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 3
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
-namespace SMF\Maintenance\Migration;
+namespace SMF\Maintenance\Migration\v3_0;
 
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Maintenance\Migration\MigrationBase;
 
 /**
  * This should always be performed and move with our upgrade steps.

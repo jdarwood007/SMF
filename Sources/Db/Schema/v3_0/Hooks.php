@@ -8,7 +8,7 @@
  * @copyright 2023 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 3
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -84,12 +84,12 @@ class Hooks extends Table
 				not_null: true,
 				default: 0,
 			),
-			'id_package' => new Column(
-				name: 'id_package',
-				type: 'int',
-				unsigned: true,
+			'package_id' => new Column(
+				name: 'package_id',
+				type: 'varchar',
+				size: 255,
 				not_null: true,
-				default: 0,
+				default: '',
 			),
 		];
 
@@ -114,7 +114,5 @@ class Hooks extends Table
 				],
 			),
 		];
-
-		parent::__construct();
 	}
 }

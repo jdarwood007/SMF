@@ -231,14 +231,15 @@ class IntegrationHook
 	 *
 	 * @param string $name The name of the integration hook.
 	 * @param array $parameters Parameters to pass to the hooked callables.
+	 * @param ?bool $silenceErrors If true, will not report any failures, false will report, null uses default.
 	 * @return array The results returned by all the hooked callables.
 	 */
-	public static function call(string $name, array $parameters = []): array
+	public static function call(string $name, array $parameters = [], ?bool $silenceErrors = null): array
 	{
 		$name = self::cleanHookName($name);
-		$hook = new self($name);
+		$hook = new self($name, $silenceErrors);
 
-		$result = $hook->execute($parameters);
+		return $hook->execute($parameters);
 	}
 
 	/**
@@ -296,10 +297,10 @@ class IntegrationHook
 		}
 
 		// Fire the autoloader.
-		self::call('autoload', [&$class_map]);
-
+		$class_map = [];
+		self::call('autoload', [&$class_map]);	
 		foreach ($class_map as $prefix => $dirname) {
-			self::$loader->addPsr4($prefix, self::$sourcedir . '/' . $dirname);
+			self::$loader->addPsr4($prefix, Config::$sourcedir . '/' . $dirname);
 		}
 	}
 
@@ -694,7 +695,7 @@ class IntegrationHook
 			]);
 		}
 
-		$path = Config::canonicalPath($path);
+		$path = Sapi::canonicalPath($path);
 
 		// Load the file if it can be loaded.
 		if (is_file($path)) {
@@ -702,7 +703,7 @@ class IntegrationHook
 		}
 		// No? Try a fallback to Config::$sourcedir.
 		else {
-			$path = Config::canonicalPath(Config::$sourcedir . '/' . $file);
+			$path = Sapi::canonicalPath(Config::$sourcedir . '/' . $file);
 
 			if (is_file($path)) {
 				require_once $path;
