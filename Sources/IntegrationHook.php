@@ -136,6 +136,10 @@ class IntegrationHook
 
 		$this->ignore_errors = $ignore_errors ?? !empty(Utils::$context['ignore_hook_errors']);
 
+		if (!isset(Db::$db)) {
+			$this->ignore_errors = true;
+		}
+
 		if (DebugUtils::isDebugEnabled()) {
 			DebugUtils::addDebugSource('hooks', $this->name);
 		}
@@ -559,7 +563,7 @@ class IntegrationHook
 			Utils::$context['integration_hooks_temporary'] ??= [];
 			Utils::$context['integration_hooks_temporary'][$name][$function] = true;
 
-			if (Config::$backward_compatibility) {
+			if (!empty(Config::$backward_compatibility)) {
 				self::updateModSettings($name, $function);
 			}
 		}
@@ -606,7 +610,7 @@ class IntegrationHook
 			self::$hooks[$name] ??= [];
 			unset(self::$hooks[$name][$key]);
 
-			if (Config::$backward_compatibility) {
+			if (!empty(Config::$backward_compatibility)) {
 				self::updateModSettings($name, $function, true);
 			}
 		}
@@ -810,7 +814,9 @@ class IntegrationHook
 	 * and if a call to a permanent hook is made after, it could result in the
 	 * being saved to the database.
 	 *
-	 * @param mixed $hook
+	 * @param string $name Name of hook
+	 * @param string $function Function we will call
+	 * @param bool $remove True if we should remove, false to add
 	 */
 	private static function updateModSettings(string $name, string $function, bool $remove = false)
 	{
