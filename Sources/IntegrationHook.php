@@ -298,7 +298,8 @@ class IntegrationHook
 
 		// Fire the autoloader.
 		$class_map = [];
-		self::call('autoload', [&$class_map]);	
+		self::call('autoload', [&$class_map]);
+
 		foreach ($class_map as $prefix => $dirname) {
 			self::$loader->addPsr4($prefix, Config::$sourcedir . '/' . $dirname);
 		}
@@ -356,7 +357,7 @@ class IntegrationHook
 		}
 
 		// Validate the callable.
-		if (!\is_callable($callable, false, $callable_name)) {
+		if ($callable !== false && !\is_callable($callable, false, $callable_name)) {
 			$ignore_errors ??= !empty(Utils::$context['ignore_hook_errors']);
 
 			if ($ignore_errors) {

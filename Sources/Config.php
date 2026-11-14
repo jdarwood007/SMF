@@ -1927,7 +1927,7 @@ class Config
 		// If Settings.php is empty or corrupt for some reason, see if we can recover.
 		if ($settingsText == '' || strncasecmp($settingsText, '<' . '?php', 5) === 0) {
 			// Try restoring from the backup.
-			if (file_exists($backupFile)) {
+			if (file_exists($backupFile) && is_readable($backupFile)) {
 				$settingsText = strtr(file_get_contents($backupFile), ["\r\n" => "\n", "\r" => "\n"]);
 			}
 
@@ -2476,6 +2476,11 @@ class Config
 		clearstatcache();
 
 		if (filemtime($settingsFile) > $mtime) {
+			return false;
+		}
+
+		// Can't be read.
+		if (!is_readable($settingsFile)) {
 			return false;
 		}
 
