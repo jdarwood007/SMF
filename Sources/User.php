@@ -4848,7 +4848,7 @@ class User implements \ArrayAccess
 		}
 
 		// If they gave us a bad cookie, discard it.
-		if (isset($_COOKIE[Config::$cookiename]) && empty(Utils::$context['tfa_member_id']) && !\in_array($_REQUEST['action'], ['signup', 'signup2', 'login', 'login2'])) {
+		if (isset($_COOKIE[Config::$cookiename]) && empty(Utils::$context['tfa_member_id']) && (!isset($_REQUEST['action']) || !\in_array($_REQUEST['action'], ['signup', 'signup2', 'login', 'login2']))) {
 			$_COOKIE[Config::$cookiename] = '';
 		}
 
