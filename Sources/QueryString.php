@@ -760,7 +760,7 @@ class QueryString
 			// But don't downgrade a canonical HTTPS scheme to HTTP.
 			&& $canonical_url->scheme !== 'https'
 		) {
-			$new_url = strtr($new_url ?? Config::$boardurl, [$canonical_url->scheme . '://', $requested_url->scheme . '://']);
+			$new_url = strtr($new_url ?? Config::$boardurl, [$canonical_url->scheme . '://' => $requested_url->scheme . '://']);
 		}
 
 		// Change our internal settings to use the requested URL.
