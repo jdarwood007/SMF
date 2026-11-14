@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,6 +19,7 @@ use SMF\Actions\Notify;
 use SMF\Alert;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\Lang;
 use SMF\Mail;
@@ -26,6 +27,7 @@ use SMF\Mentions;
 use SMF\Parser;
 use SMF\Theme;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -171,27 +173,56 @@ class CreatePost_Notify extends BackgroundTask
 
 		Db::$db->free_result($request);
 
-		// Find the people interested in receiving notifications for this topic
-		$request = Db::$db->query(
-			'SELECT
-				ln.id_member, ln.id_board, ln.id_topic, ln.sent,
-				mem.email_address, mem.lngfile, mem.pm_ignore_list,
-				mem.id_group, mem.id_post_group, mem.additional_groups,
-				mem.time_format, mem.time_offset, mem.timezone,
-				t.id_member_started, t.id_member_updated
-			FROM {db_prefix}log_notify AS ln
-				INNER JOIN {db_prefix}members AS mem ON (ln.id_member = mem.id_member)
-				LEFT JOIN {db_prefix}topics AS t ON (t.id_topic = ln.id_topic)
-			WHERE ' . ($type == 'topic' ? 'ln.id_board = {int:board}' : 'ln.id_topic = {int:topic}') . '
-				AND ln.id_member != {int:member}',
-			[
-				'member' => $posterOptions['id'],
-				'topic' => $topicOptions['id'],
-				'board' => $topicOptions['board'],
-			],
-		);
+		// Find the people interested in receiving notifications for this topic.
+		// A removed topic is gone, along with the list of who watched it, by the
+		// time this runs, so Mail::sendNotifications() hands that list over.
+		$watchers = isset($this->_details['watchers']) ? array_map('intval', (array) $this->_details['watchers']) : null;
+
+		if ($watchers !== null) {
+			$request = Db::$db->query(
+				'SELECT
+					mem.id_member, 0 AS id_board, {int:topic} AS id_topic, 0 AS sent,
+					mem.email_address, mem.lngfile, mem.pm_ignore_list,
+					mem.id_group, mem.id_post_group, mem.additional_groups,
+					mem.smiley_set, mem.time_format, mem.timezone,
+					{int:started} AS id_member_started, {int:updated} AS id_member_updated
+				FROM {db_prefix}members AS mem
+				WHERE mem.id_member IN ({array_int:watchers})
+					AND mem.id_member != {int:member}',
+				[
+					'member' => $posterOptions['id'],
+					'topic' => $topicOptions['id'],
+					'watchers' => array_keys($watchers) ?: [0],
+					'started' => (int) ($this->_details['started_by'] ?? 0),
+					'updated' => (int) ($this->_details['updated_by'] ?? 0),
+				],
+			);
+		} else {
+			$request = Db::$db->query(
+				'SELECT
+					ln.id_member, ln.id_board, ln.id_topic, ln.sent,
+					mem.email_address, mem.lngfile, mem.pm_ignore_list,
+					mem.id_group, mem.id_post_group, mem.additional_groups,
+					mem.smiley_set, mem.time_format, mem.timezone,
+					t.id_member_started, t.id_member_updated
+				FROM {db_prefix}log_notify AS ln
+					INNER JOIN {db_prefix}members AS mem ON (ln.id_member = mem.id_member)
+					LEFT JOIN {db_prefix}topics AS t ON (t.id_topic = ln.id_topic)
+				WHERE ' . ($type == 'topic' ? 'ln.id_board = {int:board}' : 'ln.id_topic = {int:topic}') . '
+					AND ln.id_member != {int:member}',
+				[
+					'member' => $posterOptions['id'],
+					'topic' => $topicOptions['id'],
+					'board' => $topicOptions['board'],
+				],
+			);
+		}
 
 		while ($row = Db::$db->fetch_assoc($request)) {
+			if ($watchers !== null) {
+				$row['sent'] = $watchers[$row['id_member']] ?? 0;
+			}
+
 			// Skip members who aren't allowed to see this board
 			$groups = array_merge([$row['id_group'], $row['id_post_group']], (empty($row['additional_groups']) ? [] : explode(',', $row['additional_groups'])));
 
@@ -337,7 +368,7 @@ class CreatePost_Notify extends BackgroundTask
 		// Insert it into the digest for daily/weekly notifications
 		if ($type != 'edit' && empty($this->_details['respawns'])) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_digest',
 				[
 					'id_topic' => 'int',
@@ -482,7 +513,7 @@ class CreatePost_Notify extends BackgroundTask
 		if (!\in_array($posterOptions['id'], $user_ids)) {
 			$user_ids[] = $posterOptions['id'];
 		}
-		User::load($user_ids, User::LOAD_BY_ID, 'minimal');
+		User::load($user_ids, User::LOAD_BY_ID, UserDataset::Minimal);
 
 		$parsed_message = [];
 
@@ -546,7 +577,7 @@ class CreatePost_Notify extends BackgroundTask
 						$message_type .= '_body';
 					}
 
-					if (!empty($frequency)) {
+					if ($frequency == self::FREQUENCY_FIRST_UNREAD_MSG) {
 						$message_type .= '_once';
 					}
 				}
@@ -567,16 +598,20 @@ class CreatePost_Notify extends BackgroundTask
 					$message_type .= '_body';
 				}
 			}
+			// No notification request for this user for this board/topic.
+			else {
+				continue;
+			}
 
 			// Censor and parse BBC in the receiver's localization. Don't repeat unnecessarily.
-			$localization = implode('|', [$member_data['lngfile'], $member_data['time_offset'], $member_data['time_format']]);
+			$localization = implode('|', [$member_data['lngfile'], $member_data['timezone'], $member_data['time_format']]);
 
 			if (empty($parsed_message[$localization])) {
 				// Use the target member's localization settings.
-				Parser::$time_offset = (int) $member_data['time_offset'];
+				Parser::$time_offset = self::getTimeOffset($member_data['timezone']);
 				Parser::$time_format = $member_data['time_format'];
-				Parser::$smiley_set = $member_data['smiley_set'] ?? '';
-				Parser::$locale = Lang::getLocaleFromLanguageName($member_data['lngfile']) ?? Lang::getTxt('lang_locale', file: 'General', lang: $member_data['lngfile']);
+				Parser::$smiley_set = $member_data['smiley_set'];
+				Parser::$locale = Lang::getLocale($member_data['lngfile']);
 
 				$parsed_message[$localization]['subject'] = $msgOptions['subject'];
 				$parsed_message[$localization]['body'] = $msgOptions['body'];
@@ -614,7 +649,7 @@ class CreatePost_Notify extends BackgroundTask
 				Parser::$time_offset = User::$me->time_offset;
 				Parser::$time_format = User::$me->time_format ?? '';
 				Parser::$smiley_set = (!empty(User::$me->smiley_set) ? User::$me->smiley_set : (!empty(Config::$modSettings['smiley_sets_default']) ? Config::$modSettings['smiley_sets_default'] : 'none'));
-				Parser::$locale = Lang::getLocaleFromLanguageName(User::$me->language) ?? Lang::getTxt('lang_locale', file: 'General', lang: '');
+				Parser::$locale = Lang::getLocale();
 			}
 
 			// Bitwise check: Receiving an alert?
@@ -649,7 +684,7 @@ class CreatePost_Notify extends BackgroundTask
 					'POSTERNAME' => Utils::htmlspecialcharsDecode(User::$loaded[$posterOptions['id']]->name ?? $posterOptions['name']),
 					'TOPICLINK' => Config::$scripturl . '?topic=' . $topicOptions['id'] . '.new#new',
 					'MESSAGE' => $parsed_message[$localization]['body'],
-					'UNSUBSCRIBELINK' => Config::$scripturl . '?action=notify' . $content_type . ';' . $content_type . '=' . $itemID . ';sa=off;u=' . $member_data['id_member'] . ';token=' . $token,
+					'UNSUBSCRIBELINK' => Config::$scripturl . '?action=notify' . $content_type . ';item=' . $itemID . ';sa=off;u=' . $member_data['id_member'] . ';token=' . $token,
 				];
 
 				$emaildata = Mail::loadEmailTemplate($message_type, $replacements, $member_data['lngfile']);
@@ -672,7 +707,7 @@ class CreatePost_Notify extends BackgroundTask
 		$msgOptions = &$this->_details['msgOptions'];
 		$posterOptions = &$this->_details['posterOptions'];
 
-		User::load($posterOptions['id'], User::LOAD_BY_ID, 'minimal');
+		User::load($posterOptions['id'], User::LOAD_BY_ID, UserDataset::Minimal);
 
 		foreach ($this->members['quoted'] as $member_id => $member_data) {
 			if (\in_array($member_id, $this->members['done'])) {
@@ -720,7 +755,7 @@ class CreatePost_Notify extends BackgroundTask
 					'CONTENTLINK' => Config::$scripturl . '?msg=' . $msgOptions['id'],
 				];
 
-				$emaildata = Mail::loadEmailTemplate('msg_quote', $replacements, empty($member_data['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $member_data['lngfile']);
+				$emaildata = Mail::loadEmailTemplate('msg_quote', $replacements, empty($member_data['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $member_data['lngfile']);
 				$mail_result = Mail::send($member_data['email_address'], $emaildata['subject'], $emaildata['body'], null, 'msg_quote_' . $msgOptions['id'], $emaildata['is_html'], 2);
 
 				if ($mail_result !== false) {
@@ -789,7 +824,7 @@ class CreatePost_Notify extends BackgroundTask
 					'CONTENTLINK' => Config::$scripturl . '?msg=' . $msgOptions['id'],
 				];
 
-				$emaildata = Mail::loadEmailTemplate('msg_mention', $replacements, empty($member_data['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $member_data['lngfile']);
+				$emaildata = Mail::loadEmailTemplate('msg_mention', $replacements, empty($member_data['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $member_data['lngfile']);
 				$mail_result = Mail::send($member_data['email_address'], $emaildata['subject'], $emaildata['body'], null, 'msg_mention_' . $msgOptions['id'], $emaildata['is_html'], 2);
 
 				if ($mail_result !== false) {
@@ -803,5 +838,33 @@ class CreatePost_Notify extends BackgroundTask
 
 			$this->members['done'][] = $member_id;
 		}
+	}
+
+	/*************************
+	 * Internal static methods
+	 *************************/
+
+	/**
+	 * Gets a member's time offset from the forum's default time zone.
+	 *
+	 * The members table no longer has a time_offset column, so this derives the
+	 * offset from the member's time zone, exactly as User::$time_offset does.
+	 *
+	 * @param string $timezone The member's time zone identifier.
+	 * @return float The offset in hours.
+	 */
+	protected static function getTimeOffset(string $timezone): float
+	{
+		if ($timezone === '') {
+			return 0;
+		}
+
+		$now = new \DateTime('now');
+		$default = Config::$modSettings['default_timezone'] ?? date_default_timezone_get();
+
+		return (
+			(new \DateTimeZone($timezone))->getOffset($now)
+			- (new \DateTimeZone($default))->getOffset($now)
+		) / 3600;
 	}
 }

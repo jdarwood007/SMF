@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -25,6 +25,7 @@ use SMF\Cache\CacheApi;
 use SMF\Calendar\Event;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Editor;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
@@ -35,7 +36,7 @@ use SMF\Poll;
 use SMF\Routable;
 use SMF\Security;
 use SMF\Theme;
-use SMF\TimeInterval;
+use SMF\Time;
 use SMF\Topic;
 use SMF\User;
 use SMF\Utils;
@@ -194,7 +195,7 @@ class Display implements ActionInterface, Routable
 			return false;
 		}
 
-		/** @var \SMF\Msg $message */
+		/** @var Msg $message */
 		$message = Msg::$getter->current();
 		Msg::$getter->next();
 
@@ -225,7 +226,6 @@ class Display implements ActionInterface, Routable
 				'label' => Lang::getTxt('quick_edit', file: 'General'),
 				'class' => 'quick_edit',
 				'id' => 'modify_button_' . $output['id'],
-				'custom' => 'onclick="oQuickModify.modifyMsg(\'' . $output['id'] . '\', \'' . !empty(Config::$modSettings['toggle_subject']) . '\')"',
 				'icon' => 'quick_edit_button',
 				'show' => $output['can_modify'],
 			],
@@ -334,7 +334,7 @@ class Display implements ActionInterface, Routable
 				Db::$db->free_result($request);
 			}
 
-			$since = date_create('@' . $prev_timestamp)->diff(date_create('@' . $message->poster_time));
+			$since = Time::create('@' . $prev_timestamp)->diff(Time::create('@' . $message->poster_time));
 
 			if ($since->format('%a') > Config::$modSettings['oldTopicDays']) {
 				if ($since->format('%y') > 0) {
@@ -350,8 +350,6 @@ class Display implements ActionInterface, Routable
 					$num = $since->format('%a');
 					$unit = 'day';
 				}
-
-				$since = TimeInterval::createFromDateInterval($since);
 
 				$output['bump_notice'] = '<time class="bump_notice" datetime="' . (string) $since . '" title="' . $since->localize() . '">' . Lang::getTxt(
 					'bump_notice',
@@ -476,7 +474,9 @@ class Display implements ActionInterface, Routable
 						'id_member' => 'int', 'id_topic' => 'int', 'id_msg' => 'int', 'unwatched' => 'int',
 					],
 					[
-						User::$me->id, Topic::$info->id, Topic::$info->id_first_msg, Topic::$info->unwatched,
+						[
+							User::$me->id, Topic::$info->id, Topic::$info->id_first_msg, Topic::$info->unwatched,
+						],
 					],
 					['id_member', 'id_topic'],
 				);
@@ -524,7 +524,14 @@ class Display implements ActionInterface, Routable
 	 */
 	protected function incrementNumViews(): void
 	{
-		if (!User::$me->possibly_robot && (empty($_SESSION['last_read_topic']) || $_SESSION['last_read_topic'] != Topic::$info->id)) {
+		// No_guest_views is stricter, & won't log bots or guests.
+		if (empty(Config::$modSettings['no_guest_views'])) {
+			$check = !User::$me->possibly_robot;
+		} else {
+			$check = !User::$me->is_guest;
+		}
+
+		if ($check && (empty($_SESSION['last_read_topic']) || $_SESSION['last_read_topic'] != Topic::$info->id)) {
 			Db::$db->query(
 				'UPDATE {db_prefix}topics
 				SET num_views = num_views + 1
@@ -652,7 +659,7 @@ class Display implements ActionInterface, Routable
 			// Mark board as seen if we came using last post link from BoardIndex. (or other places...)
 			if (isset($_REQUEST['boardseen'])) {
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}log_boards',
 					[
 						'id_msg' => 'int',
@@ -855,7 +862,7 @@ class Display implements ActionInterface, Routable
 					$link = '<a href="' . Config::$scripturl . '?action=profile;u=' . $row['id_member'] . '">' . $row['real_name'] . '</a>';
 				}
 
-				$is_buddy = \in_array($row['id_member'], User::$me->buddies);
+				$is_buddy = !empty(Config::$modSettings['enable_buddylist']) && \in_array($row['id_member'], User::$me->buddies);
 
 				if ($is_buddy) {
 					$link = '<strong>' . $link . '</strong>';
@@ -984,7 +991,7 @@ class Display implements ActionInterface, Routable
 
 		if (!empty(Utils::$context['link_moderators'])) {
 			// And show it after the board's name.
-			Utils::$context['linktree'][\count(Utils::$context['linktree']) - 1]['extra_after'] = '<span class="board_moderators">(' . Lang::getTxt('moderators_list', ['num' => \count(Utils::$context['link_moderators'])], file: 'General') . ': ' . implode(', ', Utils::$context['link_moderators']) . ')</span>';
+			Utils::$context['linktree'][\count(Utils::$context['linktree']) - 1]['extra_after'] = '<span class="board_moderators">(' . Lang::getTxt('moderators_list', ['num' => \count(Utils::$context['link_moderators']), 'list' => Lang::sentenceList(Utils::$context['link_moderators'])], file: 'General') . ')</span>';
 		}
 	}
 
@@ -1054,10 +1061,10 @@ class Display implements ActionInterface, Routable
 
 		// For quick reply we need a response prefix in the default forum language.
 		if (!isset(Utils::$context['response_prefix'])) {
-			if (Lang::$default === User::$me->language) {
+			if (Config::$language === User::$me->language) {
 				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General');
 			} elseif (!(Utils::$context['response_prefix'] = CacheApi::get('response_prefix', 600))) {
-				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Lang::$default);
+				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Config::$language);
 				CacheApi::put('response_prefix', Utils::$context['response_prefix'], 600);
 			}
 		}
@@ -1076,9 +1083,9 @@ class Display implements ActionInterface, Routable
 			}
 		}
 
-		// Load the drafts js file.
+		// Load the draft autosave plugin.
 		if (!empty(Topic::$info->permissions['drafts_autosave'])) {
-			Theme::loadJavaScriptFile('drafts.js', ['defer' => false, 'minimize' => true], 'smf_drafts');
+			Theme::loadJavaScriptFile('sceditor.plugins.drafts.js', ['minimize' => true], 'smf_drafts');
 		}
 
 		// Spellcheck
@@ -1094,8 +1101,9 @@ class Display implements ActionInterface, Routable
 
 		// Mentions
 		if (!empty(Config::$modSettings['enable_mentions']) && User::$me->allowedTo('mention')) {
-			Theme::loadJavaScriptFile('jquery.atwho.min.js', ['defer' => true], 'smf_atwho');
-			Theme::loadJavaScriptFile('jquery.caret.min.js', ['defer' => true], 'smf_caret');
+			Theme::loadCSSFile('atwho.css', ['minimize' => true], 'smf_atwho');
+			Theme::loadJavaScriptFile('caret.js', ['defer' => true, 'minimize' => true], 'smf_caret');
+			Theme::loadJavaScriptFile('atwho.js', ['defer' => true, 'minimize' => true], 'smf_atwho');
 			Theme::loadJavaScriptFile('mentions.js', ['defer' => true, 'minimize' => true], 'smf_mentions');
 		}
 
@@ -1301,6 +1309,24 @@ class Display implements ActionInterface, Routable
 	 */
 	protected function loadEditor(): void
 	{
+		$plugins = [];
+		$options = [];
+
+		if (!empty(Topic::$info->permissions['drafts_autosave'])) {
+			$plugins[] = 'drafts';
+			$plugins[] = 'messageDrafts';
+			$options['draftOptions'] = [
+				'sLastNote' => 'draft_lastautosave',
+				'sLastID' => 'id_draft',
+				'sQueryParams' => 'action=post2;board=' . (Board::$info->id ?? 0),
+				'iFreq' => empty(Config::$modSettings['drafts_autosave_frequency']) ? 60000 : Config::$modSettings['drafts_autosave_frequency'] * 1000,
+			];
+		}
+
+		if (!empty(Config::$modSettings['enable_mentions']) && User::$me->allowedTo('mention')) {
+			$plugins[] = 'mentions';
+		}
+
 		// Now create the editor.
 		new Editor([
 			'id' => 'quickReply',
@@ -1312,6 +1338,8 @@ class Display implements ActionInterface, Routable
 			'preview_type' => Editor::PREVIEW_HTML,
 			// This is required
 			'required' => true,
+			'plugins' => $plugins,
+			'options' => $options,
 		]);
 
 		Utils::$context['attached'] = '';

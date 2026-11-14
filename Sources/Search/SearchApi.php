@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,11 +19,13 @@ use SMF\Actions\Search;
 use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\PackageManager\PackageUtils;
 use SMF\Parser;
+use SMF\Sapi;
 use SMF\User;
 use SMF\Utils;
 
@@ -789,7 +791,7 @@ abstract class SearchApi implements SearchApiInterface
 	/**
 	 * Creates a search API and returns the object.
 	 *
-	 * @return \SMF\Search\SearchApiInterface An instance of the search API interface.
+	 * @return \SMF\Search\SearchApiInterface|\SMF\Search\SearchApiSettingsiInterface An instance of the search API interface.
 	 */
 	final public static function load(): object
 	{
@@ -902,7 +904,7 @@ abstract class SearchApi implements SearchApiInterface
 				continue;
 			}
 
-			require_once Config::canonicalPath($file_info->getPathname());
+			require_once Sapi::canonicalPath($file_info->getPathname());
 
 			if (!class_exists($class_name, false)) {
 				continue;
@@ -1295,7 +1297,23 @@ abstract class SearchApi implements SearchApiInterface
 	 */
 	protected function wordBoundaryWrapper(string $str): string
 	{
-		return \sprintf(Db::$db->supports_pcre ? '\\b%s\\b' : '[[:<:]]%s[[:>:]]', $str);
+		// PCRE and ICU use `\b` as the word boundary.
+		if (Db::$db->regex_pcre || Db::$db->regex_icu) {
+			return \sprintf('\\b%s\\b', $str);
+		}
+
+		// TCL uses `\y` as the word boundary.
+		if (Db::$db->regex_tcl) {
+			return \sprintf('\\y%s\\y', $str);
+		}
+
+		// POSIX uses `[[:<:]]` and `[[:>:]]` as the word boundaries.
+		if (Db::$db->regex_posix) {
+			return \sprintf('[[:<:]]%s[[:>:]]', $str);
+		}
+
+		// We should never get here, but just in case...
+		return $str;
 	}
 
 	/**
@@ -1716,7 +1734,7 @@ abstract class SearchApi implements SearchApiInterface
 		// If there's data to be inserted for non-IGNORE databases do it here!
 		if (!empty($inserts)) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_search_results',
 				['id_search' => 'int', 'id_topic' => 'int', 'relevance' => 'int', 'id_msg' => 'int', 'num_matches' => 'int'],
 				$inserts,
@@ -1979,7 +1997,7 @@ abstract class SearchApi implements SearchApiInterface
 			// Got some non-MySQL data to plonk in?
 			if (!empty($inserts)) {
 				Db::$db->insert(
-					'',
+					InsertType::Insert,
 					('{db_prefix}' . ($createTemporary ? 'tmp_' : '') . 'log_search_topics'),
 					$createTemporary ? ['id_topic' => 'int'] : ['id_search' => 'int', 'id_topic' => 'int'],
 					$inserts,
@@ -2072,7 +2090,7 @@ abstract class SearchApi implements SearchApiInterface
 						$indexedResults += Db::$db->affected_rows();
 					}
 
-					if (!empty($maxMessageResults) && $indexedResults >= $maxMessageResults) {
+					if (!empty($this->maxMessageResults) && $indexedResults >= $this->maxMessageResults) {
 						break;
 					}
 				}
@@ -2081,7 +2099,7 @@ abstract class SearchApi implements SearchApiInterface
 			// More non-MySQL stuff needed?
 			if (!empty($inserts)) {
 				Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}' . ($createTemporary ? 'tmp_' : '') . 'log_search_messages',
 					$createTemporary ? ['id_msg' => 'int'] : ['id_msg' => 'int', 'id_search' => 'int'],
 					$inserts,
@@ -2231,7 +2249,7 @@ abstract class SearchApi implements SearchApiInterface
 					}
 
 					Db::$db->insert(
-						'',
+						InsertType::Insert,
 						'{db_prefix}log_search_results',
 						$query_columns,
 						$inserts,
@@ -2308,7 +2326,7 @@ abstract class SearchApi implements SearchApiInterface
 				// Now put them in!
 				if (!empty($inserts)) {
 					Db::$db->insert(
-						'',
+						InsertType::Insert,
 						'{db_prefix}log_search_results',
 						['id_search' => 'int', 'id_topic' => 'int', 'relevance' => 'float', 'id_msg' => 'int', 'num_matches' => 'int'],
 						$inserts,

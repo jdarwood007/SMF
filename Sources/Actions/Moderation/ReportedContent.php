@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,9 +18,10 @@ namespace SMF\Actions\Moderation;
 use SMF\ActionInterface;
 use SMF\ActionTrait;
 use SMF\Alert;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\IP;
@@ -42,7 +43,6 @@ use SMF\Utils;
 class ReportedContent implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -1203,7 +1203,7 @@ class ReportedContent implements ActionInterface
 		$data = array_merge([User::$me->id, User::$me->name, 'reportc', ''], $data);
 
 		$last_comment = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}log_comments',
 			[
 				'id_member' => 'int',
@@ -1216,7 +1216,7 @@ class ReportedContent implements ActionInterface
 			],
 			[$data],
 			['id_comment'],
-			Db::INSERT_RETURN_MODE_SINGLE,
+			ReturnMode::SingleRow,
 		);
 
 		if ($this->type == 'members') {
@@ -1247,7 +1247,7 @@ class ReportedContent implements ActionInterface
 		// And get ready to notify people.
 		if (!empty($report)) {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',

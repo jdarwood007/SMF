@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF\Actions;
@@ -22,6 +22,7 @@ use SMF\Db\DatabaseApi as Db;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
+use SMF\Msg;
 use SMF\OutputTypeInterface;
 use SMF\OutputTypes;
 use SMF\Routable;
@@ -167,7 +168,28 @@ class AttachmentUpload implements ActionInterface, Routable
 		$attachID = !empty($_REQUEST['attach']) && is_numeric($_REQUEST['attach']) ? (int) $_REQUEST['attach'] : 0;
 
 		// Need something to work with.
-		if (!$attachID || (!empty($_SESSION['already_attached']) && !isset($_SESSION['already_attached'][$attachID]))) {
+		if (checkSession('get', '', false) !== '' || $attachID === 0) {
+			$this->setResponse([
+				'text' => 'attached_file_deleted_error',
+				'type' => 'error',
+				'data' => false,
+			]);
+
+			return;
+		}
+
+		$msgInfo = Attachment::getAttachMsgInfo($attachID);
+
+		$can_modify = false;
+
+		if ($msgInfo !== [] && $msgInfo['msg'] > 0) {
+			$can_modify = $msgInfo !== [] && !User::$me->is_guest && (!$msgInfo['is_locked'] || allowedTo('moderate_board')) && (allowedTo('modify_any') || (allowedTo('modify_replies') && $msgInfo['id_member_started'] == User::$me->id) || (allowedTo('modify_own') && $msgInfo['id_member'] == User::$me->id && (empty($modSettings['edit_disable_time']) || !$msgInfo['approved'] || $msgInfo['poster_time'] + Config::$modSettings['edit_disable_time'] * 60 > time())));
+		} elseif ($msgInfo !== [] && $msgInfo['msg'] == 0) {
+			$can_modify = !empty($_SESSION['already_attached']) && isset($_SESSION['already_attached'][$attachID]);
+		}
+
+		// Need something to work with.
+		if (!$can_modify) {
 			$this->setResponse([
 				'text' => 'attached_file_deleted_error',
 				'type' => 'error',
@@ -240,7 +262,19 @@ class AttachmentUpload implements ActionInterface, Routable
 
 		$this->attchDir = Utils::$context['attach_dir'] = $this->attachmentUploadDir[Config::$modSettings['currentAttachmentUploadDir']];
 
-		$this->canPostAttachment = Utils::$context['can_post_attachment'] = !empty(Config::$modSettings['attachmentEnable']) && Config::$modSettings['attachmentEnable'] == 1 && (User::$me->allowedTo('post_attachment', $this->board) || (Config::$modSettings['postmod_active'] && User::$me->allowedTo('post_unapproved_attachments', $this->board)));
+		$this->canPostAttachment = Utils::$context['can_post_attachment'] = !empty(Config::$modSettings['attachmentEnable'])
+			&& Config::$modSettings['attachmentEnable'] == 1
+			&& (
+				User::$me->allowedTo('post_attachment', $this->board)
+				|| (
+					Config::$modSettings['postmod_active']
+					&& User::$me->allowedTo('post_unapproved_attachments', $this->board)
+				)
+			)
+			&& (
+				empty($this->msg)
+				|| $this->canModifyMsg($this->msg, $this->board)
+			);
 	}
 
 	/**
@@ -258,7 +292,7 @@ class AttachmentUpload implements ActionInterface, Routable
 
 		// If this isn't a new post, check the current attachments.
 		if (isset($_REQUEST['msg'])) {
-			Utils::$context['attachments']['quantity'] = \count(Utils::$context['current_attachments']);
+			Utils::$context['attachments']['quantity'] = !empty(Utils::$context['current_attachments']) ? \count(Utils::$context['current_attachments']) : 0;
 
 			foreach (Utils::$context['current_attachments'] as $attachment) {
 				Utils::$context['attachments']['total_size'] += $attachment['size'];
@@ -527,7 +561,7 @@ class AttachmentUpload implements ActionInterface, Routable
 		];
 
 		// Adding needs some VIP treatment.
-		if ($this->sa == 'add') {
+		if ($this->sa == 'add' && empty($data)) {
 			// Is there any generic errors? made some sense out of them!
 			if ($this->generalErrors) {
 				foreach ($this->generalErrors as $k => $v) {
@@ -577,5 +611,33 @@ class AttachmentUpload implements ActionInterface, Routable
 		Utils::obExit(false);
 
 		die;
+	}
+
+	/**
+	 * Can they modify this message?
+	 */
+	protected function canModifyMsg(int $id_msg, int $id_board): bool
+	{
+		// No message or a guest, you can't modify a message
+		if ($this->msg === 0 || empty(User::$me->id)) {
+			return false;
+		}
+
+		/** @var Msg */
+		$msg = Msg::load($id_msg);
+
+		// Can't find the message, can't edit it.
+		if (empty($msg)) {
+			return false;
+		}
+
+		// Either you can modify anything, or this is your own message.
+		return (bool) (
+			User::$me->allowedTo('modify_any', $id_board)
+			|| (
+				$msg->id_member == User::$me->id
+				&& User::$me->allowedTo('modify_own', $id_board)
+			)
+		);
 	}
 }

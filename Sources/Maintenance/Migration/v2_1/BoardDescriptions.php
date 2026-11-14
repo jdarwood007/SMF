@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -43,7 +43,7 @@ class BoardDescriptions extends MigrationBase
 	public function isCandidate(): bool
 	{
 		return version_compare(
-			str_replace(' ', '.', strtolower(Config::$modSettings['smfVersion'] ?? '0.0.dev.0')),
+			Utils::standardizeVersionString(Config::$modSettings['smfVersion'] ?? '0.0.dev.0'),
 			'2.1.dev.0',
 			'<',
 		);
@@ -68,7 +68,7 @@ class BoardDescriptions extends MigrationBase
 			$this->query(
 				'UPDATE {db_prefix}boards
 				SET name = {string:name}, description = {string:description}
-				WHERE id = {int:id}',
+				WHERE id_board = {int:id}',
 				[
 					'id' => $row['id_board'],
 					'name' => Utils::htmlspecialchars(strip_tags(Parser::transform($row['name'], Parser::OUTPUT_BBC))),

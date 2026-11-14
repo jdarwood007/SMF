@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 // Transliteration maps to replace non-ASCII characters with ASCII approximations.
@@ -96,7 +96,7 @@ $ascii_transliteration[524] = [
 	204 => 'qia',
 	206 => 'si',
 	208 => 'bang',
-	222 => 'jue',
+	222 => 'que',
 	236 => 'jing',
 	237 => 'ke',
 	243 => 'ai',

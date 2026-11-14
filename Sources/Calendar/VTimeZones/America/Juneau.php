@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Juneau
  */
-class Juneau extends \SMF\Calendar\VTimeZone
+class Juneau extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,30 @@ class Juneau extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Juneau';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Pacific',
+		],
+		1 => [
+			'ts' => '1980-10-26T10:00:00+0000',
+			'metazone' => 'America_Pacific',
+		],
+		2 => [
+			'ts' => '1983-11-30T09:00:00+0000',
+			'metazone' => 'Alaska',
+		],
+	];
 
 	/**
 	 * @var array
@@ -71,7 +97,7 @@ class Juneau extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19670430T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T100000Z',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
@@ -79,7 +105,7 @@ class Juneau extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T090000Z',
 			'TZNAME' => 'PST',
 			'TZOFFSETFROM' => '-0700',
 			'TZOFFSETTO' => '-0800',
@@ -101,27 +127,67 @@ class Juneau extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19760425T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T100000Z',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
 		],
 		9 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19760425T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T100000Z',
+			'TZNAME' => 'YDT',
+			'TZOFFSETFROM' => '-0800',
+			'TZOFFSETTO' => '-0800',
+		],
+		10 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19671029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T100000Z',
+			'TZNAME' => 'PST',
+			'TZOFFSETFROM' => '-0800',
+			'TZOFFSETTO' => '-0800',
+		],
+		11 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19671029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T090000Z',
+			'TZNAME' => 'YST',
+			'TZOFFSETFROM' => '-0700',
+			'TZOFFSETTO' => '-0900',
+		],
+		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19831130T000000',
 			'TZNAME' => 'AKST',
 			'TZOFFSETFROM' => '-0900',
 			'TZOFFSETTO' => '-0900',
 		],
-		10 => [
+		13 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'DTSTART' => '19760425T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T110000Z',
 			'TZNAME' => 'AKDT',
 			'TZOFFSETFROM' => '-0900',
 			'TZOFFSETTO' => '-0800',
 		],
-		11 => [
+		14 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19671029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T100000Z',
+			'TZNAME' => 'AKST',
+			'TZOFFSETFROM' => '-0800',
+			'TZOFFSETTO' => '-0900',
+		],
+		15 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19870405T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T110000Z',
+			'TZNAME' => 'AKDT',
+			'TZOFFSETFROM' => '-0900',
+			'TZOFFSETTO' => '-0800',
+		],
+		16 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20070311T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
@@ -129,7 +195,7 @@ class Juneau extends \SMF\Calendar\VTimeZone
 			'TZOFFSETFROM' => '-0900',
 			'TZOFFSETTO' => '-0800',
 		],
-		12 => [
+		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20071104T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',

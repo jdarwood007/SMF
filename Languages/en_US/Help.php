@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; Help
+// Version: 3.0 Alpha 5-dev; Help
 
 $txt['close_window'] = 'Close window';
 
@@ -258,13 +258,14 @@ $helptxt['tfa_mode'] = 'You can add a second level of security to your forum by 
 $helptxt['cache_enable'] = 'SMF performs caching at a variety of levels. The higher the level of caching enabled the more CPU time will be spent retrieving cached information. If caching is available on your machine it is recommended that you try caching at level 1 first.';
 $helptxt['cache_memcached'] = 'If you are using memcached you need to provide the server details. This should be entered as a comma separated list as shown in the example below:<br><br>	&quot;server1,server2,server3:port,server4&quot;<br><br>Note that if no port is specified SMF will use port 11211 unless the host contains a slash, then it is assumed to be an alternative transport and the port will be set to 0. SMF will attempt to perform rough/random load balancing across the specified servers.';
 $helptxt['cache_cachedir'] = 'This setting is only for the smf file-based cache system. It specifies the path to the cache directory. It is recommended that you place this in /tmp/ if you are going to use this, although it will work in any directory';
-$helptxt['cache_sqlite_cachedir'] = 'This setting is only for the SQLite database cache system. It specifies the path to the cache directory. It is recommended that you place this in /tmp/ if you are going to use this, although it will work in any directory';
+$helptxt['cache_sqlite_cachedir'] = 'This setting is only for the SQLite database cache system. It specifies the path to the cache directory. It is recommended that you place this in /tmp/ if you are going to use this, although it will work in any directory<br>';
 $helptxt['enableErrorLogging'] = 'This will log any errors, like a failed login, so you can see what went wrong.';
 $helptxt['enableErrorQueryLogging'] = 'This will include the full query sent to the database in the error log. It requires error logging to be turned on.<br><br><strong>Note:  This will affect the ability to filter the error log by the error message.</strong>';
 $helptxt['disallow_sendBody'] = 'This setting removes the option to receive the text of replies, posts, and personal messages in notification emails.<br><br>Often, members will reply to the notification email, which in most cases means the webmaster receives the reply.';
 $helptxt['enable_ajax_alerts'] = 'This option allows your members to receive AJAX notifications. This means that members do not need to refresh the page to get new notifications.<br><strong>NOTE:</strong> This option might cause a severe load at your server with many users online.';
 $helptxt['alerts_auto_purge'] = 'Once an alert has been read, it is rarely needed again. For performance reasons, it is a good idea to automatically delete them after a while.';
 $helptxt['jquery_source'] = 'This will determine the source used to load the jQuery Library. <em>Cloudflare CDN (cdnjs), Google CDN, jQuery CDN</em> and <em>Microsoft CDN</em> will load the jQuery library from those respective CDN networks. <em>Local</em> will only use the local source. <em>Custom</em> allows you to specify a custom URL for the library.';
+$helptxt['fontawesome_source'] = 'This will determine the source used to load the Font Awesome Library. <em>Cloudflare CDN</em>, and <em>Font Awesome CDN</em> will load the Font Awesome library from those respective CDN networks. <em>Local</em> will only use the local source. <em>Custom</em> allows you to specify a custom URL for the library.';
 $helptxt['compactTopicPagesEnable'] = 'This will just show a selection of the number of pages.<br><em>Example:</em>
 		&quot;3&quot; to display: 1 ... 4 [5] 6 ... 9 <br>
 		&quot;5&quot; to display: 1 ... 3 4 [5] 6 7 ... 9';
@@ -436,6 +437,9 @@ $helptxt['deny_boards_access'] = 'Checking this setting will allow you to deny a
 // argument(s): scripturl
 $helptxt['who_enabled'] = 'This setting allows you to turn on or off the <a href="{scripturl}?action=who" target="_blank" rel="noopener">Who’s Online</a> page, which shows who is browsing the forum and what they are doing.';
 
+$helptxt['no_guest_logging'] = 'This setting prevents guests from being included in the Users Online counts. Guest and bot activity can cause excessive IO, so this may help during a bot attack.';
+$helptxt['no_guest_views'] = 'This setting disables incrementing views for guests as well as bots.  Bot activity can cause excessive IO, and is often disguised as guest activity, so this may help during a bot attack.';
+
 $helptxt['recycle_enable'] = '&quot;Recycles&quot; deleted topics and posts to the specified board.';
 
 $helptxt['enableReportPM'] = 'This setting allows your users to report personal messages they receive to the administration team. This may be useful in helping to track down any abuse of the personal messaging system.';
@@ -543,7 +547,7 @@ $helptxt['search_why_use_index'] = 'A search index can greatly improve the perfo
 
 $helptxt['see_admin_ip'] = 'IP addresses are shown to administrators and moderators to facilitate moderation and to make it easier to track people up to no good. Remember that IP addresses may not always be identifying, and most people’s IP addresses change periodically.<br><br>Members are also allowed to see their own IPs.';
 $helptxt['see_member_ip'] = 'Your IP address is shown only to you and moderators. Remember that this information is not identifying, and that most IPs change periodically.<br><br>You cannot see other members’ IP addresses, and they cannot see yours.';
-$helptxt['whytwoip'] = 'SMF uses various methods to detect user IP addresses. Usually these two methods result in the same address but in some cases more than one address may be detected. In this case SMF logs the two most recent addresses, and uses them both for ban checks (etc). You can click on either address to track that IP and ban if necessary.';
+$helptxt['whytwoip'] = 'Typically both IPs will be same. Sites using reverse proxies, such as those behind a CDN (Content Delivery Network), result in the CDN making the request on behalf of the user. CDNs will provide the user IP by passing it along in a untrusted header. SMF logs both of these IP addresses. You can click on either address to track that IP and ban if necessary.';
 
 $helptxt['ban_cannot_post'] = 'The "cannot post" restriction turns the forum into read-only mode for the banned user. The user cannot create new topics, or reply to existing ones, send personal messages or vote in polls. The banned user can however still read personal messages and topics.<br><br>A warning message is shown to the users that are banned this way.';
 
@@ -665,7 +669,7 @@ $helptxt['cron_is_real_cron'] = 'By default, SMF adds to every page a small bit 
 $helptxt['languages_txt'] = 'These language entries are used throughout SMF to define localized versions of text for different languages.<br><br>If you see a value like <code>&#37;1$s</code> in an entry, it is a placeholder that SMF fills in with a real value at runtime. Make sure to keep such placeholders in your customized text.';
 $helptxt['languages_helptxt'] = 'These language entries are used to show floating help text popups (like this one).';
 $helptxt['languages_editortxt'] = 'These language entries are used for user interface elements in the post editor.';
-$helptxt['languages_tztxt'] = 'These language entries are used to build descriptions for time zones.<br><br>For example, the <code>Europe_Western</code> string may be combined with the <code>daylight_saving_time_false</code> string to produce "Western European Standard Time".<br><br>Note: If no description is provided for a given time zone, SMF will generate a description using a list of locations within that time zone.';
+$helptxt['languages_tztxt'] = 'These language entries are used to build descriptions for time zones.<br><br>Note: If no description is defined here for a given time zone, SMF will generate a description using a list of locations within that time zone.';
 $helptxt['languages_txt_for_timezones'] = 'These language entries allow you to do the following:<br><ol class="bbc_list" style="list-style-type: decimal;"><li>Edit the names shown for individual locations anywhere they might be used in a context related to time zones. For example, you can tell SMF to show "Qaanaaq" for the location "America/Thule" instead of "Thule".</li><li>Edit the names shown for different countries. This can be done by editing the relevant <code>iso3166[]</code> string.</li></ol>';
 $helptxt['languages_txt_for_email_templates'] = 'These language entries are used to create the email messages that SMF sends to your members.';
 $helptxt['languages_native_name'] = 'The language’s name for itself, represented in its own script.';

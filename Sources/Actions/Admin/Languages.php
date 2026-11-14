@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,7 +17,6 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
@@ -28,6 +27,7 @@ use SMF\Lang;
 use SMF\Menu;
 use SMF\PackageManager\PackageUtils;
 use SMF\PackageManager\XmlArray;
+use SMF\Sapi;
 use SMF\SecurityToken;
 use SMF\Theme;
 use SMF\User;
@@ -40,7 +40,6 @@ use SMF\WebFetch\WebFetchApi;
 class Languages implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -475,9 +474,9 @@ class Languages implements ActionInterface
 				}
 			}
 
-			if ($_POST['def_language'] != Lang::$default && $lang_exists) {
+			if ($_POST['def_language'] != Config::$language && $lang_exists) {
 				Config::updateSettingsFile(['language' => $_POST['def_language']]);
-				Lang::$default = $_POST['def_language'];
+				Config::$language = $_POST['def_language'];
 			}
 		}
 
@@ -579,7 +578,7 @@ class Languages implements ActionInterface
 			$("tr.highlight2").removeClass("highlight2");
 			$("#" + box).addClass("highlight2");
 		}
-		highlightSelected("list_language_list_' . (Lang::$default == '' ? 'english' : Lang::$default) . '");', true);
+		highlightSelected("list_language_list_' . (Config::$language == '' ? 'english' : Config::$language) . '");', true);
 
 		// Display a warning if we cannot edit the default setting.
 		if (!is_writable(SMF_SETTINGS_FILE)) {
@@ -671,6 +670,11 @@ class Languages implements ActionInterface
 		$lang_id = $matches[1];
 
 		Utils::$context['lang_id'] = &$lang_id;
+
+		// Neither the forum's own default nor en_US can go. en_US is what
+		// Lang::load() falls back to for any string the chosen language is
+		// missing, so a forum without it has no backstop at all.
+		Utils::$context['can_delete_language'] = $lang_id !== 'en_US' && $lang_id !== Config::$language;
 
 		// Get all the theme data.
 		$themes = [
@@ -793,7 +797,7 @@ class Languages implements ActionInterface
 		}
 
 		// We no longer wish to speak this language.
-		if (!empty($_POST['delete_main']) && $lang_id != 'english') {
+		if (!empty($_POST['delete_main']) && Utils::$context['can_delete_language']) {
 			User::$me->checkSession();
 			SecurityToken::validate('admin-mlang');
 
@@ -853,9 +857,9 @@ class Languages implements ActionInterface
 			}
 
 			// Sixth, if we deleted the default language, set us back to english?
-			if ($lang_id == Lang::$default) {
-				Lang::$default = 'en_US';
-				Config::updateSettingsFile(['language' => Lang::$default]);
+			if ($lang_id == Config::$language) {
+				Config::$language = 'en_US';
+				Config::updateSettingsFile(['language' => Config::$language]);
 			}
 
 			// Seventh, get out of here.
@@ -905,7 +909,7 @@ class Languages implements ActionInterface
 		// Quickly load General language entries.
 		$old_txt = Lang::$txt;
 
-		require Config::canonicalPath($general_filename);
+		require Sapi::canonicalPath($general_filename);
 
 		Utils::$context['lang_file_not_writable_message'] = is_writable($general_filename) ? '' : Lang::getTxt('lang_file_not_writable', ['file' => $general_filename], file: 'ManageSettings');
 
@@ -1548,16 +1552,16 @@ class Languages implements ActionInterface
 		// Keep our old entries.
 		$old_txt = Lang::$txt;
 
-		$backup_actual_theme_dir = Theme::$current->settings['actual_theme_dir'];
+		$backup_theme_dir = Theme::$current->settings['theme_dir'];
 		$backup_base_theme_dir = !empty(Theme::$current->settings['base_theme_dir']) ? Theme::$current->settings['base_theme_dir'] : '';
 
 		// Override these for now.
-		Theme::$current->settings['actual_theme_dir'] = Theme::$current->settings['base_theme_dir'] = Theme::$current->settings['default_theme_dir'];
+		Theme::$current->settings['theme_dir'] = Theme::$current->settings['base_theme_dir'] = Theme::$current->settings['default_theme_dir'];
 
 		Lang::get();
 
 		// Put them back.
-		Theme::$current->settings['actual_theme_dir'] = $backup_actual_theme_dir;
+		Theme::$current->settings['theme_dir'] = $backup_theme_dir;
 
 		if (!empty($backup_base_theme_dir)) {
 			Theme::$current->settings['base_theme_dir'] = $backup_base_theme_dir;
@@ -1575,7 +1579,7 @@ class Languages implements ActionInterface
 				'id' => $lang['filename'],
 				'count' => 0,
 				'char_set' => 'UTF-8',
-				'default' => Lang::$default == $lang['filename'] || (Lang::$default == '' && $lang['filename'] == 'en_US'),
+				'default' => Config::$language == $lang['filename'] || (Config::$language == '' && $lang['filename'] == 'en_US'),
 				'locale' => $txt['lang_locale'],
 				'name' => $lang['name'],
 			];
@@ -1593,7 +1597,7 @@ class Languages implements ActionInterface
 		while ($row = Db::$db->fetch_assoc($request)) {
 			// Default?
 			if (empty($row['lngfile']) || !isset($languages[$row['lngfile']])) {
-				$row['lngfile'] = Lang::$default;
+				$row['lngfile'] = Config::$language;
 			}
 
 			if (!isset($languages[$row['lngfile']]) && isset($languages['english'])) {

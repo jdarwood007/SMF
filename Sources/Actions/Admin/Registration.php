@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,9 +18,9 @@ namespace SMF\Actions\Admin;
 use SMF\ActionInterface;
 use SMF\Actions\Register2;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Diff\EditDiff;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
@@ -29,6 +29,7 @@ use SMF\Logging;
 use SMF\Menu;
 use SMF\Profile;
 use SMF\SecurityToken;
+use SMF\Tasks\UpdateSpoofDetectorNames;
 use SMF\Theme;
 use SMF\Time;
 use SMF\User;
@@ -41,7 +42,7 @@ use SMF\Utils;
 class Registration implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
+
 	/*******************
 	 * Public properties
 	 *******************/
@@ -129,7 +130,7 @@ class Registration implements ActionInterface
 	public function register(): void
 	{
 		// Are there any custom profile fields required during registration?
-		Profile::load(0);
+		Profile::loadMember(0);
 		Profile::$member->loadCustomFields('register');
 
 		if (!empty($_POST['regSubmit'])) {
@@ -161,7 +162,7 @@ class Registration implements ActionInterface
 			if (!empty($memberID)) {
 				// We'll do custom fields after as then we get to use the helper function!
 				if (!empty($_POST['customfield'])) {
-					Profile::load($memberID);
+					Profile::loadMember($memberID);
 					Profile::$member->loadCustomFields('register');
 					Profile::$member->save();
 				}
@@ -353,7 +354,7 @@ class Registration implements ActionInterface
 
 				// Writing it counts as agreeing to it, right?
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}themes',
 					['id_member' => 'int', 'id_theme' => 'int', 'variable' => 'string', 'value' => 'string'],
 					[[User::$me->id, 1, 'agreement_accepted', time()]],
@@ -399,7 +400,7 @@ class Registration implements ActionInterface
 				Utils::$context['agreement_history'][$diff->label1] = Lang::getTxt(
 					'edit_history_linktext',
 					[
-						'time' => (new Time($diff->time1))->setTimezone(User::getTimezone())->format(),
+						'time' => (new Time($diff->time1))->setTimezone(User::$me->timezone)->format(),
 						'member' => $diff->name === '' ? '(' . Lang::getTxt('unknown') . ')' : $diff->name,
 					],
 				);
@@ -539,7 +540,7 @@ class Registration implements ActionInterface
 
 			// Writing it counts as agreeing to it, right?
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}themes',
 				['id_member' => 'int', 'id_theme' => 'int', 'variable' => 'string', 'value' => 'string'],
 				[[User::$me->id, 1, 'policy_accepted', time()]],
@@ -581,7 +582,7 @@ class Registration implements ActionInterface
 				Utils::$context['privacy_policy_history'][$diff->label1] = Lang::getTxt(
 					'edit_history_linktext',
 					[
-						'time' => (new Time($diff->time1))->setTimezone(User::getTimezone())->format(),
+						'time' => (new Time($diff->time1))->setTimezone(User::$me->timezone)->format(),
 						'member' => $diff->name === '' ? '(' . Lang::getTxt('unknown', file: 'General') . ')' : $diff->name,
 					],
 					file: 'General',
@@ -610,6 +611,8 @@ class Registration implements ActionInterface
 
 			$_POST['reserved'] = Utils::normalize($_POST['reserved']);
 
+			$reserve_case = Config::$modSettings['reserveCase'];
+
 			// Set all the options....
 			Config::updateModSettings([
 				'reserveWord' => (int) !empty($_POST['matchword']),
@@ -620,6 +623,28 @@ class Registration implements ActionInterface
 			]);
 
 			Utils::$context['saved_successful'] = true;
+
+			// If the case setting changed, must rebuild the spoofdetector_name
+			// values in the members table.
+			if ($reserve_case != Config::$modSettings['reserveCase']) {
+				Db::$db->insert(
+					InsertType::Insert,
+					'{db_prefix}background_tasks',
+					[
+						'task_class' => 'string',
+						'task_data' => 'string',
+						'claimed_time' => 'int',
+					],
+					[
+						[
+							UpdateSpoofDetectorNames::class,
+							json_encode(['last_member_id' => 0]),
+							0,
+						],
+					],
+					['id_task'],
+				);
+			}
 		}
 
 		// Get the reserved word options and words.
@@ -710,9 +735,9 @@ class Registration implements ActionInterface
 	public static function getConfigVars(): array
 	{
 		// Do we have at least default versions of the agreement and privacy policy?
-		$agreement = file_exists(Config::$languagesdir . '/' . Lang::$default . '/agreement.txt') || file_exists(Config::$languagesdir . '/agreement.txt');
+		$agreement = file_exists(Config::$languagesdir . '/' . Config::$language . '/agreement.txt') || file_exists(Config::$languagesdir . '/agreement.txt');
 
-		$policy = !empty(Config::$modSettings['policy_' . Lang::$default]);
+		$policy = !empty(Config::$modSettings['policy_' . Config::$language]);
 
 		$config_vars = [
 			[

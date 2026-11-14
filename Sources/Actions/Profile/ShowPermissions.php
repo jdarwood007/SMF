@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -21,6 +21,7 @@ use SMF\ActionTrait;
 use SMF\Board;
 use SMF\Db\DatabaseApi as Db;
 use SMF\Lang;
+use SMF\Permissions\Permission;
 use SMF\Permissions\PermissionProfile;
 use SMF\Profile;
 use SMF\Theme;
@@ -28,7 +29,7 @@ use SMF\User;
 use SMF\Utils;
 
 /**
- * Rename here and in the exportStatic call at the end of the file.
+ * Class ShowPermissions
  */
 class ShowPermissions implements ActionInterface
 {
@@ -131,7 +132,7 @@ class ShowPermissions implements ActionInterface
 
 		while ($row = Db::$db->fetch_assoc($result)) {
 			// We don't know about this permission, it doesn't exist :P.
-			if (!Lang::txtExists('permissionname_' . $row['permission'], file: 'ManagePermissions')) {
+			if (!Permission::exists($row['permission'])) {
 				continue;
 			}
 
@@ -200,7 +201,7 @@ class ShowPermissions implements ActionInterface
 
 		while ($row = Db::$db->fetch_assoc($request)) {
 			// We don't know about this permission, it doesn't exist :P.
-			if (!Lang::txtExists('permissionname_' . $row['permission'], file: 'ManagePermissions')) {
+			if (!Permission::exists($row['permission'])) {
 				continue;
 			}
 
@@ -251,7 +252,7 @@ class ShowPermissions implements ActionInterface
 	protected function __construct()
 	{
 		if (!isset(Profile::$member)) {
-			Profile::load();
+			Profile::loadMember();
 		}
 	}
 }

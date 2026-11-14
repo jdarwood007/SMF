@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Pacific;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Pacific/Rarotonga
  */
-class Rarotonga extends \SMF\Calendar\VTimeZone
+class Rarotonga extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Rarotonga extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Pacific/Rarotonga';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Cook',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Rarotonga extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790304T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19910303T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19910303T093000Z',
 			'TZNAME' => 'UTC-10',
 			'TZOFFSETFROM' => '-0930',
 			'TZOFFSETTO' => '-1000',
@@ -65,7 +83,7 @@ class Rarotonga extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19791028T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19901028T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19901028T100000Z',
 			'TZNAME' => 'UTC-0930',
 			'TZOFFSETFROM' => '-1000',
 			'TZOFFSETTO' => '-0930',

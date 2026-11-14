@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -334,19 +334,28 @@ class Sapi
 	/**
 	 * Helper function to convert memory string settings to bytes
 	 *
-	 * @param string $val The byte string, like '256M' or '1G'.
+	 * The shorthand notation PHP accepts for these settings is optional, so the
+	 * value may be a plain byte count with no designator at all.
+	 *
+	 * A negative value means there is no limit, which is reported as PHP_INT_MAX
+	 * so that callers comparing it against an amount of memory they need do not
+	 * have to special case it.
+	 *
+	 * @param string $val The byte string, like '256M', '1G' or '2097152'.
 	 * @return int The string converted to a proper integer in bytes.
 	 */
 	public static function memoryReturnBytes(string $val): int
 	{
-		if (\is_integer($val)) {
-			return (int) $val;
+		$val = trim($val);
+
+		// No limit at all.
+		if ((int) $val < 0) {
+			return PHP_INT_MAX;
 		}
 
-		// Separate the number from the designator.
-		$val = trim($val);
-		$num = \intval(substr($val, 0, \strlen($val) - 1));
+		// Separate the number from the designator, if there is one.
 		$last = strtolower(substr($val, -1));
+		$num = \in_array($last, ['g', 'm', 'k'], true) ? (int) substr($val, 0, -1) : (int) $val;
 
 		// Convert to bytes.
 		switch ($last) {
@@ -535,5 +544,128 @@ class Sapi
 		Config::updateModSettings(['cpu_count' => self::$cpu_count]);
 
 		return self::$cpu_count;
+	}
+
+	/**
+	 * Normalizes directory separators and resolves '.' and '..' in a file path.
+	 *
+	 * The $path does not need to point to an existing file.
+	 *
+	 * If $path does point to an existing file, or if an ancestor directory of
+	 * $path exists, then \realpath() will be used to resolve that part of the
+	 * path, unless the $real parameter is set to false.
+	 *
+	 * @param string $path The file path.
+	 * @param string|bool $base_dir Base directory for relative paths.
+	 *    - If a string, relative paths are prepended with the string and a
+	 *      directory separator. Note that directory separators in this string
+	 *      will be normalized just like in $path.
+	 *    - If true, relative paths are prepended with the current working
+	 *      directory and a directory separator.
+	 *    - If false, relative paths are processed as given.
+	 *    Default: false.
+	 * @param bool $real Whether to get the real path for existing files. This
+	 *    can be set to false if the caller wants to canonicalize a hypothetical
+	 *    path without any possibility of the real file structure interfering
+	 *    with the result.
+	 *    Default: true.
+	 * @return string The canonical file path.
+	 */
+	public static function canonicalPath(string $path, string|bool $base_dir = false, bool $real = true): string
+	{
+		// If $path points to a real file, this is all we need to do.
+		if (!empty($real) && ($realpath = @realpath($path)) !== false) {
+			return $realpath;
+		}
+
+		$base_dir = \is_string($base_dir) ? rtrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $base_dir), DIRECTORY_SEPARATOR) : (!empty($base_dir) ? getcwd() : false);
+
+		$path = trim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path));
+
+		// We need to know the path of the root directory.
+		if (DIRECTORY_SEPARATOR === '/') {
+			$root = '';
+			$is_absolute = str_starts_with($path, DIRECTORY_SEPARATOR);
+		} else {
+			// Windows network shares and devices.
+			if (str_starts_with($path, DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR)) {
+				if (\in_array(substr($path, 2, 2), ['?' . DIRECTORY_SEPARATOR, '.' . DIRECTORY_SEPARATOR])) {
+					$root = substr($path, 0, strpos($path, DIRECTORY_SEPARATOR, 3));
+				} else {
+					$root = '';
+
+					for ($i = 0; $i < 3; $i++) {
+						$root = substr($path, 0, strpos($path, DIRECTORY_SEPARATOR, \strlen($root) + 1));
+					}
+				}
+			}
+			// Windows absolute DOS-style path.
+			elseif (strpos($path, ':') !== false && strpos($path, DIRECTORY_SEPARATOR) === strpos($path, ':') + 1) {
+				$root = substr($path, 0, strpos($path, DIRECTORY_SEPARATOR));
+			}
+			// Windows relative path.
+			else {
+				$root = substr(getcwd(), 0, strcspn(getcwd(), DIRECTORY_SEPARATOR));
+
+				// If relative to current drive's root, make it absolute.
+				if (strpos($path, DIRECTORY_SEPARATOR) === 0) {
+					$path = $root . $path;
+				}
+			}
+
+			$is_absolute = str_starts_with($path, $root . DIRECTORY_SEPARATOR);
+		}
+
+		// Build canonical path.
+		$canonical_path = '';
+
+		if ($is_absolute) {
+			$path = substr($path, \strlen($root . DIRECTORY_SEPARATOR));
+			$path_parts = [$root];
+		} elseif (\is_string($base_dir)) {
+			$path_parts = explode(DIRECTORY_SEPARATOR, $base_dir);
+		} else {
+			$path_parts = [];
+		}
+
+		foreach (explode(DIRECTORY_SEPARATOR, $path) as $key => $part) {
+			if (empty($part) || $part === '.') {
+				continue;
+			}
+
+			if ($part === '..') {
+				if ($is_absolute && $path_parts === [$root]) {
+					continue;
+				}
+
+				if (empty($path_parts) || $path_parts[0] === '..') {
+					$path_parts[] = $part;
+				} else {
+					array_pop($path_parts);
+				}
+			} else {
+				$path_parts[] = $part;
+			}
+
+			$canonical_path = implode(DIRECTORY_SEPARATOR, $path_parts);
+
+			if (empty($real) || \in_array($canonical_path, ['', '.', '..'])) {
+				continue;
+			}
+
+			// Check for intermediate symlinks.
+			$realpath = @realpath($canonical_path);
+
+			if ($realpath !== false && $realpath !== $canonical_path) {
+				$path_parts = explode(DIRECTORY_SEPARATOR, $realpath);
+			}
+		}
+
+		// Ambiguity is bad.
+		if ($canonical_path === '') {
+			$canonical_path = $is_absolute ? $root . DIRECTORY_SEPARATOR : '.';
+		}
+
+		return $canonical_path;
 	}
 }

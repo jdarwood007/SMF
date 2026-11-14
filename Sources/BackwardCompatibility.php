@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF;
@@ -24,8 +24,8 @@ trait BackwardCompatibility
 	 ***********************/
 
 	/**
-	 * Provides a way to export a class's public static properties and methods
-	 * to global namespace.
+	 * Provides a way to export a class's public static properties to global
+	 * namespace.
 	 *
 	 * To do so:
 	 *
@@ -34,7 +34,7 @@ trait BackwardCompatibility
 	 *
 	 * Although it might not seem that way at first glance, this approach
 	 * conforms to section 2.3 of PSR 1, since executing this method is simply a
-	 * dynamic means of declaring functions when the file is included; it has no
+	 * dynamic means of declaring stuff when the file is included; it has no
 	 * other side effects.
 	 *
 	 * Regarding the $backcompat items:

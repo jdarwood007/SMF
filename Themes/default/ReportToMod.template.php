@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Lang;
@@ -57,22 +58,22 @@ function template_main()
 			</div>
 			<div class="windowbg">';
 
-	if (!empty(Utils::$context['post_errors']))
-	{
+	if (!empty(Utils::$context['post_errors'])) {
 		echo '
 				<div id="error_box" class="errorbox">
 					<ul id="error_list">';
 
-		foreach (Utils::$context['post_errors'] as $key => $error)
+		foreach (Utils::$context['post_errors'] as $key => $error) {
 			echo '
 						<li id="error_', $key, '" class="error">', $error, '</li>';
+		}
 
 		echo '
 					</ul>';
-	}
-	else
-		echo '
+	} else {
+	echo '
 				<div id="error_box" class="errorbox hidden">';
+	}
 
 	echo '
 				</div>';

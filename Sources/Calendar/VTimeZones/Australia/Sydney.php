@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Australia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Australia/Sydney
  */
-class Sydney extends \SMF\Calendar\VTimeZone
+class Sydney extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Sydney extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Australia/Sydney';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Australia_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -85,7 +103,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19430328T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440326T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440325T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -100,7 +118,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19711031T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851026T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -115,7 +133,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19730304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19810301T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19810228T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -130,7 +148,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19830306T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850303T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850302T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -138,7 +156,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860316T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19890319T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19890318T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -153,7 +171,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19871025T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991030T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -161,7 +179,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19900304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19950305T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19950304T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -169,7 +187,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19960331T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050326T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -184,7 +202,7 @@ class Sydney extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20011028T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071027T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',

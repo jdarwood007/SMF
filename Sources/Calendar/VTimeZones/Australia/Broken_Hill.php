@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Australia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Australia/Broken_Hill
  */
-class Broken_Hill extends \SMF\Calendar\VTimeZone
+class Broken_Hill extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Australia/Broken_Hill';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Australia_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -99,7 +117,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19430328T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440326T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440325T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
@@ -114,7 +132,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19711031T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851026T163000Z',
 			'TZNAME' => 'ACDT',
 			'TZOFFSETFROM' => '+0930',
 			'TZOFFSETTO' => '+1030',
@@ -129,7 +147,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19730304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19810301T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19810228T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
@@ -144,7 +162,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19830306T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850303T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850302T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
@@ -152,7 +170,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860316T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19890319T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19890318T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
@@ -167,7 +185,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19871025T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991030T163000Z',
 			'TZNAME' => 'ACDT',
 			'TZOFFSETFROM' => '+0930',
 			'TZOFFSETTO' => '+1030',
@@ -175,7 +193,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19900304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19950305T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19950304T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
@@ -183,7 +201,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19960331T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050326T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
@@ -191,26 +209,34 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19950326T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050326T153000Z',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
 		],
 		21 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19871025T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071027T163000Z',
+			'TZNAME' => 'ACDT',
+			'TZOFFSETFROM' => '+0930',
+			'TZOFFSETTO' => '+1030',
+		],
+		22 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20060402T030000',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
 		],
-		22 => [
+		23 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20070325T030000',
 			'TZNAME' => 'ACST',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
 		],
-		23 => [
+		24 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20080406T030000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU',
@@ -218,7 +244,7 @@ class Broken_Hill extends \SMF\Calendar\VTimeZone
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+0930',
 		],
-		24 => [
+		25 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20081005T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU',

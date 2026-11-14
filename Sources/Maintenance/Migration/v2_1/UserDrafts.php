@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,9 +17,11 @@ namespace SMF\Maintenance\Migration\v2_1;
 
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Db\Schema;
 use SMF\Maintenance\Maintenance;
 use SMF\Maintenance\Migration\MigrationBase;
+use SMF\Utils;
 
 class UserDrafts extends MigrationBase
 {
@@ -41,9 +43,9 @@ class UserDrafts extends MigrationBase
 	 */
 	public function isCandidate(): bool
 	{
-		$tables = Db::$db->list_tables();
+		$table = new Schema\v2_1\UserDrafts();
 
-		return !\in_array(Config::$db_prefix . 'user_drafts', $tables) || Maintenance::getCurrentStart() > 0;
+		return !$table->exists();
 	}
 
 	/**
@@ -53,14 +55,10 @@ class UserDrafts extends MigrationBase
 	{
 		$start = Maintenance::getCurrentStart();
 
-		$drafts_table = new Schema\v2_1\UserDrafts();
-
-		$tables = Db::$db->list_tables();
-
 		// Creating draft table.
-		if ($start <= 0 && !\in_array(Config::$db_prefix . 'user_drafts', $tables)) {
-			$drafts_table->create();
-
+		if ($start <= 0) {
+			$table = new Schema\v2_1\UserDrafts();
+			$table->create();
 			$this->handleTimeout(++$start);
 		}
 
@@ -68,14 +66,14 @@ class UserDrafts extends MigrationBase
 		if (
 			$start <= 1
 			&& version_compare(
-				str_replace(' ', '.', strtolower(Config::$modSettings['smfVersion'] ?? '0.0.dev.0')),
+				Utils::standardizeVersionString(Config::$modSettings['smfVersion'] ?? '0.0.dev.0'),
 				'2.1.dev.0',
 				'<',
 			)
 		) {
 			// Anyone who can currently post unapproved topics we assume can create drafts as well ...
-			$request = Db::$db->query(
-				'SELECT id_group, id_board, add_deny, permission
+			$request = $this->query(
+				'SELECT id_group, id_profile, add_deny, permission
 				FROM {db_prefix}board_permissions
 				WHERE permission = {literal:post_unapproved_topics}',
 				[],
@@ -86,7 +84,7 @@ class UserDrafts extends MigrationBase
 			while ($row = Db::$db->fetch_assoc($request)) {
 				$inserts[] = [
 					(int) $row['id_group'],
-					(int) $row['id_board'],
+					(int) $row['id_profile'],
 					'post_draft',
 					(int) $row['add_deny'],
 				];
@@ -95,11 +93,11 @@ class UserDrafts extends MigrationBase
 
 			if (!empty($inserts)) {
 				Db::$db->insert(
-					'ignore',
+					InsertType::Ignore,
 					'{db_prefix}board_permissions',
 					[
 						'id_group' => 'int',
-						'id_board' => 'int',
+						'id_profile' => 'int',
 						'permission' => 'string',
 						'add_deny' => 'int',
 					],
@@ -129,7 +127,7 @@ class UserDrafts extends MigrationBase
 
 			if (!empty($inserts)) {
 				Db::$db->insert(
-					'ignore',
+					InsertType::Ignore,
 					'{db_prefix}permissions',
 					[
 						'id_group' => 'int',
@@ -152,7 +150,7 @@ class UserDrafts extends MigrationBase
 			]);
 
 			Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}themes',
 				[
 					'id_member' => 'int',

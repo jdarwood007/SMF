@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -1069,7 +1069,8 @@ class Uuid implements \Stringable
 			$b32 = str_pad(base_convert(strrev($chunk), 16, 32), 8, '0', STR_PAD_LEFT) . $b32;
 		}
 
-		return ltrim($b32, '0');
+		// Trim leading zeros if too long, but pad with leading zeros if too short.
+		return str_pad(ltrim($b32, '0'), 26, '0', STR_PAD_LEFT);
 	}
 
 	/**
@@ -1090,6 +1091,7 @@ class Uuid implements \Stringable
 			$hex = str_pad(base_convert(strrev($chunk), 32, 16), 10, '0', STR_PAD_LEFT) . $hex;
 		}
 
-		return ltrim($hex, '0');
+		// Trim leading zeros if too long, but pad with leading zeros if too short.
+		return str_pad(ltrim($hex, '0'), 32, '0', STR_PAD_LEFT);
 	}
 }

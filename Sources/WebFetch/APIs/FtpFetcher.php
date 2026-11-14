@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace SMF\WebFetch\APIs;
 
 use SMF\Config;
+use SMF\IP;
 use SMF\Lang;
 use SMF\PackageManager\FtpConnection;
 use SMF\Url;
@@ -108,13 +109,14 @@ class FtpFetcher extends WebFetchApi
 	 */
 	public function request(string|Url $url, array|string $post_data = []): self
 	{
-		if (!$url instanceof Url) {
+		if (!($url instanceof Url)) {
 			$url = new Url($url, true);
-			$url->toAscii();
 		}
 
+		$url->normalize()->toAscii();
+
 		// Umm, this shouldn't happen?
-		if (empty($url->scheme) || !\in_array($url->scheme, ['ftp', 'ftps'])) {
+		if (!$url->isFetchSafe(['ftp', 'ftps'])) {
 			trigger_error(Lang::getTxt('fetch_web_data_bad_url', [__METHOD__], file: 'Errors'), E_USER_NOTICE);
 
 			return $this;
@@ -156,6 +158,23 @@ class FtpFetcher extends WebFetchApi
 		];
 
 		if (!$fp) {
+			return $this;
+		}
+
+		// Double check that we connected to the expected IP and port.
+		// If the connection was successful, name will be "<IP address>:<port>"
+		$socket_name = @stream_socket_get_name($fp, true);
+
+		if (
+			!\is_string($socket_name)
+			|| !str_ends_with($socket_name, ':' . $ftp->pasv['port'])
+			|| $ftp->pasv['ip'] != substr($socket_name, 0, -\strlen(':' . $ftp->pasv['port']))
+			|| !$url->resolvesTo(new IP($ftp->pasv['ip']))
+		) {
+			fclose($fp);
+
+			trigger_error(Lang::getTxt('fetch_web_data_bad_url', [__METHOD__], file: 'Errors'), E_USER_NOTICE);
+
 			return $this;
 		}
 

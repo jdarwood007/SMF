@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Barnaul
  */
-class Barnaul extends \SMF\Calendar\VTimeZone
+class Barnaul extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Barnaul extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Barnaul';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '2016-03-26T20:00:00+0000',
+			'metazone' => 'Krasnoyarsk',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Barnaul extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T170000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0800',
@@ -65,7 +83,7 @@ class Barnaul extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19811001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19831001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19830930T160000Z',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0700',
@@ -73,7 +91,7 @@ class Barnaul extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19840930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T180000Z',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0700',
@@ -81,48 +99,72 @@ class Barnaul extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19850331T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T190000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0800',
 		],
 		6 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T190000Z',
+			'TZNAME' => 'UTC+07',
+			'TZOFFSETFROM' => '+0700',
+			'TZOFFSETTO' => '+0700',
+		],
+		7 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19840930T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T190000Z',
+			'TZNAME' => 'UTC+06',
+			'TZOFFSETFROM' => '+0700',
+			'TZOFFSETTO' => '+0600',
+		],
+		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19920119T020000',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0600',
 			'TZOFFSETTO' => '+0700',
 		],
-		7 => [
+		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19950528T000000',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0700',
 		],
-		8 => [
+		10 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T200000Z',
+			'TZNAME' => 'UTC+07',
+			'TZOFFSETFROM' => '+0600',
+			'TZOFFSETTO' => '+0700',
+		],
+		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19961027T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101030T190000Z',
 			'TZNAME' => 'UTC+06',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0600',
 		],
-		9 => [
+		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20110327T020000',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0600',
 			'TZOFFSETTO' => '+0700',
 		],
-		10 => [
+		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20141026T020000',
 			'TZNAME' => 'UTC+06',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0600',
 		],
-		11 => [
+		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20160327T020000',
 			'TZNAME' => 'UTC+07',

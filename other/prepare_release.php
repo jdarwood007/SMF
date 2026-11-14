@@ -1,0 +1,101 @@
+<?php
+
+/**
+ * This is an internal development file. It should NOT be included in
+ * any SMF distribution packages.
+ *
+ * To automatically increment the version number for the new release,
+ * run the following command on the CLI:
+ *
+ *     php -f other/prepare_release.php
+ *
+ * To manually specify a version string, do this:
+ *
+ *     php -f other/prepare_release.php 'version_string_here'
+ *
+ * Note: manually specifying a version string should only be needed
+ * when changing from alpha to beta, from beta to release candidate, or
+ * from release candidate to release version.
+ *
+ *
+ * Simple Machines Forum (SMF)
+ *
+ * @package SMF
+ * @author Simple Machines https://www.simplemachines.org
+ * @copyright 2026 Simple Machines and individual contributors
+ * @license https://www.simplemachines.org/about/smf/license.php BSD
+ *
+ * @version 3.0 Alpha 5-dev
+ */
+
+declare(strict_types=1);
+
+namespace SMF\other;
+
+require_once 'Updaters/UpdaterBase.php';
+
+$updaters = [
+	'TimezoneDataUpdater',
+	'UnicodeDataUpdater',
+	'AsciiTransliteratorDataUpdater',
+	'VersionNumberUpdater',
+	'ManifestUpdater',
+];
+
+// Include all the updaters.
+foreach ($updaters as $class_name) {
+	$file_name = 'Updaters/' . $class_name . '.php';
+
+	require_once $file_name;
+}
+
+// If a version number was specified manually, validate it before proceeding.
+// VersionNumberUpdater will validate it too, but we don't want to change
+// anything at all if we know is going to fail.
+if (
+	isset($argv[1])
+	&& (
+		!preg_match('~^' . Updaters\VersionNumberUpdater::VERSION_PATTERN . '$~', $argv[1])
+		// This script is for preparing release versions, not dev versions!
+		|| str_ends_with($argv[1], 'dev')
+	)
+) {
+	throw new \Exception('Provided version string is invalid: ' . $argv[1]);
+}
+
+// Run all the updaters.
+$num_updaters_executed = 0;
+
+foreach ($updaters as $class_name) {
+	$fully_qualified_class_name = __NAMESPACE__ . '\\Updaters\\' . $class_name;
+
+	$updater = new $fully_qualified_class_name(str_replace('release-', '', Updaters\UpdaterBase::MAIN_BRANCH) . '/prepare_release');
+
+	if ($class_name === 'VersionNumberUpdater') {
+		$updater->execute($argv[1] ?? null);
+		$new_tag = $updater->getNewTag();
+	} else {
+		$updater->execute();
+	}
+
+	$num_updaters_executed++;
+
+	if (!$updater->hasChanged()) {
+		continue;
+	}
+
+	if (!$updater->ready_to_commit) {
+		echo 'Changes are not ready to commit. Deal with them manually and commit them, then run this script again.' . PHP_EOL;
+
+		// Don't execute subsequent updaters until these changes are dealt with.
+		// This ensures that the version number updater and manifest updater
+		// don't end up working with bad data.
+		break;
+	}
+
+	$updater->commit();
+}
+
+if ($num_updaters_executed === \count($updaters) && !empty($new_tag)) {
+	echo "You may now tag the new release using `git tag '{$new_tag}'`." . PHP_EOL;
+}

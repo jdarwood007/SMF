@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Andorra
  */
-class Andorra extends \SMF\Calendar\VTimeZone
+class Andorra extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Andorra extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Andorra';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +82,7 @@ class Andorra extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19800227T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',

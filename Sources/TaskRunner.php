@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace SMF;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Debug\DebugUtils;
 use SMF\Tasks\BackgroundTask;
 use SMF\Tasks\ScheduledTask;
@@ -73,42 +74,42 @@ class TaskRunner
 	 */
 	public static array $scheduled_tasks = [
 		'daily_maintenance' => [
-			'class' => 'SMF\\Tasks\\DailyMaintenance',
+			'class' => Tasks\DailyMaintenance::class,
 		],
 		'weekly_maintenance' => [
-			'class' => 'SMF\\Tasks\\WeeklyMaintenance',
+			'class' => Tasks\WeeklyMaintenance::class,
 		],
 		'daily_digest' => [
-			'class' => 'SMF\\Tasks\\SendDigests',
+			'class' => Tasks\SendDigests::class,
 			'data' => ['is_weekly' => 0],
 		],
 		'weekly_digest' => [
-			'class' => 'SMF\\Tasks\\SendDigests',
+			'class' => Tasks\SendDigests::class,
 			'data' => ['is_weekly' => 1],
 		],
 		'fetchSMfiles' => [
-			'class' => 'SMF\\Tasks\\FetchSMFiles',
+			'class' => Tasks\FetchSMFiles::class,
 		],
 		'fetch_calendar_subs' => [
-			'class' => 'SMF\\Tasks\\FetchCalendarSubscriptions',
+			'class' => Tasks\FetchCalendarSubscriptions::class,
 		],
 		'birthdayemails' => [
-			'class' => 'SMF\\Tasks\\Birthday_Notify',
+			'class' => Tasks\Birthday_Notify::class,
 		],
 		'paid_subscriptions' => [
-			'class' => 'SMF\\Tasks\\PaidSubs',
+			'class' => Tasks\PaidSubs::class,
 		],
 		'remove_temp_attachments' => [
-			'class' => 'SMF\\Tasks\\RemoveTempAttachments',
+			'class' => Tasks\RemoveTempAttachments::class,
 		],
 		'remove_topic_redirect' => [
-			'class' => 'SMF\\Tasks\\RemoveTopicRedirects',
+			'class' => Tasks\RemoveTopicRedirects::class,
 		],
 		'remove_old_drafts' => [
-			'class' => 'SMF\\Tasks\\RemoveOldDrafts',
+			'class' => Tasks\RemoveOldDrafts::class,
 		],
 		'prune_log_topics' => [
-			'class' => 'SMF\\Tasks\\PruneLogTopics',
+			'class' => Tasks\PruneLogTopics::class,
 		],
 	];
 
@@ -379,7 +380,11 @@ class TaskRunner
 	public static function handleException(\Throwable $e): void
 	{
 		if (!empty(Config::$modSettings['enableErrorLogging'])) {
-			ErrorHandler::log(Lang::getTxt($e->getMessage(), file: 'Errors'), 'cron', $e->getFile(), $e->getLine());
+			// Some exceptions carry the key of a language string, but most
+			// carry the message itself, which is not a key of anything.
+			$message = Lang::getTxt($e->getMessage(), file: 'Errors');
+
+			ErrorHandler::log($message !== '' ? $message : $e->getMessage(), 'cron', $e->getFile(), $e->getLine());
 		}
 	}
 
@@ -556,7 +561,7 @@ class TaskRunner
 			$include = strtr(trim($task_details['task_file']), ['$boarddir' => Config::$boarddir, '$sourcedir' => Config::$sourcedir]);
 
 			if (file_exists($include)) {
-				require_once Config::canonicalPath($include);
+				require_once Sapi::canonicalPath($include);
 			}
 		}
 
@@ -677,7 +682,7 @@ class TaskRunner
 			// If we have a valid background task, queue it up.
 			if (isset($task_details['task_class']) && class_exists($task_details['task_class'])) {
 				Db::$db->insert(
-					'insert',
+					InsertType::Insert,
 					'{db_prefix}background_tasks',
 					[
 						'task_file' => 'string-255',
@@ -726,7 +731,7 @@ class TaskRunner
 		IntegrationHook::call('integrate_scheduled_tasks', [&self::$scheduled_tasks]);
 
 		if ($is_callable) {
-			$class = 'SMF\\Tasks\\GenericScheduledTask';
+			$class = Tasks\GenericScheduledTask::class;
 			$data = [
 				'callable' => $task,
 				'id_scheduled_task' => $id,
@@ -872,5 +877,5 @@ class TaskRunner
 }
 
 if (!empty(\SMF\Config::$backward_compatibility)) {
-	class_alias('\\SMF\\Tasks\\BackgroundTask', 'SMF_BackgroundTask');
+	class_alias(Tasks\BackgroundTask::class, 'SMF_BackgroundTask');
 }

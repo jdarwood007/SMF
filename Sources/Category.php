@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,8 @@ namespace SMF;
 
 use SMF\Cache\CacheApi;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 
 /**
  * This class loads information about categories. It also handles low-level
@@ -87,7 +89,7 @@ class Category implements \ArrayAccess
 	public int $last_board_order;
 
 	/**
-	 * @var Board[]
+	 * @var array
 	 *
 	 * Boards that are children of this category.
 	 */
@@ -136,19 +138,37 @@ class Category implements \ArrayAccess
 	 */
 	public bool $show_unread;
 
+	/**
+	 * @var array
+	 *
+	 * IDs of all boards in this category.
+	 *
+	 * For the sake of compatibility with \ArrayAccess it is possible to write
+	 * to this property, but doing so is pointless because the value will be
+	 * overwritten the next time the property is read.
+	 */
+	public array $child_ids {
+		&get {
+			$this->child_ids = [];
+			self::recursiveBoards($this->child_ids, $this);
+
+			return $this->child_ids;
+		}
+	}
+
 	/**************************
 	 * Public static properties
 	 **************************/
 
 	/**
-	 * @var Category[]
+	 * @var array
 	 *
 	 * All loaded instances of this class.
 	 */
 	public static array $loaded = [];
 
 	/**
-	 * @var Board[]
+	 * @var array
 	 *
 	 * A list of boards grouped by category ID.
 	 */
@@ -217,8 +237,8 @@ class Category implements \ArrayAccess
 		}
 
 		// Save the unparsed description in case we need it later.
-		if (!isset($this->custom['unparsed_description'])) {
-			$this->custom['unparsed_description'] = $this->description;
+		if (!isset($this->internal_data['unparsed_description'])) {
+			$this->internal_data['unparsed_description'] = $this->description;
 		}
 
 		if (!empty(CacheApi::$enable)) {
@@ -257,8 +277,8 @@ class Category implements \ArrayAccess
 	 */
 	public function unparseDescription(): void
 	{
-		if (isset($this->custom['unparsed_description'])) {
-			$this->description = $this->custom['unparsed_description'];
+		if (isset($this->internal_data['unparsed_description'])) {
+			$this->description = $this->internal_data['unparsed_description'];
 		}
 	}
 
@@ -354,7 +374,8 @@ class Category implements \ArrayAccess
 	 * used by ManageBoards.php to change the settings of a category.
 	 *
 	 * @param int $category_id The ID of the category
-	 * @param array $catOptions An array containing data and options related to the category
+	 * @param array $catOptions An array containing data and options related to
+	 *    the category.
 	 */
 	public static function modify(int $category_id, array $catOptions): void
 	{
@@ -505,12 +526,12 @@ class Category implements \ArrayAccess
 
 		// Add the category to the database.
 		$category_id = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}categories',
 			$cat_columns,
 			[$cat_parameters],
 			['id_cat'],
-			Db::INSERT_RETURN_MODE_SINGLE,
+			ReturnMode::SingleRow,
 		);
 
 		// Set the given properties to the newly created category.
@@ -524,14 +545,17 @@ class Category implements \ArrayAccess
 
 	/**
 	 * Remove one or more categories.
-	 * general function to delete one or more categories.
-	 * allows to move all boards in the categories to a different category before deleting them.
-	 * if moveChildrenTo is set to null, all boards inside the given categories will be deleted.
-	 * deletes all information that's associated with the given categories.
-	 * updates the statistics to reflect the new situation.
 	 *
-	 * @param array $categories The IDs of the categories to delete
-	 * @param null|int $moveBoardsTo The ID of the category to move any boards to or null to delete the boards
+	 *  - Allows to move all boards in the categories to a different category
+	 *    before deleting them.
+	 *  - If moveChildrenTo is set to null, all boards inside the given
+	 *    categories will be deleted.
+	 *  - Deletes all information that's associated with the given categories.
+	 *  - Updates the statistics to reflect the new situation.
+	 *
+	 * @param array $categories The IDs of the categories to delete.
+	 * @param ?int $moveBoardsTo The ID of the category to move any boards to or
+	 *    null to delete the boards.
 	 */
 	public static function delete(array $categories, ?int $moveBoardsTo = null): void
 	{
@@ -597,7 +621,7 @@ class Category implements \ArrayAccess
 	}
 
 	/**
-	 * Takes a category array and sorts it
+	 * Takes a category array and sorts it.
 	 *
 	 * @param array &$categories The categories
 	 */
@@ -623,8 +647,7 @@ class Category implements \ArrayAccess
 	}
 
 	/**
-	 * Tries to load up the entire board order and category very very quickly
-	 * Returns an array with two elements, cats and boards
+	 * Tries to load up the entire board order and category very very quickly.
 	 *
 	 * @return array An array of categories and boards
 	 */
@@ -663,6 +686,7 @@ class Category implements \ArrayAccess
 
 	/**
 	 * Load a lot of useful information regarding the boards and categories.
+	 *
 	 * The information retrieved is stored in static properties:
 	 *  Board::$loaded        Instances of SMF\Board for each board.
 	 *  Category::$boardList  A list of board IDs grouped by category ID.
@@ -676,7 +700,7 @@ class Category implements \ArrayAccess
 			'COALESCE(b.id_board, 0) AS id_board', 'b.name', 'b.description',
 			'b.id_parent', 'b.child_level', 'b.board_order', 'b.redirect',
 			'b.member_groups', 'b.deny_member_groups', 'b.id_profile',
-			'b.id_theme', 'b.override_theme', 'b.count_posts', 'b.num_posts',
+			'b.id_theme', 'b.override_theme', 'b.posts_count', 'b.num_posts',
 			'b.num_topics', 'c.id_cat', 'c.cat_order', 'c.can_collapse',
 			'c.name AS cat_name', 'c.description AS cat_desc',
 		];
@@ -781,9 +805,9 @@ class Category implements \ArrayAccess
 	 * Used by self::getTree().
 	 *
 	 * @param array &$list The board list
-	 * @param \SMF\Category|\SMF\Board &$tree The board tree
+	 * @param self|Board &$tree The board tree
 	 */
-	public static function recursiveBoards(array &$list, \SMF\Category|\SMF\Board &$tree): void
+	public static function recursiveBoards(array &$list, self|Board &$tree): void
 	{
 		if (empty($tree->children)) {
 			return;

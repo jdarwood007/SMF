@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Lima
  */
-class Lima extends \SMF\Calendar\VTimeZone
+class Lima extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Lima extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Lima';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Peru',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +82,7 @@ class Lima extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19380925T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19390924T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19390924T050000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -72,7 +90,7 @@ class Lima extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19390326T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19400324T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19400324T040000Z',
 			'TZNAME' => 'UTC-05',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -80,7 +98,7 @@ class Lima extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19860101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1;UNTIL=19870101T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1;UNTIL=19870101T050000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -88,7 +106,7 @@ class Lima extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19870401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19870401T040000Z',
 			'TZNAME' => 'UTC-05',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -81,7 +81,7 @@ class ShowMsgHistory implements ActionInterface, Routable
 			for ($i = 0; $i < \count($msg->edit_history); $i++) {
 				$diff = $msg->edit_history[$i];
 
-				Utils::$context['page_title'] = strip_tags($msg->subject . ' - ' . (new Time($diff->time1))->setTimezone(User::getTimezone())->format());
+				Utils::$context['page_title'] = strip_tags($msg->subject . ' - ' . (new Time($diff->time1))->setTimezone(User::$me->timezone)->format());
 
 				// Uh-oh. The edit history got corrupted somehow.
 				if ($hash !== $diff->label1) {

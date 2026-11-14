@@ -5,17 +5,20 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF;
 
+use League\Container\Container;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Infrastructure\Services;
+use SMF\Services\ErrorHandlerService;
 
 /**
  * The root Forum class. Used when browsing the forum normally.
@@ -25,7 +28,7 @@ use SMF\Db\DatabaseApi as Db;
  * The most interesting part of this file for modification authors is the action
  * array. It is formatted as so:
  *
- *    'action-in-url' => array('Source-File.php', 'FunctionToCall'),
+ *    'action-in-url' => ['Source-File.php', 'FunctionToCall'],
  *
  * Then, you can access the FunctionToCall() function from Source-File.php with
  * the URL index.php?action=action-in-url. Relatively simple, no?
@@ -36,17 +39,19 @@ use SMF\Db\DatabaseApi as Db;
  *
  *  1. Create a class that implements SMF\ActionInterface and uses SMF\ActionTrait.
  *     Put your code in its execute() method.
- *  2. Either use the integrate_actions hook or call SMF\Forum:::addAction() from
- *     the integrate_pre_load hook to add information about your
- *     action to SMF\Forum::$actions.
+ *  2. Either use the integrate_actions hook or call SMF\Forum:::addAction()
+ *     from the integrate_pre_load hook to add information about your action to
+ *     SMF\Forum::$actions.
  *
  * Deprecations:
  *
  *  1. integrate_pre_log_stats (modifying SMF\Forum::$unlogged_actions)
- *     Implement SMF\ActionInterface::canBeLogged() to manage logging at the action level.
+ *     Implement SMF\ActionInterface::canBeLogged() to manage logging at the
+ *     action level.
  *
  *  2. integrate_guest_actions (modifying SMF\Forum::$guest_access_actions)
- *     Implement SMF\ActionInterface::isRestrictedGuestAccessAllowed() for guest access control.
+ *     Implement SMF\ActionInterface::isRestrictedGuestAccessAllowed() for guest
+ *     access control.
  */
 class Forum
 {
@@ -343,9 +348,9 @@ class Forum
 	 *  - a multidimensional array indicating specific sub-actions or areas that
 	 *    should not be logged.
 	 *
-	 *    For example, 'pm' => array('sa' => array('popup')) means that we won't
-	 *    log visits to index.php?action=pm;sa=popup, but other sub-actions
-	 *    like index.php?action=pm;sa=send will be logged.
+	 *    For example, `'pm' => ['sa' => ['popup']]` means that we won't log
+	 *    visits to `index.php?action=pm;sa=popup`, but other sub-actions like
+	 *    `index.php?action=pm;sa=send` will be logged.
 	 */
 	public static array $unlogged_actions = [
 		'calendar' => ['sa' => ['clock']],
@@ -361,6 +366,15 @@ class Forum
 	 */
 	public static array $guest_access_actions = [];
 
+	/*********************
+	 * Internal properties
+	 *********************/
+
+	/**
+	 * The service container used by SMF.
+	 */
+	protected Container $container;
+
 	/****************************
 	 * Internal static properties
 	 ****************************/
@@ -371,6 +385,13 @@ class Forum
 	 * Stores the current action.
 	 */
 	protected static ?ActionInterface $current_action = null;
+
+	/**
+	 * @var bool
+	 *
+	 * Whether the current action is being constructed right now.
+	 */
+	protected static bool $constructing_action = false;
 
 	/****************
 	 * Public methods
@@ -390,6 +411,8 @@ class Forum
 
 			die();
 		}
+
+		$this->initContainer();
 
 		// Ensure any renamed actions will still work using the old name.
 		foreach (self::$renamed_actions as $old => $new) {
@@ -448,6 +471,8 @@ class Forum
 		if (!empty(Config::$backward_compatibility)) {
 			IntegrationHook::call('integrate_guest_actions', [&self::$guest_access_actions]);
 		}
+
+		$this->registerIntegratedServices();
 	}
 
 	/**
@@ -462,6 +487,17 @@ class Forum
 		// Perform operations on the action object before its execute() is called.
 		if (isset(self::$current_action)) {
 			IntegrationHook::call('integrate_init_action', [self::$current_action]);
+		}
+
+		if (isset(self::$current_action) && self::$current_action instanceof DependencyAwareActionInterface) {
+			$container = $this->container;
+			$dependencies = [];
+
+			foreach (self::$current_action->getDependencyList() as $dependency) {
+				$dependencies[] = $container->get($dependency);
+			}
+
+			self::$current_action->setDependencies($dependencies);
 		}
 
 		$this->preflight();
@@ -519,14 +555,23 @@ class Forum
 	 */
 	public static function getCurrentAction(): ?ActionInterface
 	{
-		if (!isset(self::$current_action)) {
+		// Constructing an action can load the theme, and loading the theme asks
+		// for the current action. Profile\Main does exactly that for a guest,
+		// through User::kickIfGuest(), so until the action exists there is none.
+		if (!isset(self::$current_action) && !self::$constructing_action) {
 			$current_action = self::findAction($_REQUEST['action'] ?? null);
 
-			if (is_a($current_action, ActionInterface::class, true)) {
-				self::$current_action = \call_user_func([$current_action, 'load']);
-			} elseif (\is_callable($current_action)) {
-				self::$current_action = Actions\GenericAction::load();
-				self::$current_action->setCallable($current_action);
+			self::$constructing_action = true;
+
+			try {
+				if (is_a($current_action, ActionInterface::class, true)) {
+					self::$current_action = \call_user_func([$current_action, 'load']);
+				} elseif (\is_callable($current_action)) {
+					self::$current_action = Actions\GenericAction::load();
+					self::$current_action->setCallable($current_action);
+				}
+			} finally {
+				self::$constructing_action = false;
 			}
 		}
 
@@ -536,6 +581,53 @@ class Forum
 	/******************
 	 * Internal methods
 	 ******************/
+
+	/**
+	 * Initializes the service container and registers SMF services.
+	 */
+	protected function initContainer(): void
+	{
+		$container = new Container();
+		$container->defaultToShared();
+
+		$container->add(ErrorHandlerService::class);
+		ErrorHandler::setService($container->get(ErrorHandlerService::class));
+
+		$this->container = $container;
+	}
+
+	/**
+	 * Calls the integrate_services hook and registers its service definitions.
+	 *
+	 * Keys are fully qualified class names.
+	 *
+	 * Factory definitions may be:
+	 *
+	 * - true: Register the service using its class name. The container will
+	 *   instantiate the class.
+	 * - \Closure: A factory callback used to create the service. The closure is
+	 *   bound to the Services facade, allowing it to resolve other registered
+	 *   services through $this->get().
+	 * - object: Register the supplied object as the service instance.
+	 */
+	protected function registerIntegratedServices(): void
+	{
+		$container = $this->container;
+		$services = new Services($container);
+		$factories = [];
+
+		IntegrationHook::call('integrate_services', [&$factories]);
+
+		foreach ($factories as $name => $factory) {
+			if ($factory === true) {
+				$container->add($name);
+			} elseif ($factory instanceof \Closure) {
+				$container->add($name, \Closure::bind($factory, $services));
+			} else {
+				$container->add($name, $factory);
+			}
+		}
+	}
 
 	/**
 	 * The main forum loader.
@@ -560,7 +652,7 @@ class Forum
 		Security::corsPolicyHeader();
 
 		// Load the user's cookie (or set as guest) and load their settings.
-		User::load();
+		User::loadMe();
 
 		// Load the current board's information.
 		Board::load();
@@ -579,7 +671,7 @@ class Forum
 		}
 
 		// Check if the user should be disallowed access.
-		User::$me->kickIfBanned();
+		User::$me->enforceBans();
 	}
 
 	/**
@@ -627,32 +719,6 @@ class Forum
 			ErrorHandler::fatalLang('not_a_topic', false);
 		}
 
-		// Don't log if this is an attachment, avatar, toggle of editor buttons,
-		// theme option, XML feed, popup, etc.
-		if (
-			self::$current_action?->canBeLogged() === true
-			|| (
-				self::$current_action === null
-				&& !QueryString::isFilteredRequest(self::$unlogged_actions, 'action')
-			)
-		) {
-			// Log this user as online.
-			User::$me->logOnline();
-
-			// Track forum statistics and hits...?
-			if (!empty(Config::$modSettings['hitStats'])) {
-				Logging::trackStats(['hits' => '+']);
-			}
-
-			// Login cookies should only expire after a period of inactivity.
-			// Since doing something worthy of logging means this member is
-			// actively engaged with the forum right now, refresh their login
-			// cookie in order to reset the countdown to its expiry date.
-			if (!User::$me->is_guest) {
-				Cookie::updateLoginCookieExpiry();
-			}
-		}
-
 		// Make sure that our scheduled tasks have been running as intended.
 		Config::checkCron();
 
@@ -679,6 +745,32 @@ class Forum
 			)
 		) {
 			User::$me->kickIfGuest(null, false);
+		}
+
+		// Don't log if this is an attachment, avatar, toggle of editor buttons,
+		// theme option, XML feed, popup, etc.
+		if (
+			self::$current_action?->canBeLogged() === true
+			|| (
+				self::$current_action === null
+				&& !QueryString::isFilteredRequest(self::$unlogged_actions, 'action')
+			)
+		) {
+			// Log this user as online.
+			User::$me->logOnline();
+
+			// Track forum statistics and hits...?
+			if (!empty(Config::$modSettings['hitStats'])) {
+				Logging::trackStats(['hits' => '+']);
+			}
+
+			// Login cookies should only expire after a period of inactivity.
+			// Since doing something worthy of logging means this member is
+			// actively engaged with the forum right now, refresh their login
+			// cookie in order to reset the countdown to its expiry date.
+			if (!User::$me->is_guest) {
+				Cookie::updateLoginCookieExpiry();
+			}
 		}
 	}
 
@@ -726,6 +818,10 @@ class Forum
 	protected static function inMaintenance(): void
 	{
 		Theme::loadTemplate('Login');
+
+		if (empty($_COOKIE)) {
+			Cookie::setLoginCookie(Cookie::LENGTH_DEFAULT, 0, '');
+		}
 		SecurityToken::create('login');
 
 		// Send a 503 header, so search engines don't bother indexing while we're in maintenance mode.
@@ -736,6 +832,16 @@ class Forum
 		Utils::$context['title'] = Utils::htmlspecialchars(Config::$mtitle);
 		Utils::$context['description'] = &Config::$mmessage;
 		Utils::$context['page_title'] = Lang::getTxt('maintain_mode', file: 'Login');
+
+		// And that is as far as this request goes. 2.1 made this the action, so
+		// nothing else ever ran; here it is a step before one, and returning
+		// hands the request straight back to the action we just decided must
+		// not happen. Every side effect of it still happens, and whatever it
+		// puts in 'sub_template' or 'sub_templates' takes the page back.
+		Utils::obExit();
+
+		// We should never reach this point, but just in case...
+		die('No direct access...');
 	}
 
 	/**
@@ -807,7 +913,7 @@ class Forum
 
 		// Otherwise, it was set - so let's go to that action.
 		if (!empty(self::$actions[$action][0])) {
-			require_once Config::canonicalPath(Config::$sourcedir . '/' . self::$actions[$action][0]);
+			require_once Sapi::canonicalPath(Config::$sourcedir . '/' . self::$actions[$action][0]);
 		}
 
 		// Do the right thing.

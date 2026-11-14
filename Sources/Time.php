@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -110,13 +110,6 @@ class Time extends \DateTime implements \ArrayAccess
 	 ****************************/
 
 	/**
-	 * @var object
-	 *
-	 * \DateTimeZone instance for the user's time zone.
-	 */
-	protected static object $user_tz;
-
-	/**
 	 * @var string
 	 *
 	 * Short version of user's preferred time format.
@@ -187,12 +180,10 @@ class Time extends \DateTime implements \ArrayAccess
 	 */
 	public function __construct(string $datetime = 'now', \DateTimeZone|string|null $timezone = null)
 	{
-		if (!isset(self::$user_tz)) {
-			self::$user_tz = new \DateTimeZone(User::getTimezone());
-		}
+		$timezone ??= $this->getDefaultTimeZone();
 
 		if (\is_string($timezone)) {
-			$timezone = new \DateTimeZone($timezone);
+			$timezone = TimeZone::create($timezone);
 		}
 
 		$datetime = self::sanitize($datetime);
@@ -216,9 +207,9 @@ class Time extends \DateTime implements \ArrayAccess
 			|| str_contains($datetime, 'ago')
 		) {
 			parent::__construct($datetime);
-			$this->setTimezone($timezone ?? self::$user_tz);
+			$this->setTimezone($timezone);
 		} else {
-			parent::__construct($datetime, $timezone ?? self::$user_tz);
+			parent::__construct($datetime, $timezone);
 		}
 	}
 
@@ -242,7 +233,7 @@ class Time extends \DateTime implements \ArrayAccess
 			case 'date_local':
 			case 'time_local':
 				$tz = $this->getTimezone();
-				$this->setTimezone(self::$user_tz);
+				$this->setTimezone(new \DateTimeZone($this->getDefaultTimeZone()));
 				$this->modify($value);
 				$this->setTimezone($tz);
 				break;
@@ -319,7 +310,7 @@ class Time extends \DateTime implements \ArrayAccess
 				break;
 
 			default:
-				$this->custom[$prop] = $value;
+				$this->internal_data[$prop] = $value;
 				break;
 		}
 	}
@@ -353,11 +344,11 @@ class Time extends \DateTime implements \ArrayAccess
 				break;
 
 			case 'date_local':
-				$value = (clone $this)->setTimezone(self::$user_tz)->format(self::getDateFormat());
+				$value = (clone $this)->setTimezone(new \DateTimeZone($this->getDefaultTimeZone()))->format(self::getDateFormat());
 				break;
 
 			case 'time_local':
-				$value = (clone $this)->setTimezone(self::$user_tz)->format(self::getShortTimeFormat());
+				$value = (clone $this)->setTimezone(new \DateTimeZone($this->getDefaultTimeZone()))->format(self::getShortTimeFormat());
 				break;
 
 			case 'year':
@@ -403,7 +394,7 @@ class Time extends \DateTime implements \ArrayAccess
 				break;
 
 			default:
-				$value = $this->custom[$prop] ?? null;
+				$value = $this->internal_data[$prop] ?? null;
 				break;
 		}
 
@@ -440,7 +431,7 @@ class Time extends \DateTime implements \ArrayAccess
 				return true;
 
 			default:
-				return isset($this->custom[$prop]);
+				return isset($this->internal_data[$prop]);
 		}
 	}
 
@@ -731,12 +722,25 @@ class Time extends \DateTime implements \ArrayAccess
 		if ($timezone instanceof \DateTimeZone) {
 			date_timezone_set($this, $timezone);
 		} elseif (\in_array($timezone, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC))) {
-			date_timezone_set($this, new \DateTimeZone($timezone));
+			date_timezone_set($this, TimeZone::create($timezone));
 		} else {
 			throw new \ValueError();
 		}
 
 		return $this;
+	}
+
+	/**
+	 * Like \DateTimeInterface::diff(), except it returns SMF\TimeInterval
+	 * instances instead of \DateInterval instances.
+	 *
+	 * @param \DateTimeInterface $target The date to compare to.
+	 * @param bool $absolute Whether the interval be forced to be positive.
+	 * @return TimeInterval Representation of the difference between the dates.
+	 */
+	public function diff(\DateTimeInterface $target, bool $absolute = false): TimeInterval
+	{
+		return TimeInterval::createFromDateInterval(date_diff($this, $target, $absolute));
 	}
 
 	/***********************
@@ -815,7 +819,7 @@ class Time extends \DateTime implements \ArrayAccess
 		}
 
 		$date = new self('@' . $timestamp);
-		$date->setTimezone(new \DateTimeZone($tzid));
+		$date->setTimezone(TimeZone::create($tzid));
 
 		return $date->format($format, false, true);
 	}
@@ -1194,6 +1198,21 @@ class Time extends \DateTime implements \ArrayAccess
 		$date = strtr($date, $placeholders);
 
 		return $date;
+	}
+
+	/******************
+	 * Internal methods
+	 ******************/
+
+	/**
+	 * Gets a default time zone to use: either the current user's time zone,
+	 * or else the forum's default time zone.
+	 *
+	 * @return string A time zone identifier string.
+	 */
+	protected function getDefaultTimeZone(): string
+	{
+		return User::$me?->timezone ?? Config::$modSettings['default_timezone'] ?? date_default_timezone_get();
 	}
 
 	/*************************

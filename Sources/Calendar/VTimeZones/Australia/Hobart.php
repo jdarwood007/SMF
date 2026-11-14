@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Australia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Australia/Hobart
  */
-class Hobart extends \SMF\Calendar\VTimeZone
+class Hobart extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Hobart extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Australia/Hobart';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Australia_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +82,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19171028T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=4SU;UNTIL=19181027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=4SU;UNTIL=19181026T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -72,7 +90,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19180303T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19190302T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19190301T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -101,7 +119,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19430328T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440326T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440325T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -130,7 +148,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19681027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851026T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -138,7 +156,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19690309T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=19710314T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=19710313T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -153,7 +171,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19730304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19810301T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19810228T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -161,7 +179,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19820328T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19830327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19830326T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -169,7 +187,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19840304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19860302T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19860301T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -184,7 +202,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19870315T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19900318T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19900317T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -199,7 +217,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19881030T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19901028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19901027T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -207,7 +225,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19910331T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050326T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -215,7 +233,7 @@ class Hobart extends \SMF\Calendar\VTimeZone
 		23 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19911006T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19991003T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19991002T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',

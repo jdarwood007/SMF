@@ -5,22 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Maintenance\Migration;
 
-use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\Lang;
 use SMF\Maintenance\Maintenance;
 use SMF\Maintenance\SubStepInterface;
 use SMF\Sapi;
+use SMF\Utils;
 
 /**
  * Migration container for a maintenance task.
@@ -65,7 +65,8 @@ class MigrationBase implements SubStepInterface
 	/**
 	 * Wrapper for the tool to handle timeout protection.
 	 *
-	 * If a timeout needs to occur, it is handled, ensure that prior to this call, all variables are updated..
+	 * @param ?int $start If set, the current start value will be set to this
+	 *    value before the timeout check itself occurs.
 	 */
 	protected function handleTimeout(?int $start = null): void
 	{
@@ -73,7 +74,16 @@ class MigrationBase implements SubStepInterface
 			Maintenance::setCurrentStart($start);
 		}
 
-		Maintenance::$tool->checkAndHandleTimeout();
+		Maintenance::$tool->checkAndHandleTimeout([
+			'name' => $this->name,
+			'completed' => false,
+			'substep' => Maintenance::getCurrentSubStep(),
+			'start' => Maintenance::getCurrentStart(),
+			'total' => Maintenance::$total_substeps,
+			'debug' => [
+				'call' => $this::class,
+			],
+		]);
 	}
 
 	/**
@@ -83,9 +93,7 @@ class MigrationBase implements SubStepInterface
 	 */
 	protected function query(string $db_string, array $db_values = [], ?object $connection = null, ?string $identifier = null): object|bool
 	{
-		if (!empty(Config::$modSettings['disableQueryCheck'])) {
-			Config::$modSettings['disableQueryCheck'] = true;
-		}
+		Db::$db->disableQueryCheck = true;
 
 		if (!empty($db_values['unbuffered'])) {
 			Db::$unbuffered = true;
@@ -133,9 +141,9 @@ class MigrationBase implements SubStepInterface
 			throw new \ErrorException($db_error_message, 0, E_USER_ERROR, $file, $line);
 		}
 
-		Maintenance::$context['try_again'] = true;
+		Utils::$context['try_again'] = true;
 		Maintenance::$fatal_error = '
-		<strong>' . Lang::$txt['upgrade_unsuccessful'] . '</strong><br>
+		<strong>' . Lang::getTxt('upgrade_unsuccessful', file: 'Maintenance') . '</strong><br>
 		<div style="margin: 2ex;">
 			' . Lang::getTxt(
 			'query_failed',

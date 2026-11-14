@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,7 +17,6 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Board;
 use SMF\Category;
 use SMF\Config;
@@ -41,7 +40,6 @@ use SMF\Utils;
 class Boards implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -196,7 +194,7 @@ class Boards implements ActionInterface
 					if (!isset(Utils::$context['categories'][$catid]['move_link'])) {
 						Utils::$context['categories'][$catid]['move_link'] = [
 							'child_level' => 0,
-							'label' => Lang::getTxt('mboards_order_before', [Utils::htmlspecialchars(Board::$loaded[$boardid]->name)], file: 'ManageBoards'),
+							'label' => Lang::getTxt('mboards_order_before', ['name' => Utils::htmlspecialchars(Board::$loaded[$boardid]->name)], file: 'ManageBoards'),
 							'href' => Config::$scripturl . '?action=admin;area=manageboards;sa=move;src_board=' . Utils::$context['move_board'] . ';target_board=' . $boardid . ';move_to=before;' . $security,
 						];
 					}
@@ -205,13 +203,13 @@ class Boards implements ActionInterface
 						Utils::$context['categories'][$catid]['boards'][$boardid]['move_links'] = [
 							[
 								'child_level' => Board::$loaded[$boardid]->child_level,
-								'label' => Lang::getTxt('mboards_order_after', [Utils::htmlspecialchars(Board::$loaded[$boardid]->name)], file: 'ManageBoards'),
+								'label' => Lang::getTxt('mboards_order_after', ['name' => Utils::htmlspecialchars(Board::$loaded[$boardid]->name)], file: 'ManageBoards'),
 								'href' => Config::$scripturl . '?action=admin;area=manageboards;sa=move;src_board=' . Utils::$context['move_board'] . ';target_board=' . $boardid . ';move_to=after;' . $security,
 								'class' => Board::$loaded[$boardid]->child_level > 0 ? 'above' : 'below',
 							],
 							[
 								'child_level' => Board::$loaded[$boardid]->child_level + 1,
-								'label' => Lang::getTxt('mboards_order_child_of', [Utils::htmlspecialchars(Board::$loaded[$boardid]->name)], file: 'ManageBoards'),
+								'label' => Lang::getTxt('mboards_order_child_of', ['name' => Utils::htmlspecialchars(Board::$loaded[$boardid]->name)], file: 'ManageBoards'),
 								'href' => Config::$scripturl . '?action=admin;area=manageboards;sa=move;src_board=' . Utils::$context['move_board'] . ';target_board=' . $boardid . ';move_to=child;' . $security,
 								'class' => 'here',
 							],
@@ -238,6 +236,9 @@ class Boards implements ActionInterface
 					$prev_child_level = Board::$loaded[$boardid]->child_level;
 				}
 
+				// Filter out null placeholders.
+				$stack = array_filter($stack);
+
 				if (!empty($stack) && !empty(Utils::$context['categories'][$catid]['boards'][$prev_board]['move_links'])) {
 					Utils::$context['categories'][$catid]['boards'][$prev_board]['move_links'] = array_merge($stack, Utils::$context['categories'][$catid]['boards'][$prev_board]['move_links']);
 				} elseif (!empty($stack)) {
@@ -247,7 +248,7 @@ class Boards implements ActionInterface
 				if (empty(Category::$boardList[$catid])) {
 					Utils::$context['categories'][$catid]['move_link'] = [
 						'child_level' => 0,
-						'label' => Lang::getTxt('mboards_order_before', [Utils::htmlspecialchars($tree->name)], file: 'ManageBoards'),
+						'label' => Lang::getTxt('mboards_order_before', ['name' => Utils::htmlspecialchars($tree->name)], file: 'ManageBoards'),
 						'href' => Config::$scripturl . '?action=admin;area=manageboards;sa=move;src_board=' . Utils::$context['move_board'] . ';target_cat=' . $catid . ';move_to=top;' . $security,
 					];
 				}
@@ -460,7 +461,7 @@ class Boards implements ActionInterface
 				'is_new' => true,
 				'name' => Lang::getTxt('mboards_new_board_name', file: 'ManageBoards'),
 				'description' => '',
-				'count_posts' => true,
+				'posts_count' => true,
 				'posts' => 0,
 				'topics' => 0,
 				'theme' => 0,

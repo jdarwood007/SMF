@@ -5,16 +5,17 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF\Themes\default;
 
 use SMF\Lang;
 use SMF\Maintenance\Maintenance;
+use SMF\Utils;
 
 /**
  * Base template for Maintenance scripts.
@@ -31,70 +32,68 @@ abstract class MaintenanceTemplate
 	public static function header(): void
 	{
 		echo '<!DOCTYPE html>
-	<html', Lang::$txt['lang_rtl'] == '1' ? ' dir="rtl"' : '', '>
+	<html', Lang::getTxt('lang_rtl', file: 'General') == '1' ? ' dir="rtl"' : '', '>
 	<head>
-		<meta charset="', Lang::$txt['lang_character_set'] ?? 'UTF-8', '">
+		<meta charset="', Lang::getTxt('lang_character_set', file: 'General') ?: 'UTF-8', '">
 		<meta name="robots" content="noindex">
 		<title>', Maintenance::$tool->getPageTitle(), '</title>
-		<link rel="stylesheet" href="', Maintenance::$theme_url, '/css/index.css">
-		<link rel="stylesheet" href="', Maintenance::$theme_url, '/css/maintenance.css">', Lang::$txt['lang_rtl'] == '1' ? '
-		<link rel="stylesheet" href="' . Maintenance::$theme_url . '/css/rtl.css">' : '', '
+		<link rel="stylesheet" href="', Maintenance::$theme_url, '/css/variables.css?' . Utils::$context['started'] . '">
+		<link rel="stylesheet" href="', Maintenance::$theme_url, '/css/index.css?' . Utils::$context['started'] . '">
+		<link rel="stylesheet" href="', Maintenance::$theme_url, '/css/maintenance.css?' . Utils::$context['started'] . '">', Lang::getTxt('lang_rtl', file: 'General') == '1' ? '
+		<link rel="stylesheet" href="' . Maintenance::$theme_url . '/css/rtl.css?' . Utils::$context['started'] . '">' : '', '
 		<script src="', Maintenance::$theme_url, '/scripts/jquery-' . JQUERY_VERSION . '.min.js"></script>
-		<script src="', Maintenance::$theme_url, '/scripts/script.js"></script>
+		<script src="', Maintenance::$theme_url, '/scripts/script.js?' . Utils::$context['started'] . '"></script>
 		<script>
 			const smf_scripturl = \'', Maintenance::getSelf(), '\';
 			const smf_charset = \'UTF-8\';
 			const allow_xhjr_credentials = true;
 			const isDebug = ', Maintenance::$tool->isDebug() ? 'true' : 'false', ';
+			const timeStarted = ', Utils::$context['started'], ';
 			let startPercent = ', Maintenance::$overall_percent, ';
 		</script>
 	</head>
 	<body>
 		<div id="footerfix">
-		<div id="header">
+		<header id="header" class="content_wrapper">
 			<h1 class="forumtitle">', Maintenance::$tool->getScriptName(), '</h1>
 			<img id="smflogo" src="', Maintenance::$theme_url, '/images/smflogo.svg" alt="Simple Machines Forum" title="Simple Machines Forum">
-		</div>
-		<div id="wrapper">';
+		</header>
+		<div id="wrapper" class="content_wrapper">';
 
 		// Have we got a language drop down - if so do it on the first step only.
-		if (!empty(Maintenance::$languages) && count(Maintenance::$languages) > 1 && Maintenance::getCurrentStep() == 0) {
+		if (!empty(Maintenance::$languages) && \count(Maintenance::$languages) > 1 && Maintenance::getCurrentStep() == 0) {
 			echo '
-			<div id="upper_section">
-				<div id="inner_section">
-					<div id="inner_wrap">
-						<div class="news">
-							<form action="', Maintenance::getSelf(), '" method="get">
-								<label for="maintenance_language">', Lang::$txt['maintenance_language'], ':</label>
-								<select id="maintenance_language" name="lang_file" onchange="location.href = \'', Maintenance::getSelf(), '?lang_file=\' + this.options[this.selectedIndex].value;">';
+			<div id="inner_wrap">
+				<div class="news">
+					<form action="', Maintenance::getSelf(), '" method="get">
+						<label for="maintenance_language">', Lang::getTxt('maintenance_language', file: 'Maintenance'), ':</label>
+						<select id="maintenance_language" name="lang_file" onchange="location.href = \'', Maintenance::getSelf(), '?lang_file=\' + this.options[this.selectedIndex].value;">';
 
 			foreach (Maintenance::$languages as $lang => $name) {
 				echo '
-									<option', isset($_SESSION['lang_file']) && $_SESSION['lang_file'] == $lang ? ' selected' : '', ' value="', $lang, '">', $name, '</option>';
+							<option', isset($_SESSION['lang_file']) && $_SESSION['lang_file'] == $lang ? ' selected' : '', ' value="', $lang, '">', $name, '</option>';
 			}
 
 			echo '
-								</select>
-								<noscript><input type="submit" value="', Lang::$txt['action_set'], '" class="button"></noscript>
-							</form>
-						</div><!-- .news -->
-						<hr class="clear">
-					</div><!-- #inner_wrap -->
-				</div><!-- #inner_section -->
-			</div><!-- #upper_section -->';
+						</select>
+						<noscript><input type="submit" value="', Lang::getTxt('action_set', file: 'Maintenance'), '" class="button"></noscript>
+					</form>
+				</div><!-- .news -->
+				<hr class="clear">
+			</div><!-- #inner_wrap -->';
 		}
 
 		echo '
 			<div id="content_section">
 				<div id="main_content_section">
 					<div id="main_steps">
-						<h2>', Lang::$txt['maintenance_progress'], '</h2>
+						<h2>', Lang::getTxt('maintenance_progress', file: 'Maintenance'), '</h2>
 						<ul class="steps_list">';
 
 		if (Maintenance::$tool->hasSteps()) {
 			foreach (Maintenance::$tool->getSteps() as $num => $step) {
 				echo '
-							<li', $num == Maintenance::getCurrentStep() ? ' class="stepcurrent"' : '', '>', Lang::$txt['maintenance_step'], ' ', $step->getID(), ': ', $step->getName(), '</li>';
+							<li', $num == Maintenance::getCurrentStep() ? ' class="stepcurrent"' : '', '>', Lang::getTxt('maintenance_step', file: 'Maintenance'), ' ', $step->getID(), ': ', $step->getName(), '</li>';
 			}
 		}
 
@@ -103,7 +102,7 @@ abstract class MaintenanceTemplate
 					</div>
 					<div id="install_progress">
 						<div id="progress_bar" class="progress_bar progress_green">
-							<h3>' . Lang::$txt['maintenance_overall_progress'], '</h3>
+							<h3>' . Lang::getTxt('maintenance_overall_progress', file: 'Maintenance'), '</h3>
 							<span id="overall_text">', Maintenance::$overall_percent, '%</span>
 							<div id="overall_progress" class="bar" style="width: ', Maintenance::$overall_percent, '%;"></div>
 						</div>';
@@ -111,7 +110,7 @@ abstract class MaintenanceTemplate
 		if (Maintenance::$total_substeps !== null) {
 			echo '
 						<div id="progress_bar_step" class="progress_bar progress_yellow">
-							<h3>', Lang::$txt['maintenance_substep_progress'], '</h3>
+							<h3>', Lang::getTxt('maintenance_substep_progress', file: 'Maintenance'), '</h3>
 							<div id="step_progress" class="bar" style="width: ', Maintenance::getSubStepProgress(), '%;"></div>
 							<span id="step_text">', Maintenance::getSubStepProgress(), '%</span>
 						</div>';
@@ -124,8 +123,9 @@ abstract class MaintenanceTemplate
 							<span id="substep_text">', Maintenance::getItemsProgress(), '%</span>
 						</div>
 
-						<div id="time_elapsed" class="smalltext time_elapsed">
-							', Maintenance::getTimeElapsed(), '
+						<div class="smalltext time_elapsed">
+							', Lang::getTxt('maintenance_time_elapsed', file: 'Maintenance'), '
+							<time id="time_elapsed">', Maintenance::getTimeElapsed(), '</time>
 						</div>
 					</div>
 					<div id="main_screen" class="clear">
@@ -183,6 +183,20 @@ abstract class MaintenanceTemplate
 					setInnerHTML(document.getElementById("item_text"), width + "%");
 				}
 			}
+
+			// This function dynamically updates the "time elapsed" counter.
+			function updateTimeElapsed()
+			{
+				const elapsed = (Date.now() / 1000) - timeStarted;
+
+				const s = elapsed % 60;
+				const m = Math.floor(elapsed / 60) % 60;
+				const h = Math.floor(elapsed / 3600);
+
+				if (document.getElementById("time_elapsed")) {
+					document.getElementById("time_elapsed").textContent = ((h > 0) ? ((h < 10) ? "0" + h.toString() : h.toString()) + ":" : "") + ((m < 10) ? "0" + m.toString() : m.toString()) + ":" + ((s < 10) ? "0" + s.toString() : s.toString());
+				}
+			}
 		</script>
 	</body>
 	</html>';
@@ -198,13 +212,13 @@ abstract class MaintenanceTemplate
 		if (!empty(Maintenance::$fatal_error)) {
 			echo '
 			<div class="errorbox">
-				<h3>', Lang::$txt['critical_error'], '</h3>
+				<h3>', Lang::getTxt('critical_error', file: 'Maintenance'), '</h3>
 				', Maintenance::$fatal_error, '
 			</div>';
 		} elseif (!empty(Maintenance::$errors)) {
 			echo '
 			<div class="errorbox">
-				<h3>', Lang::$txt['critical_error'], '</h3>
+				<h3>', Lang::getTxt('critical_error', file: 'Maintenance'), '</h3>
 				', implode('
 				', Maintenance::$errors), '
 			</div>';
@@ -213,7 +227,7 @@ abstract class MaintenanceTemplate
 		elseif (!empty(Maintenance::$warnings)) {
 			echo '
 			<div class="errorbox">
-				<h3>', Lang::$txt['warning'], '</h3>
+				<h3>', Lang::getTxt('warning', file: 'Maintenance'), '</h3>
 				', implode('
 				', Maintenance::$warnings), '
 			</div>';
@@ -253,7 +267,7 @@ abstract class MaintenanceTemplate
 
 		<p>This installer was unable to find this tools\'s language file or files. They should be found under:</p>
 
-		<div class="directory">', dirname(Maintenance::getSelf()) != '/' ? dirname(Maintenance::getSelf()) : '', '/Languages</div>
+		<div class="directory">', \dirname(Maintenance::getSelf()) != '/' ? \dirname(Maintenance::getSelf()) : '', '/Languages</div>
 
 		<p>In some cases, FTP clients do not properly upload files with this many folders. Please double check to make sure you <strong>have uploaded all the files in the distribution</strong>.</p>
 		<p>If that doesn\'t help, please make sure this install.php file is in the same place as the Themes folder.</p>
@@ -279,7 +293,7 @@ abstract class MaintenanceTemplate
 		}
 
 		// Show the continue button.
-		Maintenance::$context['continue'] = true;
+		Utils::$context['continue'] = true;
 
 		self::showStepWithSubSteps('convertutf8', 'utf8_done');
 	}
@@ -289,12 +303,12 @@ abstract class MaintenanceTemplate
 	 */
 	public static function showLog(): void
 	{
-		if (!empty(Maintenance::$context['log_contents'])) {
+		if (!empty(Utils::$context['log_contents'])) {
 			echo '
 				<h3>
 					<a class="bbc_link" onclick="document.getElementById(\'log\').style.display = \'\';">', Lang::getTxt('show_log', file: 'Maintenance'), '</a>
 				</h3>
-				<pre id="log" class="bbc_code" style="display:none">' . Maintenance::$context['log_contents'] . '</pre>';
+				<pre id="log" class="bbc_code" style="display:none">' . Utils::$context['log_contents'] . '</pre>';
 		}
 	}
 
@@ -311,14 +325,14 @@ abstract class MaintenanceTemplate
 			<h3>', Lang::getTxt('upgrade_performing_substeps', ['type' => $type], file: 'Maintenance'), '</h3>
 			<h4><em>', Lang::getTxt('upgrade_please_be_patient', file: 'Maintenance'), '</em></h4>
 			<input type="hidden" name="', $done_param, '" id="', $done_param, '" value="0">
-			<div id="debug_section" class="bbc_code"><span id="debuginfo"></span></div>';
+			<div id="debug_section" class="bbc_code', !Maintenance::$tool->isDebug() ? ' hidden' : '', '"><span id="debuginfo"></span></div>';
 
 		echo '
 			<h3 id="current_tab">',
 			Lang::getTxt(
 				'upgrade_current_substep',
 				[
-					'substep' => '<span id="current_substep">' . (Maintenance::$context['current_substep'] ?? '') . '</span>',
+					'substep' => '<span id="current_substep">' . (Utils::$context['current_substep'] ?? '') . '</span>',
 				],
 				file: 'Maintenance',
 			),
@@ -350,7 +364,7 @@ abstract class MaintenanceTemplate
 		echo '
 			<script>
 				const iTotalSubSteps = ', Maintenance::$total_substeps, ';
-				const iStepWeight = ', Maintenance::$context['step_weight'], ';
+				const iStepWeight = ', Utils::$context['step_weight'], ';
 				let iCurrentSubStep = ', Maintenance::getCurrentSubStep(), ';
 				let iCurrentStart = ', Maintenance::getCurrentStart(), ';
 				let iSubStepProgress = 0;
@@ -360,7 +374,7 @@ abstract class MaintenanceTemplate
 
 				function getNextSubstep()
 				{
-					const url = "' . Maintenance::getSelf() . '?' . Maintenance::setQueryString() . '&json"
+					const url = "' . Maintenance::getSelf() . '?' . Maintenance::setQueryString() . ';json"
 						.replace(/substep=\d+/, "substep=" + iCurrentSubStep)
 						.replace(/start=\d+/, "start=" + iCurrentStart);
 
@@ -377,7 +391,7 @@ abstract class MaintenanceTemplate
 										document.getElementById("try_again").style.display = "";
 									}
 
-									document.getElementById("upform").action = document.getElementById("upform").action
+									document.getElementById("', Maintenance::$tool->form_id, '").action = document.getElementById("', Maintenance::$tool->form_id, '").action
 										.replace(/substep=\d+/, "substep=" + iCurrentSubStep)
 										.replace(/start=\d+/, "start=" + iCurrentStart);
 
@@ -403,7 +417,7 @@ abstract class MaintenanceTemplate
 										document.getElementById("try_again").style.display = "";
 									}
 
-									document.getElementById("upform").action = document.getElementById("upform").action
+									document.getElementById("', Maintenance::$tool->form_id, '").action = document.getElementById("', Maintenance::$tool->form_id, '").action
 										.replace(/substep=\d+/, "substep=" + iCurrentSubStep)
 										.replace(/start=\d+/, "start=" + iCurrentStart);
 
@@ -431,7 +445,9 @@ abstract class MaintenanceTemplate
 									document.getElementById("contbutt").disabled = 0;
 									document.getElementById("' . $done_param . '").value = 1;
 
-									setTimeout("doAutoSubmit();", 1000);
+									setTimeout(function() {
+										doAutoSubmit(0, "", "' . Maintenance::$tool->form_id . '", "contbutt");
+									}, 1000);
 								} else {
 									getNextSubstep();
 								}
@@ -450,7 +466,7 @@ abstract class MaintenanceTemplate
 										document.getElementById("try_again").style.display = "";
 									}
 
-									document.getElementById("upform").action = document.getElementById("upform").action
+									document.getElementById("', Maintenance::$tool->form_id, '").action = document.getElementById("', Maintenance::$tool->form_id, '").action
 										.replace(/substep=\d+/, "substep=" + iCurrentSubStep)
 										.replace(/start=\d+/, "start=" + iCurrentStart);
 								}
@@ -471,7 +487,7 @@ abstract class MaintenanceTemplate
 										document.getElementById("try_again").style.display = "";
 									}
 
-									document.getElementById("upform").action = document.getElementById("upform").action
+									document.getElementById("', Maintenance::$tool->form_id, '").action = document.getElementById("', Maintenance::$tool->form_id, '").action
 										.replace(/substep=\d+/, "substep=" + iCurrentSubStep)
 										.replace(/start=\d+/, "start=" + iCurrentStart);
 								}
@@ -492,7 +508,7 @@ abstract class MaintenanceTemplate
 								document.getElementById("try_again").style.display = "";
 							}
 
-							document.getElementById("upform").action = document.getElementById("upform").action
+							document.getElementById("', Maintenance::$tool->form_id, '").action = document.getElementById("', Maintenance::$tool->form_id, '").action
 								.replace(/substep=\d+/, "substep=" + iCurrentSubStep)
 								.replace(/start=\d+/, "start=" + iCurrentStart);
 						}

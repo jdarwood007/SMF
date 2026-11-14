@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,7 +17,6 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\IntegrationHook;
@@ -36,7 +35,6 @@ use SMF\Utils;
 class Search implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -181,7 +179,9 @@ class Search implements ActionInterface
 			$changes = [];
 
 			foreach ($factors as $factor) {
-				$changes[$factor] = (int) $_POST[$factor];
+				// A factor added by a mod through the hook above may well have
+				// no field of its own on the form.
+				$changes[$factor] = (int) ($_POST[$factor] ?? 0);
 			}
 
 			Config::updateModSettings($changes);
@@ -194,7 +194,9 @@ class Search implements ActionInterface
 		}
 
 		foreach ($factors as $factor) {
-			Utils::$context['relative_weights'][$factor] = round(100 * (Config::$modSettings[$factor] ?? 0) / Utils::$context['relative_weights']['total'], 1);
+			// Nothing stops every weight being set to zero, and the page has to
+			// keep working afterwards or there is no way back in to undo it.
+			Utils::$context['relative_weights'][$factor] = empty(Utils::$context['relative_weights']['total']) ? 0 : round(100 * (Config::$modSettings[$factor] ?? 0) / Utils::$context['relative_weights']['total'], 1);
 		}
 
 		SecurityToken::create('admin-msw');

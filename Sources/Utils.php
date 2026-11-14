@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -303,7 +303,7 @@ class Utils
 		'normalize' => __CLASS__ . '::normalize',
 		'truncate' => __CLASS__ . '::truncate',
 		'json_encode' => __CLASS__ . '::jsonEncode',
-		'json_decode' => 'smf_json_decode',
+		'json_decode' => __CLASS__ . '::jsonDecode',
 		'random_int' => __CLASS__ . '::randomInt',
 		'random_bytes' => __CLASS__ . '::randomBytes',
 	];
@@ -850,13 +850,12 @@ class Utils
 	 *
 	 * Similar to, but with more capabilities than, mb_convert_case().
 	 *
-	 * Note that setting $form to 'kc_casefold' will override any value of $case
-	 * and will always fold the case of the string. Also note that setting $form
-	 * to 'kc_casefold' is not the same as setting $case to 'fold' and $form to
-	 * 'kc'; specifically, setting $case to 'fold' and $form to 'kc' does not
-	 * remove "default ignorable code points" from the string, whereas setting
-	 * $form to 'kc_casefold' does. See notes on the normalize() method for more
-	 * information about when 'kc_casefold' should be used.
+	 * Note that setting $form to 'kc_casefold' is not the same as setting $case
+	 * to 'fold' and $form to 'kc'; specifically, setting $case to 'fold' and
+	 * $form to 'kc' does not remove "default ignorable code points" from the
+	 * string, whereas setting $form to 'kc_casefold' does. See notes on the
+	 * normalize() method for more information about when 'kc_casefold' should
+	 * be used.
 	 *
 	 * @param string $string The input string.
 	 * @param string $case One of 'upper', 'lower', 'fold', 'title', 'ucfirst',
@@ -1026,46 +1025,52 @@ class Utils
 	{
 		static $regexes = [];
 
-		$encoding = mb_detect_encoding(implode(' ', $strings)) ?: mb_internal_encoding();
+		// Only strings are allowed.
+		$strings = array_unique(array_map('strval', array_filter($strings, 'is_scalar')));
 
-		$normalized_strings = [];
-
-		foreach ($strings as $str) {
-			if (\is_scalar($str)) {
-				$s = (string) $str;
-				$normalized_strings[$s] = mb_strlen($s, $encoding);
-			}
+		// A regex to match nothing?
+		if ($strings === [] || $strings === ['']) {
+			return $return_array ? [''] : '';
 		}
 
-		if (empty($normalized_strings)) {
-			return '';
-		}
-
+		// Don't repeat unnecessarily.
 		$regex_key = md5(json_encode([$strings, $delim, $return_array]));
 
 		if (isset($regexes[$regex_key])) {
 			return $regexes[$regex_key];
 		}
 
+		// Which character encoding is being used?
+		$encoding = mb_detect_encoding(implode(' ', $strings)) ?: mb_internal_encoding();
+
 		// Optimizing is faster when we sort by length.
-		asort($normalized_strings);
-		$strings = array_map('strval', array_keys($normalized_strings));
+		$strings = array_combine($strings, array_map(fn($s) => mb_strlen($s, $encoding), $strings));
+		asort($strings);
+		$strings = array_map('strval', array_keys($strings));
 
 		// Can we trim common characters from the end?
 		$trailing = '';
-		unset($normalized_strings);
 
-		while (mb_strlen($strings[0], $encoding) > 1) {
-			$last_char = mb_substr($strings[0], -1, 1, $encoding);
+		if (\count($strings) > 1) {
+			$len = mb_strlen($strings[0], $encoding);
+			$i = 1;
 
-			foreach ($strings as $string) {
-				if (!str_ends_with($string, $last_char)) {
-					break 2;
+			while ($i < $len) {
+				$last_chars = mb_substr($strings[0], -$i, null, $encoding);
+
+				foreach ($strings as $string) {
+					if (!str_ends_with($string, $last_chars)) {
+						break 2;
+					}
 				}
+
+				$i++;
+				$trailing = $last_chars;
 			}
 
-			$strings = array_map(fn($string) => mb_substr($string, 0, -1, $encoding), $strings);
-			$trailing = $last_char . $trailing;
+			if (($trailing_len = mb_strlen($trailing, $encoding)) > 0) {
+				$strings = array_map(fn($string) => mb_substr($string, 0, -$trailing_len, $encoding), $strings);
+			}
 		}
 
 		// Create the trie from the strings.
@@ -1107,9 +1112,8 @@ class Utils
 				} else {
 					$sub_regex = $trie_to_regex($value, $delim);
 
-					if (\count(array_keys($value)) == 1) {
-						$new_key_array = explode('(?' . '>', $sub_regex);
-						$new_key .= $new_key_array[0];
+					if (\count($value) == 1) {
+						$new_key .= strtok($sub_regex, '(?' . '>');
 					} else {
 						$sub_regex = '(?' . '>' . $sub_regex . ')';
 					}
@@ -1156,13 +1160,13 @@ class Utils
 			}
 
 			if ($trailing !== '') {
-				$regex = array_map(fn($r) => '(?' . '>' . $r . $trailing . ')', $regex);
+				$regex = array_map(fn($r) => '(?' . '>' . $r . preg_quote($trailing, $delim) . ')', $regex);
 			}
 		} else {
 			$regex = '(?' . '>' . $trie_to_regex($trie, $delim) . ')';
 
 			if ($trailing !== '') {
-				$regex = '(?' . '>' . $regex . $trailing . ')';
+				$regex = '(?' . '>' . $regex . preg_quote($trailing, $delim) . ')';
 			}
 		}
 
@@ -1638,7 +1642,15 @@ class Utils
 		// The substrings 'O:' and 'C:' are used to serialize objects.
 		// If they are not present, then there are none in the serialized data.
 		elseif (!str_contains($str, 'O:') && !str_contains($str, 'C:')) {
-			$out = unserialize($str);
+			// PHP changed how we supress warnings, but unserialize does not handle throwables.
+			try {
+				$old_error_reporting = error_reporting(0);
+				$out = @unserialize($str, ['allowed_classes' => false]);
+			} catch (\Throwable $e) {
+				$out = false;
+			} finally {
+				error_reporting($old_error_reporting);
+			}
 		}
 		// It looks like there might be an object in the serialized data,
 		// but we won't know for sure until we check more closely.
@@ -1867,7 +1879,7 @@ class Utils
 	 * @param string $type_pattern A regex pattern to match the acceptable MIME
 	 *    types.
 	 * @param bool $is_path If true, $data is a path or URL to a file.
-	 * @param string &mime_type Will be set to the detected MIME type.
+	 * @param string &$mime_type Will be set to the detected MIME type.
 	 * @return int 1 if the detected MIME type matches the pattern, 0 if it
 	 *    doesn't, or 2 if we can't check.
 	 */
@@ -1979,11 +1991,13 @@ class Utils
 		// Provide a plain ASCII name for the sake of old browsers.
 		if (preg_match('/[\x{80}-\x{10FFFF}]/u', $file['filename'])) {
 			$file['asciiname'] = Localization\AsciiTransliterator::toAscii($file['filename'], '?');
-		}
 
-		// Replace ASCII names like ??????.jpg with something more unique.
-		if (strspn($file['asciiname'], '?') === strpos($file['asciiname'], '.')) {
-			$file['asciiname'] = md5($file['filename']) . substr($file['asciiname'], strpos($file['asciiname'], '.'));
+			// Replace ASCII names like ??????.jpg with something more unique.
+			if (strspn($file['asciiname'], '?') === strpos($file['asciiname'], '.')) {
+				$file['asciiname'] = md5($file['filename']) . substr($file['asciiname'], strpos($file['asciiname'], '.'));
+			}
+		} else {
+			$file['asciiname'] = $file['filename'];
 		}
 
 		// Clear any output that was made before now.
@@ -2228,8 +2242,8 @@ class Utils
 	/**
 	 * Ends execution.  Takes care of template loading and remembering the previous URL.
 	 *
-	 * @param bool $header Whether to do the header
-	 * @param bool $do_footer Whether to do the footer
+	 * @param ?bool $header Whether to do the header
+	 * @param ?bool $do_footer Whether to do the footer
 	 * @param bool $from_index Whether we're coming from the board index
 	 * @param bool $from_fatal_error Whether we're coming from a fatal error
 	 */
@@ -2282,10 +2296,10 @@ class Utils
 			}
 
 			// Start up the session URL fixer.
-			ob_start('SMF\\QueryString::obDebug');
+			ob_start(QueryString::class . '::obDebug');
 
 			// More work needed if using "queryless" URLS.
-			ob_start('SMF\\QueryString::rewriteAsQueryless');
+			ob_start(QueryString::class . '::rewriteAsQueryless');
 
 			// Force the browser not to collapse tabs inside posts, etc.
 			ob_start(fn($buffer) => strtr($buffer, [self::TAB_SUBSTITUTE => '<span style="white-space: pre;">' . "\t" . '</span>']));
@@ -2475,12 +2489,43 @@ class Utils
 		return $callable;
 	}
 
+	/**
+	 * Rewrites a version string in "PHP standardized" format.
+	 *
+	 * - Converts the string to lowercase.
+	 * - Removes any non-digits at the start of the string.
+	 * - Inserts dots (i.e. `.`) between digits and non-digits.
+	 * - Replaces non-alphanumeric characters with dots.
+	 * - Ensures runs of dots are collapsed into a single dot.
+	 *
+	 * @param string $version The version string
+	 * @return string "PHP standardized" version string.
+	 */
+	public static function standardizeVersionString(string $version): string
+	{
+		return preg_replace(
+			[
+				'/^\D+|[^0-9a-z]+$/',
+				'/(\d)(\D)/',
+				'/(\D)(\d)/',
+				'/[^0-9a-z]+/',
+			],
+			[
+				'',
+				'$1.$2',
+				'$1.$2',
+				'.',
+			],
+			strtolower($version),
+		);
+	}
+
 	/*************************
 	 * Internal static methods
 	 *************************/
 
 	/**
-	 * Helper method for Utils::call_helper.
+	 * Helper method for Utils::getCallable().
 	 *
 	 * Receives a string and tries to figure it out if it contains info to load
 	 * a file.
@@ -2520,14 +2565,14 @@ class Utils
 
 			// Load the file if it can be loaded.
 			if (is_file($path)) {
-				require_once Config::canonicalPath($path);
+				require_once Sapi::canonicalPath($path);
 			}
 			// No? Try a fallback to Config::$sourcedir.
 			else {
 				$path = Config::$sourcedir . '/' . $file;
 
 				if (is_file($path)) {
-					require_once Config::canonicalPath($path);
+					require_once Sapi::canonicalPath($path);
 				}
 				// Sorry, can't do much for you at this point.
 				elseif (empty(Utils::$context['uninstalling'])) {

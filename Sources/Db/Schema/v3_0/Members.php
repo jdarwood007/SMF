@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -53,7 +53,7 @@ class Members extends Table
 			),
 			'date_registered' => new Column(
 				name: 'date_registered',
-				type: 'int',
+				type: 'bigint',
 				unsigned: true,
 				not_null: true,
 				default: 0,
@@ -81,7 +81,7 @@ class Members extends Table
 			),
 			'last_login' => new Column(
 				name: 'last_login',
-				type: 'int',
+				type: 'bigint',
 				unsigned: true,
 				not_null: true,
 				default: 0,
@@ -133,13 +133,6 @@ class Members extends Table
 				type: 'mediumint',
 				not_null: true,
 				default: 0,
-			),
-			'mod_prefs' => new Column(
-				name: 'mod_prefs',
-				type: 'varchar',
-				size: 20,
-				not_null: true,
-				default: '',
 			),
 			'passwd' => new Column(
 				name: 'passwd',
@@ -200,12 +193,6 @@ class Members extends Table
 				type: 'text',
 				not_null: true,
 			),
-			'time_offset' => new Column(
-				name: 'time_offset',
-				type: 'float',
-				not_null: true,
-				default: 0,
-			),
 			'avatar' => new Column(
 				name: 'avatar',
 				type: 'varchar',
@@ -224,11 +211,13 @@ class Members extends Table
 				name: 'member_ip',
 				type: 'inet',
 				size: 16,
+				default: null,
 			),
 			'member_ip2' => new Column(
 				name: 'member_ip2',
 				type: 'inet',
 				size: 16,
+				default: null,
 			),
 			'secret_question' => new Column(
 				name: 'secret_question',
@@ -261,7 +250,7 @@ class Members extends Table
 			'validation_code' => new Column(
 				name: 'validation_code',
 				type: 'varchar',
-				size: 10,
+				size: 32,
 				not_null: true,
 				default: '',
 			),
@@ -355,6 +344,13 @@ class Members extends Table
 			),
 			'spoofdetector_name' => new Column(
 				name: 'spoofdetector_name',
+				type: 'varchar',
+				size: 255,
+				not_null: true,
+				default: '',
+			),
+			'email_address_ci' => new Column(
+				name: 'email_address_ci',
 				type: 'varchar',
 				size: 255,
 				not_null: true,
@@ -512,6 +508,15 @@ class Members extends Table
 					],
 				],
 			),
+			'idx_email_address_ci' => new DbIndex(
+				name: 'idx_email_address_ci',
+				columns: [
+					[
+						'name' => 'email_address_ci',
+						'opclass' => 'varchar_pattern_ops',
+					],
+				],
+			),
 		];
 
 		if (Db::$db->title === POSTGRE_TITLE) {
@@ -542,7 +547,5 @@ class Members extends Table
 				],
 			);
 		}
-
-		parent::__construct();
 	}
 }

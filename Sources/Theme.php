@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,7 @@ namespace SMF;
 use SMF\Actions\Notify;
 use SMF\Cache\CacheApi;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Debug\DebugUtils;
 use SMF\WebFetch\WebFetchApi;
 
@@ -155,7 +156,7 @@ class Theme
 
 		// Create User::$me if it is missing (e.g., an error very early in the login process).
 		if (!isset(User::$me)) {
-			User::load();
+			User::loadMe();
 		}
 
 		$this->fixSmileySet();
@@ -186,7 +187,7 @@ class Theme
 		}
 
 		Utils::$context['login_url'] = Config::$scripturl . '?action=login2';
-		Utils::$context['menu_separator'] = !empty($this->settings['use_image_buttons']) ? ' ' : ' | ';
+		Utils::$context['menu_separator'] = ' ';
 		Utils::$context['session_var'] = $_SESSION['session_var'];
 		Utils::$context['session_id'] = $_SESSION['session_value'];
 		Utils::$context['forum_name'] = Config::$mbname;
@@ -202,8 +203,8 @@ class Theme
 
 		$this->loadTemplatesAndLangFiles();
 
-		// Allow overriding the forum's default time/number formats.
-		if (empty(User::$profiles[User::$me->id]['time_format']) && Lang::txtExists('time_format', file: 'ThemeStrings')) {
+		// Allow the theme to override the forum's default time format.
+		if (empty(User::$me->real_time_format) && Lang::txtExists('time_format', file: 'ThemeStrings')) {
 			User::$me->time_format = Lang::getTxt('time_format', file: 'ThemeStrings');
 		}
 
@@ -219,6 +220,8 @@ class Theme
 		$this->settings['lang_images_url'] = $this->settings['images_url'] . '/' . (Lang::txtExists('image_lang', file: 'ThemeStrings') ? Lang::getTxt('image_lang', file: 'ThemeStrings') : User::$me->language);
 
 		$this->loadCss();
+
+		$this->loadMode();
 
 		$this->loadVariant();
 
@@ -236,7 +239,7 @@ class Theme
 				$include = strtr(trim($include), ['$boarddir' => Config::$boarddir, '$sourcedir' => Config::$sourcedir, '$themedir' => $this->settings['theme_dir']]);
 
 				if (file_exists($include)) {
-					require_once Config::canonicalPath($include);
+					require_once Sapi::canonicalPath($include);
 				}
 			}
 		}
@@ -912,16 +915,16 @@ class Theme
 			Utils::$context['news_lines'][$i] = Utils::adjustHeadingLevels(Utils::$context['news_lines'][$i], null);
 		}
 
-		if (!empty(Utils::$context['news_lines']) && (!empty(Config::$modSettings['allow_guestAccess']) || User::$me->is_logged)) {
+		if (!empty(Utils::$context['news_lines']) && (!empty(Config::$modSettings['allow_guestAccess']) || !User::$me->is_guest)) {
 			Utils::$context['random_news_line'] = Utils::$context['news_lines'][mt_rand(0, \count(Utils::$context['news_lines']) - 1)];
 		}
 
 		if (!User::$me->is_guest) {
 			// Personal message popup...
 			if (User::$me->unread_messages > ($_SESSION['unread_messages'] ?? 0)) {
-				User::$me->popup_messages = true;
+				$popup_messages = true;
 			} else {
-				User::$me->popup_messages = false;
+				$popup_messages = false;
 			}
 
 			$_SESSION['unread_messages'] = User::$me->unread_messages;
@@ -930,7 +933,7 @@ class Theme
 				Utils::$context['unapproved_members'] = !empty(Config::$modSettings['unapprovedMembers']) ? Config::$modSettings['unapprovedMembers'] : 0;
 			}
 		} else {
-			User::$me->popup_messages = false;
+			$popup_messages = false;
 
 			// If we've upgraded recently, go easy on the passwords.
 			if (!empty(Config::$modSettings['disableHashTime']) && (Config::$modSettings['disableHashTime'] == 1 || time() < Config::$modSettings['disableHashTime'])) {
@@ -945,7 +948,7 @@ class Theme
 		Utils::$context['show_news'] = !empty(self::$current->settings['enable_news']);
 
 		// This is done to allow theme authors to customize it as they want.
-		Utils::$context['show_pm_popup'] = User::$me->popup_messages && !empty(self::$current->options['popup_messages']) && (!isset($_REQUEST['action']) || $_REQUEST['action'] != 'pm');
+		Utils::$context['show_pm_popup'] = $popup_messages && !empty(self::$current->options['popup_messages']) && (!isset($_REQUEST['action']) || $_REQUEST['action'] != 'pm');
 
 		// 2.1+: Add the PM popup here instead. Theme authors can still override it simply by editing/removing the 'fPmPopup' in the array.
 		if (Utils::$context['show_pm_popup']) {
@@ -978,9 +981,9 @@ class Theme
 		}
 
 		Utils::$context['common_stats'] = [
-			'total_posts' => Lang::numberFormat((int) Config::$modSettings['totalMessages']),
-			'total_topics' => Lang::numberFormat((int) Config::$modSettings['totalTopics']),
-			'total_members' => Lang::numberFormat((int) Config::$modSettings['totalMembers']),
+			'total_posts' => (int) Config::$modSettings['totalMessages'],
+			'total_topics' => Config::$modSettings['totalTopics'],
+			'total_members' => (int) Config::$modSettings['totalMembers'],
 			'latest_member' => [
 				'id' => Config::$modSettings['latestMember'],
 				'name' => Config::$modSettings['latestRealName'],
@@ -1095,6 +1098,12 @@ class Theme
 
 				self::loadJavaScriptFile('alerts.js', ['minimize' => true], 'smf_alerts');
 			}
+		}
+		// A guest gets a login button, which opens the login form in an overlay.
+		// That form arrives without any template layers, so it cannot bring its
+		// own script with it and has to find login.js already here.
+		else {
+			self::loadJavaScriptFile('login.js', ['defer' => true, 'minimize' => true], 'smf_login');
 		}
 
 		// All the buttons we can possibly want and then some.
@@ -1331,7 +1340,7 @@ class Theme
 		}
 
 		// There are certain exceptions to the above where we don't want anything on the menu highlighted.
-		if (Utils::$context['current_action'] == 'profile' && !empty(User::$me->is_owner)) {
+		if (Utils::$context['current_action'] == 'profile' && !empty(Profile::$member->is_me)) {
 			$current_action = !empty($_GET['area']) && $_GET['area'] == 'showalerts' ? 'self_alerts' : 'self_profile';
 
 			Utils::$context[$current_action] = true;
@@ -2079,11 +2088,11 @@ class Theme
 			(Forum::getCurrentAction())?->isSimpleAction() === true
 			|| \in_array(Utils::$context['current_action'], $this->simpleActions)
 			|| (
-				isset($this->simpleAreas[Utils::$context['current_action']], $_REQUEST['area'])
+				isset(Utils::$context['current_action'], $this->simpleAreas[Utils::$context['current_action']], $_REQUEST['area'])
 				&& \in_array($_REQUEST['area'], $this->simpleAreas[Utils::$context['current_action']])
 			)
 			|| (
-				isset($this->simpleSubActions[Utils::$context['current_action']])
+				isset(Utils::$context['current_action'], $this->simpleSubActions[Utils::$context['current_action']])
 				&& \in_array(Utils::$context['current_subaction'], $this->simpleSubActions[Utils::$context['current_action']])
 			)
 		);
@@ -2140,6 +2149,30 @@ class Theme
 	 */
 	protected function loadCss(): void
 	{
+		// Load FontAwesome
+		$FontAwesomeUrls = [
+			'cdn' => 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/' . FONTAWESOME_VERSION . '/css/all.min.css',
+			'fontawesome_cdn' => 'https://use.fontawesome.com/releases/v' . FONTAWESOME_VERSION . '/css/all.css',
+		];
+
+		if (isset(Config::$modSettings['fontawesome_source']) && \array_key_exists(Config::$modSettings['fontawesome_source'], $FontAwesomeUrls)) {
+			self::loadCSSFile($FontAwesomeUrls[Config::$modSettings['fontawesome_source']], ['external' => true, 'order_pos' => -100], 'smf_fontawesome');
+		} elseif (isset(Config::$modSettings['fontawesome_source']) && Config::$modSettings['fontawesome_source'] == 'local') {
+			self::loadCSSFile('fontawesome.min.css', ['default_theme' => true, 'minimize' => true, 'order_pos' => -100], 'smf_fontawesome');
+		} elseif (isset(Config::$modSettings['fontawesome_source'], Config::$modSettings['fontawesome_custom']) && Config::$modSettings['fontawesome_source'] == 'custom') {
+			self::loadCSSFile(Config::$modSettings['fontawesome_custom'], ['external' => true, 'order_pos' => -100], 'smf_fontawesome');
+		}
+		// Fall back to the fa forum default
+		else {
+			self::loadCSSFile('https://use.fontawesome.com/releases/v' . FONTAWESOME_VERSION . '/css/all.css', ['external' => true, 'order_pos' => -100], 'smf_fontawesome');
+		}
+
+		// Icons
+		self::loadCSSFile('icons.css', ['minimize' => true, 'order_pos' => -200], 'smf_icons');
+
+		// Variables
+		self::loadCSSFile('variables.css', ['minimize' => true, 'order_pos' => -2], 'smf_variables');
+
 		// And of course, let's load the default CSS file.
 		self::loadCSSFile('index.css', ['minimize' => true, 'order_pos' => 1], 'smf_index');
 
@@ -2158,6 +2191,55 @@ class Theme
 	}
 
 	/**
+	 * Loads the theme mode, if applicable.
+	 */
+	protected function loadMode(): void
+	{
+		Utils::$context['theme_colormode'] = '';
+
+		if (!empty($this->settings['has_dark_mode'])) {
+			// Theme Modes
+			$this->settings['theme_colormodes'] = ['light', 'system', 'dark'];
+
+			// Overriding - for previews and that ilk.
+			if (!empty($_REQUEST['mode'])) {
+				$_SESSION['theme_colormode'] = $_REQUEST['mode'];
+
+				// If the user is logged, save this to their profile
+				if (!User::$me->is_guest && \in_array($_SESSION['theme_colormode'], $this->settings['theme_colormodes'])) {
+					Db::$db->insert(
+						InsertType::Replace,
+						'{db_prefix}themes',
+						['id_theme' => 'int', 'id_member' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
+						[[self::$current->settings['theme_id'], User::$me->id, 'theme_colormode', $_SESSION['theme_colormode']]],
+						['id_theme', 'id_member', 'variable'],
+					);
+				}
+			}
+
+			// User selection?
+			if (empty($this->settings['disable_user_mode']) || User::$me->allowedTo('admin_forum')) {
+				Utils::$context['theme_colormode'] = !empty($_SESSION['theme_colormode']) && \in_array($_SESSION['theme_colormode'], $this->settings['theme_colormodes']) ? $_SESSION['theme_colormode'] : (!empty($this->options['theme_colormode']) && \in_array($this->options['theme_colormode'], $this->settings['theme_colormodes']) ? $this->options['theme_colormode'] : '');
+			}
+
+			// If no color mode, set a default
+			if (empty(Utils::$context['theme_colormode']) || !\in_array(Utils::$context['theme_colormode'], $this->settings['theme_colormodes'])) {
+				Utils::$context['theme_colormode'] = !empty($this->settings['default_colormode']) && \in_array($this->settings['default_colormode'], $this->settings['theme_colormodes']) ? $this->settings['default_colormode'] : $this->settings['theme_colormodes'][0];
+			}
+
+			// In 'system' mode the media attribute is the whole mechanism: it is
+			// what asks the browser rather than the member. But attributes are
+			// only printed for files served on their own - a file folded into
+			// the minified bundle loses them - so this is the one mode that has
+			// to stay out of it. The other two carry no attribute and bundle as
+			// usual, which also lets them share one cached file.
+			$system_mode = Utils::$context['theme_colormode'] == 'system';
+
+			self::loadCSSFile('dark.css', ['minimize' => !$system_mode, 'order_pos' => 2, 'attributes' => ($system_mode ? ['media' => '(prefers-color-scheme: dark)'] : [])], 'smf_dark');
+		}
+	}
+
+	/**
 	 * Loads the correct theme variant, if applicable.
 	 */
 	protected function loadVariant(): void
@@ -2167,10 +2249,33 @@ class Theme
 		Utils::$context['theme_variant_url'] = '';
 
 		if (!empty($this->settings['theme_variants'])) {
+			// Add the default variant
+			$this->settings['theme_variants'] = array_unique(array_merge(['default'], $this->settings['theme_variants']));
+
 			// Overriding - for previews and that ilk.
 			if (!empty($_REQUEST['variant'])) {
 				$_SESSION['id_variant'] = $_REQUEST['variant'];
+
+				// If the user is logged, save this to their profile
+				if (!User::$me->is_guest && \in_array($_SESSION['id_variant'], $this->settings['theme_variants'])) {
+					Db::$db->insert(
+						InsertType::Replace,
+						'{db_prefix}themes',
+						['id_theme' => 'int', 'id_member' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
+						[[self::$current->settings['theme_id'], User::$me->id, 'theme_variant', $_SESSION['id_variant']]],
+						['id_theme', 'id_member', 'variable'],
+					);
+				}
 			}
+
+			/*
+			 * Attempt to load a variants file for variable overriding
+			 * using data attribute (:root[data-variant="variant"])
+			 *
+			 * This is useful when you only want a single file for
+			 * recoloring the variants.
+			 */
+			self::loadCSSFile('variants.css', ['order_pos' => 0], 'smf_variants');
 
 			// User selection?
 			if (empty($this->settings['disable_user_variant']) || User::$me->allowedTo('admin_forum')) {
@@ -2182,16 +2287,15 @@ class Theme
 				Utils::$context['theme_variant'] = !empty($this->settings['default_variant']) && \in_array($this->settings['default_variant'], $this->settings['theme_variants']) ? $this->settings['default_variant'] : $this->settings['theme_variants'][0];
 			}
 
-			// Do this to keep things easier in the templates.
-			Utils::$context['theme_variant'] = '_' . Utils::$context['theme_variant'];
-			Utils::$context['theme_variant_url'] = Utils::$context['theme_variant'] . '/';
-
-			if (!empty(Utils::$context['theme_variant'])) {
-				self::loadCSSFile('index' . Utils::$context['theme_variant'] . '.css', ['order_pos' => 300], 'smf_index' . Utils::$context['theme_variant']);
-
-				if (Utils::$context['right_to_left']) {
-					self::loadCSSFile('rtl' . Utils::$context['theme_variant'] . '.css', ['order_pos' => 4200], 'smf_rtl' . Utils::$context['theme_variant']);
-				}
+			/*
+			 * The other way to recolour a variant is a whole stylesheet of its
+			 * own, sitting on top of index.css. The 'default' variant is the base
+			 * sheet by itself, so it has no file of its own to load, and a theme
+			 * that recolours through variants.css above has none either - the
+			 * file is validated, so a missing one is simply not loaded.
+			 */
+			if (Utils::$context['theme_variant'] !== 'default') {
+				self::loadCSSFile('index_' . Utils::$context['theme_variant'] . '.css', ['order_pos' => 2], 'smf_index_' . Utils::$context['theme_variant']);
 			}
 		}
 	}
@@ -2229,7 +2333,7 @@ class Theme
 		// Add the JQuery library to the list of files to load.
 		$jQueryUrls =  [
 			'cdn' => 'https://ajax.googleapis.com/ajax/libs/jquery/' . JQUERY_VERSION . '/jquery.min.js',
-			'cloudflare_cdn' => 'https://cdnjs.cloudflare.com/ajax/libs/' . JQUERY_VERSION . '/jquery.min.js',
+			'cloudflare_cdn' => 'https://cdnjs.cloudflare.com/ajax/libs/jquery/' . JQUERY_VERSION . '/jquery.min.js',
 			'jquery_cdn' => 'https://code.jquery.com/jquery-' . JQUERY_VERSION . '.min.js',
 			'microsoft_cdn' => 'https://ajax.aspnetcdn.com/ajax/jQuery/jquery-' . JQUERY_VERSION . '.min.js',
 		];
@@ -2248,11 +2352,6 @@ class Theme
 
 		// Queue our JQuery plugins!
 		self::loadJavaScriptFile('smf_jquery_plugins.js', ['minimize' => true], 'smf_jquery_plugins');
-
-		if (!User::$me->is_guest) {
-			self::loadJavaScriptFile('jquery.custom-scrollbar.js', ['minimize' => true], 'smf_jquery_scrollbar');
-			self::loadCSSFile('jquery.custom-scrollbar.css', ['force_current' => false, 'validate' => true], 'smf_scrollbar');
-		}
 
 		// script.js and theme.js, always required, so always add them! Makes index.template.php cleaner and all.
 		self::loadJavaScriptFile('script.js', ['defer' => false, 'minimize' => true], 'smf_script');
@@ -2347,9 +2446,9 @@ class Theme
 		$file_found = file_exists($filename);
 
 		if ($once && $file_found) {
-			require_once Config::canonicalPath($filename);
+			require_once Sapi::canonicalPath($filename);
 		} elseif ($file_found) {
-			require Config::canonicalPath($filename);
+			require Sapi::canonicalPath($filename);
 		}
 
 		if ($file_found !== true) {

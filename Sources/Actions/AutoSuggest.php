@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,7 @@ namespace SMF\Actions;
 use SMF\ActionInterface;
 use SMF\ActionRouter;
 use SMF\ActionTrait;
+use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\IntegrationHook;
 use SMF\OutputTypeInterface;
@@ -136,16 +137,20 @@ class AutoSuggest implements ActionInterface, Routable
 			],
 		];
 
+		// Can't search for buddies if that feature is disabled.
+		if (empty(Config::$modSettings['enable_buddylist'])) {
+			unset($this->search_param['buddies']);
+		}
+
 		// Find the member.
 		$request = Db::$db->query(
 			'SELECT id_member, real_name
 			FROM {db_prefix}members
-			WHERE {raw:real_name} LIKE {string:search}' . (!empty($this->search_param['buddies']) ? '
+			WHERE {column_ci:real_name} LIKE {string:search}' . (!empty($this->search_param['buddies']) ? '
 				AND id_member IN ({array_int:buddy_list})' : '') . '
 				AND is_activated IN ({array_int:activated})
 			LIMIT ' . (Utils::entityStrlen($this->search) <= 2 ? '100' : '800'),
 			[
-				'real_name' => Db::$db->case_sensitive ? 'LOWER(real_name)' : 'real_name',
 				'buddy_list' => User::$me->buddies,
 				'search' => $this->search,
 				'activated' => [User::ACTIVATED, User::ACTIVATED_BANNED],
@@ -189,12 +194,11 @@ class AutoSuggest implements ActionInterface, Routable
 		$request = Db::$db->query(
 			'SELECT id_group, group_name
 			FROM {db_prefix}membergroups
-			WHERE {raw:group_name} LIKE {string:search}
+			WHERE {column_ci:group_name} LIKE {string:search}
 				AND min_posts = {int:min_posts}
 				AND id_group NOT IN ({array_int:invalid_groups})
 				AND hidden != {int:hidden}',
 			[
-				'group_name' => Db::$db->case_sensitive ? 'LOWER(group_name)' : 'group_name',
 				'min_posts' => -1,
 				'invalid_groups' => [1, 3],
 				'hidden' => 2,

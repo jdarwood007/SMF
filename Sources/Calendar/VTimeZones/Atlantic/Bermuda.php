@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Atlantic;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Atlantic/Bermuda
  */
-class Bermuda extends \SMF\Calendar\VTimeZone
+class Bermuda extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Atlantic/Bermuda';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Atlantic',
+		],
+	];
 
 	/**
 	 * @var array
@@ -78,7 +96,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19440312T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=19450311T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=19450311T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -86,7 +104,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19441105T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=19451104T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=19451104T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -108,7 +126,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19480523T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19520525T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19520525T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -116,7 +134,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19480905T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19520907T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19520907T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -138,7 +156,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19740428T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -146,7 +164,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19741027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -154,7 +172,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19760425T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -162,7 +180,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -170,7 +188,7 @@ class Bermuda extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',

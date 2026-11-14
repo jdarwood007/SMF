@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Halifax
  */
-class Halifax extends \SMF\Calendar\VTimeZone
+class Halifax extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Halifax extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Halifax';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Atlantic',
+		],
+	];
 
 	/**
 	 * @var array
@@ -99,7 +117,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19210905T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=5;UNTIL=19220905T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=5;UNTIL=19220905T030000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -114,7 +132,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19230506T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19250503T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19250503T040000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -171,7 +189,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19280513T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=2SU;UNTIL=19310510T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=2SU;UNTIL=19310510T040000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -200,7 +218,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19310928T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=MO;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19320926T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=MO;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19320926T030000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -271,7 +289,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		32 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19370502T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19380501T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19380501T040000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -279,7 +297,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		33 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19370927T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=MO;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19410929T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=MO;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19410929T030000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -294,7 +312,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		35 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19400505T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19410504T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19410504T040000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -323,7 +341,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19460428T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19490424T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19490424T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -331,7 +349,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		40 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19460929T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19490925T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19490925T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -339,7 +357,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		41 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19510429T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19540425T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19540425T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -347,7 +365,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		42 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19510930T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19540926T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19540926T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -355,7 +373,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		43 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19560429T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19590426T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19590426T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -363,7 +381,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		44 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19560930T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19590927T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19590927T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -371,7 +389,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		45 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19620429T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -379,7 +397,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		46 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19621028T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19731028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19731028T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -387,7 +405,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		47 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19740428T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -395,7 +413,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		48 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19741027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T050000Z',
 			'TZNAME' => 'AST',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -403,7 +421,7 @@ class Halifax extends \SMF\Calendar\VTimeZone
 		49 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T060000Z',
 			'TZNAME' => 'ADT',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',

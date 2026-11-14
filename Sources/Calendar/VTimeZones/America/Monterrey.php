@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Monterrey
  */
-class Monterrey extends \SMF\Calendar\VTimeZone
+class Monterrey extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Monterrey';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -85,7 +103,7 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -93,7 +111,7 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
@@ -101,7 +119,7 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19960407T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20000402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20000402T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -109,7 +127,7 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19961027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20001029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20001029T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
@@ -131,7 +149,7 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20020407T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20220403T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20220403T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -139,7 +157,7 @@ class Monterrey extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20021027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20221030T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20221030T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',

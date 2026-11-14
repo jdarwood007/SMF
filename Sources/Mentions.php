@@ -7,10 +7,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,6 +19,7 @@ namespace SMF;
 
 use SMF\BBCode\BBCode;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 
 /**
  * This really is a pseudo class, I couldn't justify having instance of it
@@ -108,7 +109,7 @@ class Mentions
 
 		foreach ($members as $member) {
 			Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}mentions',
 				[
 					'content_id' => 'int',

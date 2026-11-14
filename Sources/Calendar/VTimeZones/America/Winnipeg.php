@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Winnipeg
  */
-class Winnipeg extends \SMF\Calendar\VTimeZone
+class Winnipeg extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,24 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Winnipeg';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Central',
+			'std_offset' => '-06',
+			'dst_offset' => '-05',
+		],
+	];
 
 	/**
 	 * @var array
@@ -127,7 +147,7 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19470427T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19490424T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19490424T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -135,7 +155,7 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19470928T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19490925T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19490925T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
@@ -157,7 +177,7 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19510429T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19600424T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19600424T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -165,7 +185,7 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19510930T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19580928T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19580928T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
@@ -201,7 +221,7 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19660424T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -209,7 +229,7 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		23 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19661030T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20051030T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20051030T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
@@ -217,34 +237,49 @@ class Winnipeg extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20050403T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20050403T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
 		],
 		25 => [
-			'type' => 'STANDARD',
-			'DTSTART' => '19741027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
-			'TZNAME' => 'CST',
-			'TZOFFSETFROM' => '-0500',
-			'TZOFFSETTO' => '-0600',
-		],
-		26 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '20070311T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+			'DTSTART' => '19870405T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T080000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
 		],
-		27 => [
+		26 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '20071104T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+			'DTSTART' => '19741027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T070000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
+		],
+		27 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '20070311T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20260308T080000Z',
+			'TZNAME' => 'CDT',
+			'TZOFFSETFROM' => '-0600',
+			'TZOFFSETTO' => '-0500',
+		],
+		28 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '20071104T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=20251102T070000Z',
+			'TZNAME' => 'CST',
+			'TZOFFSETFROM' => '-0500',
+			'TZOFFSETTO' => '-0600',
+		],
+		29 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '20261101T020000',
+			'TZNAME' => 'EST',
+			'TZOFFSETFROM' => '-0500',
+			'TZOFFSETTO' => '-0500',
 		],
 	];
 }

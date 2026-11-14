@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,12 +17,14 @@ namespace SMF\Db\Schema;
 
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\ReturnMode;
 use SMF\Lang;
+use SMF\Utils;
 
 /**
  * Represents a database table.
  */
-class Table
+abstract class Table
 {
 	/*******************
 	 * Public properties
@@ -61,7 +63,20 @@ class Table
 	 *
 	 * The default character set for the table.
 	 */
-	public ?string $default_charset;
+	public ?string $default_charset {
+		get {
+			// As of SMF 3.0, all tables always use four-byte UTF-8.
+			if (
+				!isset($this->default_charset)
+				&& preg_match('/\\\\v(\d+_\d+)\\\\/', $this::class, $matches)
+				&& version_compare(Utils::standardizeVersionString($matches[1]), '3.0', '>=')
+			) {
+				$this->default_charset = Db::$db->title === MYSQL_TITLE ? 'utf8mb4' : 'utf8';
+			}
+
+			return $this->default_charset ?? null;
+		}
+	}
 
 	/**
 	 * @var int
@@ -76,22 +91,34 @@ class Table
 	 */
 	public ?int $auto_start;
 
+	/****************************
+	 * Internal static properties
+	 ****************************/
+
+	/**
+	 * @var array
+	 *
+	 * Cached output of Db::$db->list_tables
+	 */
+	protected static array $existing_tables = [];
+
 	/****************
 	 * Public methods
 	 ****************/
 
 	/**
-	 * Constructor.
+	 * Checks whether a table with this name exists in the database.
+	 *
+	 * @param bool $force_refresh If true, force a refresh of the tables list.
+	 * @return bool Whether this table exists.
 	 */
-	public function __construct()
+	public function exists(bool $force_refresh = false)
 	{
-		// As of SMF 3.0, all tables always use four-byte UTF-8.
-		if (
-			preg_match('/\\\\v(\d+_\d+)\\\\/', $this::class, $matches)
-			&& version_compare(strtr($matches[1], '_', '.'), '3.0', '>=')
-		) {
-			$this->default_charset = Db::$db->title === MYSQL_TITLE ? 'utf8mb4' : 'utf8';
+		if ($force_refresh || empty(self::$existing_tables)) {
+			self::$existing_tables = Db::$db->list_tables();
 		}
+
+		return \in_array(Db::$db->prefix . $this->name, self::$existing_tables);
 	}
 
 	/**
@@ -106,7 +133,7 @@ class Table
 			return false;
 		}
 
-		if (empty(Db::$db->list_tables(false, Db::$db->prefix . $this->name))) {
+		if (!$this->exists()) {
 			return $this->create();
 		}
 
@@ -212,7 +239,7 @@ class Table
 				continue;
 			}
 
-			foreach (['name', 'size', 'unsigned', 'generated_expression', 'stored', 'not_null', 'default', 'auto'] as $prop) {
+			foreach (['name', 'size', 'unsigned', 'generation_expression', 'stored', 'not_null', 'default', 'auto'] as $prop) {
 				if (($structure['columns'][$col->name][$prop] ?? null) != ($col->{$prop} ?? null)) {
 					$columns_to_change[$col->name] = $col;
 					continue 2;
@@ -235,8 +262,21 @@ class Table
 			}
 
 			// If we need to change any columns in this index, rebuild the index too.
-			foreach ([$index->columns, $structure['indexes'][$index->name]['columns']] as $cols) {
-				if (array_intersect(array_keys($cols), array_keys($columns_to_change)) !== []) {
+			//
+			// Both lists hold their column names as values. The definition
+			// holds ['name' => ...] arrays, and the database reports plain
+			// strings, to which MySQL adds a "(15)" prefix length. Reduce each
+			// to bare names, since $columns_to_change is keyed by name.
+			foreach (
+				[
+					array_column($index->columns, 'name'),
+					array_map(
+						fn($col) => preg_replace('~\s*\(\d+\)$~', '', $col),
+						$structure['indexes'][$index->name]['columns'],
+					),
+				] as $cols
+			) {
+				if (array_intersect($cols, array_keys($columns_to_change)) !== []) {
 					$indexes_to_change[$index->name] = $index;
 					continue 2;
 				}
@@ -287,13 +327,20 @@ class Table
 			return false;
 		}
 
-		return Db::$db->create_table(
+		$success = Db::$db->create_table(
 			'{db_prefix}' . $this->name,
 			array_map('get_object_vars', array_values($this->columns)),
 			array_map('get_object_vars', array_values($this->indexes)),
 			$parameters,
 			$if_exists,
 		);
+
+		if ($success) {
+			// Force a refresh of the list of tables.
+			self::$existing_tables = [];
+		}
+
+		return $success;
 	}
 
 	/**
@@ -305,7 +352,14 @@ class Table
 	 */
 	public function drop(): bool
 	{
-		return Db::$db->drop_table('{db_prefix}' . $this->name);
+		$success = Db::$db->drop_table('{db_prefix}' . $this->name);
+
+		if ($success) {
+			// Force a refresh of the list of tables.
+			self::$existing_tables = [];
+		}
+
+		return $success;
 	}
 
 	/**
@@ -414,8 +468,9 @@ class Table
 	public function fixIndexName(DbIndex $index): bool
 	{
 		foreach (Db::$db->list_indexes('{db_prefix}' . $this->name, true) as $existing_index) {
-			// Must be the same type.
-			if ($index->type !== $existing_index['type']) {
+			// Must be the same type. A normal index carries no type of its own,
+			// which the database reports as 'index'.
+			if (($index->type ?? 'index') !== $existing_index['type']) {
 				continue;
 			}
 
@@ -424,13 +479,22 @@ class Table
 				continue;
 			}
 
+			// There's no need to rename the primary key.
+			if ($index->type === 'primary' && $existing_index['type'] === 'primary') {
+				return true;
+			}
+
 			// If the name is already the same, there's nothing to do.
 			if ($index->name === $existing_index['name']) {
 				return true;
 			}
 
 			// Do the rename.
-			return Db::$db->rename_index('{db_prefix}' . $this->name, $existing_index['name'], $index->name);
+			return Db::$db->rename_index(
+				table_name: '{db_prefix}' . $this->name,
+				old_name: $existing_index['name'],
+				new_name: $index->name,
+			);
 		}
 
 		// No matching index was found.
@@ -478,7 +542,7 @@ class Table
 		}
 
 		$method = $replace ? 'replace' : 'ignore';
-		$returnmode = isset($auto_col) ? Db::INSERT_RETURN_MODE_MULTI : Db::INSERT_RETURN_MODE_OFF;
+		$returnmode = isset($auto_col) ? ReturnMode::MultiRow : ReturnMode::Off;
 
 		// Only do this if we are replacing data or the table is empty.
 		if ($method !== 'replace') {
@@ -524,7 +588,7 @@ class Table
 			}
 		}
 
-		$replacements['{$default_reserved_names}'] = strtr($replacements['{$default_reserved_names}'], ['\\\\n' => '\\n']);
+		$replacements['{$default_reserved_names}'] = strtr($replacements['{$default_reserved_names}'], ['\\\\n' => "\n", '\\n' => "\n"]);
 
 		// Replace any placeholders in the initial data.
 		foreach ($this->initial_data as &$row) {
@@ -547,11 +611,15 @@ class Table
 			table: '{db_prefix}' . $this->name,
 			columns: Db::$db->getTypeIndicators('{db_prefix}' . $this->name, reset($this->initial_data)),
 			data: array_map(fn($row) => array_values($row), $this->initial_data),
-			keys: isset($auto_col) ? [$auto_col] : [],
+			keys: isset($auto_col) ? [$auto_col] : array_column($this->indexes['primary']->columns, 'name'),
 			returnmode: $returnmode,
 		);
 
 		$num_inserts = \count($ids ?? $this->initial_data);
+
+		if (isset($auto_col)) {
+			$this->resyncAutoIncrement($auto_col);
+		}
 
 		return $num_inserts;
 	}
@@ -563,7 +631,8 @@ class Table
 	/**
 	 * Gets all known table schemas.
 	 *
-	 * @return array All known table schemas.
+	 * @param string $schema_version E.g. 'v3_0'.
+	 * @return array All known table schemas for the given schema version.
 	 */
 	final public static function getAll(string $schema_version): array
 	{
@@ -591,5 +660,112 @@ class Table
 		}
 
 		return $tables;
+	}
+
+	/**
+	 * Finds and returns the table schema class for the specified table name.
+	 *
+	 * @param string $table_name The name of the table.
+	 * @param string $schema_version E.g. 'v3_0'.
+	 * @return ?self An instance of this class, or null if nothing was found.
+	 */
+	final public static function find(string $table_name, string $schema_version): ?self
+	{
+		// Strip off the prefix.
+		foreach (['{db_prefix}', Config::$db_prefix, Db::$db?->prefix ?? ''] as $prefix) {
+			if (str_starts_with($table_name, $prefix)) {
+				$table_name = substr($table_name, \strlen($prefix));
+				break;
+			}
+		}
+
+		// Try to reverse-engineer the class name from the table name.
+		$fully_qualified_class_name = __NAMESPACE__ . '\\' . $schema_version . '\\' . ucfirst(preg_replace_callback(
+			'/_(\w)/',
+			fn($matches) => strtoupper($matches[1]),
+			$table_name,
+		));
+
+		// Does it exist?
+		if (class_exists($fully_qualified_class_name)) {
+			return new $fully_qualified_class_name();
+		}
+
+		// Failed to reverse-engineer the class name, so loop through them all
+		// to see if we can find a match that way.
+		foreach (self::getAll($schema_version) as $table) {
+			if ($table->name === $table_name) {
+				return $table;
+			}
+		}
+
+		// Couldn't find it.
+		return null;
+	}
+
+	/**
+	 * Gets database initializer queries for the indicated SMF version.
+	 *
+	 * @param string $schema_version E.g. 'v3_0'.
+	 * @return array All known table schemas.
+	 */
+	final public static function getInitializers(string $schema_version): array
+	{
+		if (file_exists(__DIR__ . '/' . $schema_version . '/Initialize/' . Db::$db->title . '.php')) {
+
+			$fully_qualified_class_name = __NAMESPACE__ . '\\' . $schema_version . '\\Initialize\\' . Db::$db->title;
+
+			if (!class_exists($fully_qualified_class_name)) {
+				return [];
+			}
+
+			$intializer = new $fully_qualified_class_name(Db::$db->get_version());
+
+			return $intializer->getAll();
+		}
+
+		return [];
+	}
+
+	/******************
+	 * Internal methods
+	 ******************/
+
+	/**
+	 * Points the table's ID generator past the rows that were just inserted.
+	 *
+	 * The initial data carries its own IDs — the default board is board 1, and
+	 * plenty of other rows are referred to by number elsewhere in it — so they
+	 * are supplied rather than generated.
+	 *
+	 * MySQL notices that and moves AUTO_INCREMENT along by itself. PostgreSQL
+	 * does not: a sequence only advances when something calls nextval() on it,
+	 * and nothing has, so it still sits at 1 and hands 1 to the next insert.
+	 * That collides with the row already there, and the insert fails on the
+	 * primary key. The first topic anybody starts on a new forum is the usual
+	 * way to meet this, and it fails once and then works, because the failed
+	 * attempt consumed the 1 and the retry gets 2.
+	 *
+	 * The 2.1 upgrade path has had this fix for years, in the PostgreSqlSequences
+	 * migration. This is the same thing for a fresh install.
+	 *
+	 * @param string $auto_col Name of the auto-incrementing column.
+	 */
+	private function resyncAutoIncrement(string $auto_col): void
+	{
+		if (Db::$db->title !== POSTGRE_TITLE) {
+			return;
+		}
+
+		// COALESCE for the table that ended up empty after an 'ignore' insert:
+		// setval() will not accept NULL, and 1 is where the sequence began.
+		Db::$db->query(
+			'SELECT setval(\'{raw:sequence}\', COALESCE((SELECT MAX({raw:column}) FROM {db_prefix}{raw:table}), 1))',
+			[
+				'sequence' => Db::$db->prefix . $this->name . '_seq',
+				'column' => $auto_col,
+				'table' => $this->name,
+			],
+		);
 	}
 }

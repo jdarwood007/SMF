@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -168,7 +168,7 @@ class Agreement implements ActionInterface, Routable
 			// Uh-oh. The edit history got corrupted somehow.
 			if ($hash !== $diff->label1) {
 				Utils::$context['diff'] = '<div style="white-space:pre-wrap">' . Parser::transform($text) . '</div>';
-				Utils::$context['page_title'] = isset($time) ? strip_tags((new Time($time))->setTimezone(User::getTimezone())->format()) : ($doc === 'policy' ? Lang::getTxt('privacy_policy', file: 'General') : Lang::getTxt('registration_agreement', file: 'General'));
+				Utils::$context['page_title'] = isset($time) ? strip_tags((new Time($time))->setTimezone(User::$me->timezone)->format()) : ($doc === 'policy' ? Lang::getTxt('privacy_policy', file: 'General') : Lang::getTxt('registration_agreement', file: 'General'));
 
 				break;
 			}
@@ -176,7 +176,7 @@ class Agreement implements ActionInterface, Routable
 			// Found it.
 			if ($diff->label1 === $_GET['hash']) {
 				Utils::$context['diff'] = '<div style="white-space:pre-wrap">' . $diff->formatHtml($text, true, true) . '</div>';
-				Utils::$context['page_title'] = strip_tags((new Time($diff->time1))->setTimezone(User::getTimezone())->format());
+				Utils::$context['page_title'] = strip_tags((new Time($diff->time1))->setTimezone(User::$me->timezone)->format());
 
 				return;
 			}
@@ -229,7 +229,7 @@ class Agreement implements ActionInterface, Routable
 			return false;
 		}
 
-		$policy_lang = !empty(Config::$modSettings['policy_' . User::$me->language]) ? User::$me->language : Lang::$default;
+		$policy_lang = !empty(Config::$modSettings['policy_' . User::$me->language]) ? User::$me->language : Config::$language;
 
 		if (empty(Config::$modSettings['policy_updated_' . $policy_lang])) {
 			return false;
@@ -329,9 +329,9 @@ class Agreement implements ActionInterface, Routable
 					string: Config::$modSettings['policy_' . User::$me->language],
 					options: ['hard_breaks' => 0],
 				);
-			} elseif (!empty(Config::$modSettings['policy_' . Lang::$default])) {
+			} elseif (!empty(Config::$modSettings['policy_' . Config::$language])) {
 				Utils::$context['privacy_policy'] = Parser::transform(
-					string: Config::$modSettings['policy_' . Lang::$default],
+					string: Config::$modSettings['policy_' . Config::$language],
 					options: ['hard_breaks' => 0],
 				);
 			}
@@ -350,9 +350,9 @@ class Agreement implements ActionInterface, Routable
 			if (!empty(Config::$modSettings[$short . '_history_' . User::$me->language])) {
 				$text = Config::$modSettings[$short . '_' . User::$me->language] ?? '';
 				$edit_history = (array) Utils::jsonDecode(Config::$modSettings[$short . '_history_' . User::$me->language] ?? '[]', true);
-			} elseif (!empty(Config::$modSettings[$short . '_history_' . Lang::$default])) {
-				$text = Config::$modSettings[$short . '_' . Lang::$default] ?? '';
-				$edit_history = (array) Utils::jsonDecode(Config::$modSettings[$short . '_history_' . Lang::$default] ?? '[]', true);
+			} elseif (!empty(Config::$modSettings[$short . '_history_' . Config::$language])) {
+				$text = Config::$modSettings[$short . '_' . Config::$language] ?? '';
+				$edit_history = (array) Utils::jsonDecode(Config::$modSettings[$short . '_history_' . Config::$language] ?? '[]', true);
 			} else {
 				$text = '';
 				$edit_history = [];

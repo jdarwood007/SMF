@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,15 +17,15 @@ namespace SMF\Actions\Moderation;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\IntegrationHook;
 use SMF\ItemList;
 use SMF\Lang;
 use SMF\Logging;
 use SMF\Menu;
-use SMF\Msg;
+use SMF\Parser;
 use SMF\SecurityToken;
 use SMF\Theme;
 use SMF\Time;
@@ -38,7 +38,6 @@ use SMF\Utils;
 class Warnings implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -472,7 +471,7 @@ class Warnings implements ActionInterface
 				$_POST['template_body'] = Utils::htmlspecialchars($_POST['template_body']);
 
 				// Clean up BBC.
-				Msg::preparsecode($_POST['template_body'], false, !empty(Config::$modSettings['autoLinkUrls']));
+				$_POST['template_body'] = Parser::sanitize($_POST['template_body'], autolink: !empty(Config::$modSettings['autoLinkUrls']));
 
 				// But put line breaks back!
 				$_POST['template_body'] = strtr($_POST['template_body'], ['<br>' => "\n"]);
@@ -515,7 +514,7 @@ class Warnings implements ActionInterface
 					}
 				} else {
 					Db::$db->insert(
-						'',
+						InsertType::Insert,
 						'{db_prefix}log_comments',
 						[
 							'id_member' => 'int',

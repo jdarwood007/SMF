@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Kaliningrad
  */
-class Kaliningrad extends \SMF\Calendar\VTimeZone
+class Kaliningrad extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,34 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Kaliningrad';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Moscow',
+		],
+		1 => [
+			'ts' => '1989-03-25T23:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+		2 => [
+			'ts' => '2011-03-27T00:00:00+0000',
+			'metazone' => 'Europe_Further_Eastern',
+		],
+		3 => [
+			'ts' => '2014-10-25T23:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +94,7 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19170416T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=3MO;UNTIL=19180415T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=3MO;UNTIL=19180415T010000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -72,7 +102,7 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19170917T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=3MO;UNTIL=19180916T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=3MO;UNTIL=19180916T000000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -108,7 +138,7 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19440403T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T010000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -151,7 +181,7 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T210000Z',
 			'TZNAME' => 'MSD',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0400',
@@ -159,7 +189,7 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19811001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19831001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19830930T200000Z',
 			'TZNAME' => 'MSK',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0300',
@@ -167,7 +197,7 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19840930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T220000Z',
 			'TZNAME' => 'MSK',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0300',
@@ -175,27 +205,51 @@ class Kaliningrad extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19850331T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T230000Z',
 			'TZNAME' => 'MSD',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0400',
 		],
 		19 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T230000Z',
+			'TZNAME' => 'EEST',
+			'TZOFFSETFROM' => '+0300',
+			'TZOFFSETTO' => '+0300',
+		],
+		20 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19961027T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101031T020000',
+			'DTSTART' => '19840930T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
 		],
-		20 => [
+		21 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T000000Z',
+			'TZNAME' => 'EEST',
+			'TZOFFSETFROM' => '+0200',
+			'TZOFFSETTO' => '+0300',
+		],
+		22 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19961027T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101030T230000Z',
+			'TZNAME' => 'EET',
+			'TZOFFSETFROM' => '+0300',
+			'TZOFFSETTO' => '+0200',
+		],
+		23 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20110327T020000',
 			'TZNAME' => 'UTC+03',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
 		],
-		21 => [
+		24 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20141026T020000',
 			'TZNAME' => 'EET',

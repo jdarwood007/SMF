@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,8 @@ namespace SMF;
 use SMF\Actions\Moderation\ReportedContent;
 use SMF\Cache\CacheApi;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Diff\EditDiff;
 use SMF\Search\SearchApi;
 
@@ -331,25 +333,25 @@ class Msg implements \ArrayAccess, Routable
 
 			// If mods added extra columns to the table and those column values
 			// are reflected in this object's custom properties, save them too.
-			if (!empty($this->custom)) {
-				foreach (Db::$db->getTypeIndicators('{db_prefix}messages', $this->custom) as $key => $type) {
-					if (isset($this->custom[$key]) && !\is_array($this->custom[$key])) {
+			if (!empty($this->internal_data)) {
+				foreach (Db::$db->getTypeIndicators('{db_prefix}messages', $this->internal_data) as $key => $type) {
+					if (isset($this->internal_data[$key]) && !\is_array($this->internal_data[$key])) {
 						$columns[$key] = $type;
-						$params[] = $this->custom[$key];
+						$params[] = $this->internal_data[$key];
 					}
 				}
 			}
 
 			// Give mods an opportunity for fine-tuned control over the values to be saved.
-			IntegrationHook::call('integrate_create_post', [&$this->custom['msgOptions'], &$this->custom['topicOptions'], &$this->custom['posterOptions'], &$columns, &$params]);
+			IntegrationHook::call('integrate_create_post', [&$this->internal_data['msgOptions'], &$this->internal_data['topicOptions'], &$this->internal_data['posterOptions'], &$columns, &$params]);
 
 			$this->id = (int) Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}messages',
 				$columns,
 				[$params],
 				['id_msg'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			// Can't set id_msg_modified until we know id_msg.
@@ -365,7 +367,7 @@ class Msg implements \ArrayAccess, Routable
 			self::$loaded[$this->id] = $this;
 
 			// What if we want to export new posts out to a CMS?
-			IntegrationHook::call('integrate_after_create_post', [$this->custom['msgOptions'], $this->custom['topicOptions'], $this->custom['posterOptions'], $columns, $params]);
+			IntegrationHook::call('integrate_after_create_post', [$this->internal_data['msgOptions'], $this->internal_data['topicOptions'], $this->internal_data['posterOptions'], $columns, $params]);
 		} else {
 			$set = [
 				'id_topic = {int:id_topic}',
@@ -408,11 +410,11 @@ class Msg implements \ArrayAccess, Routable
 
 			// If mods added extra columns to the table and those column values
 			// are reflected in this object's custom properties, save them too.
-			if (!empty($this->custom)) {
-				foreach (Db::$db->getTypeIndicators('{db_prefix}messages', $this->custom) as $key => $type) {
-					if (isset($this->custom[$key]) && !\is_array($this->custom[$key])) {
+			if (!empty($this->internal_data)) {
+				foreach (Db::$db->getTypeIndicators('{db_prefix}messages', $this->internal_data) as $key => $type) {
+					if (isset($this->internal_data[$key]) && !\is_array($this->internal_data[$key])) {
 						$set[] = $key . ' = {' . $type . ':' . $key . '}';
-						$params[$key] = $this->custom[$key];
+						$params[$key] = $this->internal_data[$key];
 					}
 				}
 			}
@@ -435,7 +437,7 @@ class Msg implements \ArrayAccess, Routable
 				$set = [];
 
 				// MOD AUTHORS: This hook is deprecated. Use integrate_msg_update instead.
-				IntegrationHook::call('integrate_modify_post', [&$messages_columns, &$params, &$this->custom['msgOptions'], &$this->custom['topicOptions'], &$this->custom['posterOptions'], &$message_ints]);
+				IntegrationHook::call('integrate_modify_post', [&$messages_columns, &$params, &$this->internal_data['msgOptions'], &$this->internal_data['topicOptions'], &$this->internal_data['posterOptions'], &$message_ints]);
 
 				foreach ($messages_columns as $var => $val) {
 					$set[] = $var . ' = {' . (\in_array($var, $message_ints) ? 'int' : 'string') . ':' . $var . '}';
@@ -444,7 +446,7 @@ class Msg implements \ArrayAccess, Routable
 			}
 
 			// Give mods an opportunity for fine-tuned control over the values to be saved.
-			IntegrationHook::call('integrate_msg_update', [&$set, &$params, &$this->custom['msgOptions'], &$this->custom['topicOptions'], &$this->custom['posterOptions']]);
+			IntegrationHook::call('integrate_msg_update', [&$set, &$params, &$this->internal_data['msgOptions'], &$this->internal_data['topicOptions'], &$this->internal_data['posterOptions']]);
 
 			Db::$db->query(
 				'UPDATE {db_prefix}messages
@@ -548,15 +550,15 @@ class Msg implements \ArrayAccess, Routable
 
 			// If the topic is locked, you might not be able to delete the post...
 			if ($topic->is_locked) {
-				$topic->permissions['can_remove_post'] &= (User::$me->started && $topic->is_locked == 1) || User::$me->allowedTo('lock_any');
+				$topic->permissions['can_remove_post'] &= ($topic->started_by_me && $topic->is_locked == 1) || User::$me->allowedTo('lock_any');
 			}
 
 			$this->formatted += [
 				'approved' => $this->approved,
 				'can_approve' => !$this->approved && $topic->permissions['can_approve'],
 				'can_unapprove' => !empty(Config::$modSettings['postmod_active']) && $topic->permissions['can_approve'] && $this->approved,
-				'can_modify' => (!$topic->is_locked || User::$me->allowedTo('moderate_board')) && (User::$me->allowedTo('modify_any') || (User::$me->allowedTo('modify_replies') && User::$me->started) || (User::$me->allowedTo('modify_own') && $this->id_member == User::$me->id && (empty(Config::$modSettings['edit_disable_time']) || !$this->approved || $this->poster_time + Config::$modSettings['edit_disable_time'] * 60 > time()))),
-				'can_remove' => User::$me->allowedTo('delete_any') || (User::$me->allowedTo('delete_replies') && User::$me->started) || (User::$me->allowedTo('delete_own') && $this->id_member == User::$me->id && (empty(Config::$modSettings['edit_disable_time']) || $this->poster_time + Config::$modSettings['edit_disable_time'] * 60 > time())),
+				'can_modify' => (!$topic->is_locked || User::$me->allowedTo('moderate_board')) && (User::$me->allowedTo('modify_any') || (User::$me->allowedTo('modify_replies') && $topic->started_by_me) || (User::$me->allowedTo('modify_own') && $this->id_member == User::$me->id && (empty(Config::$modSettings['edit_disable_time']) || !$this->approved || $this->poster_time + Config::$modSettings['edit_disable_time'] * 60 > time()))),
+				'can_remove' => User::$me->allowedTo('delete_any') || (User::$me->allowedTo('delete_replies') && $topic->started_by_me) || (User::$me->allowedTo('delete_own') && $this->id_member == User::$me->id && (empty(Config::$modSettings['edit_disable_time']) || $this->poster_time + Config::$modSettings['edit_disable_time'] * 60 > time())),
 				'can_see_ip' => User::$me->allowedTo('moderate_forum') || ($this->id_member == User::$me->id && !empty(User::$me->id)),
 				'css_class' => $this->approved ? 'windowbg' : 'approvebg',
 			];
@@ -721,7 +723,7 @@ class Msg implements \ArrayAccess, Routable
 	 *
 	 * @param int|array $ids The ID numbers of one or more messages.
 	 * @param array $query_customizations Customizations to the SQL query.
-	 * @return array Instances of this class for the loaded messages.
+	 * @return array|Msg[] Instances of this class for the loaded messages.
 	 */
 	public static function load(array|int $ids, array $query_customizations = []): array
 	{
@@ -794,564 +796,6 @@ class Msg implements \ArrayAccess, Routable
 
 		// Reset this when done.
 		self::$messages_to_get = [];
-	}
-
-	/**
-	 * Takes a message and parses it, returning nothing.
-	 * Cleans up links (javascript, etc.) and code/quote sections.
-	 * Won't convert \n's and a few other things if previewing is true.
-	 *
-	 * @param string &$message The message.
-	 * @param bool $previewing Whether we're previewing. Default: false.
-	 * @param bool $autolink Whether to autolink plain-text URLs. Default: false.
-	 */
-	public static function preparsecode(string &$message, bool $previewing = false, bool $autolink = false): void
-	{
-		static $tags_regex, $disallowed_tags_regex;
-
-		// Convert control characters (except \t, \r, and \n) to harmless Unicode symbols
-		$control_replacements = [
-			"\x00" => '&#x2400;', "\x01" => '&#x2401;', "\x02" => '&#x2402;', "\x03" => '&#x2403;',
-			"\x04" => '&#x2404;', "\x05" => '&#x2405;', "\x06" => '&#x2406;', "\x07" => '&#x2407;',
-			"\x08" => '&#x2408;', "\x0b" => '&#x240b;', "\x0c" => '&#x240c;', "\x0e" => '&#x240e;',
-			"\x0f" => '&#x240f;', "\x10" => '&#x2410;', "\x11" => '&#x2411;', "\x12" => '&#x2412;',
-			"\x13" => '&#x2413;', "\x14" => '&#x2414;', "\x15" => '&#x2415;', "\x16" => '&#x2416;',
-			"\x17" => '&#x2417;', "\x18" => '&#x2418;', "\x19" => '&#x2419;', "\x1a" => '&#x241a;',
-			"\x1b" => '&#x241b;', "\x1c" => '&#x241c;', "\x1d" => '&#x241d;', "\x1e" => '&#x241e;',
-			"\x1f" => '&#x241f;',
-		];
-		$message = strtr($message, $control_replacements);
-
-		// Normalize Unicode characters for storage efficiency, better searching, etc.
-		$message = Utils::normalize($message);
-
-		// Clean out any other funky stuff.
-		$message = Utils::sanitizeChars($message, 0);
-
-		// Clean up after nobbc ;).
-		$message = preg_replace_callback(
-			'~\[nobbc\](.+?)\[/nobbc\]~is',
-			function ($a) {
-				return '[nobbc]' . strtr($a[1], ['[' => '&#91;', ']' => '&#93;', ':' => '&#58;', '@' => '&#64;']) . '[/nobbc]';
-			},
-			$message,
-		);
-
-		// Remove \r's... they're evil!
-		$message = strtr($message, ["\r\n" => "\n", "\r" => "\n"]);
-
-		// You won't believe this - but too many periods upsets apache it seems!
-		$message = preg_replace('~\.{100,}~', '...', $message);
-
-		// Trim off trailing quotes - these often happen by accident.
-		while (str_ends_with($message, '[quote]')) {
-			$message = substr($message, 0, -7);
-		}
-
-		while (str_starts_with($message, '[/quote]')) {
-			$message = substr($message, 8);
-		}
-
-		if (str_contains($message, '[cowsay') && !User::$me->allowedTo('bbc_cowsay')) {
-			$message = preg_replace('~\[(/?)cowsay[^\]]*\]~iu', '[$1pre]', $message);
-		}
-
-		// Find all code blocks, work out whether we'd be parsing them, then ensure they are all closed.
-		$in_tag = false;
-		$had_tag = false;
-		$codeopen = 0;
-
-		if (preg_match_all('~(\[(/)*code(?:=[^\]]+)?\])~is', $message, $matches)) {
-			foreach ($matches[0] as $index => $dummy) {
-				// Closing?
-				if (!empty($matches[2][$index])) {
-					// If it's closing and we're not in a tag we need to open it...
-					if (!$in_tag) {
-						$codeopen = true;
-					}
-
-					// Either way we ain't in one any more.
-					$in_tag = false;
-				}
-				// Opening tag...
-				else {
-					$had_tag = true;
-
-					// If we're in a tag don't do nought!
-					if (!$in_tag) {
-						$in_tag = true;
-					}
-				}
-			}
-		}
-
-		// If we have an open tag, close it.
-		if ($in_tag) {
-			$message .= '[/code]';
-		}
-
-		// Open any ones that need to be open, only if we've never had a tag.
-		if ($codeopen && !$had_tag) {
-			$message = '[code]' . $message;
-		}
-
-		// Replace code BBC with placeholders. We'll restore them at the end.
-		$parts = preg_split('/(\[code(?:=[^\]]+)?\](?:[^\[]|\[(?!\/code\])|(?R))*\[\/code])/i', $message, -1, PREG_SPLIT_DELIM_CAPTURE);
-
-		for ($i = 0, $n = \count($parts); $i < $n; $i++) {
-			if ($i % 2 == 1) {
-				$substitute = md5($parts[$i]);
-				$code_tags[$substitute] = $parts[$i];
-				$parts[$i] = $substitute;
-			}
-		}
-
-		$message = implode('', $parts);
-
-		// Autolink any plain-text URLs.
-		if (!empty($autolink)) {
-			$message = Autolinker::load()->makeLinks($message);
-		}
-
-		// Now let's fix the img and url tags.
-		$message = Autolinker::load()->fixUrlsInBBC($message);
-		self::fixTags($message);
-
-		// Replace /me.+?\n with [me=name]dsf[/me]\n.
-		if (str_contains(User::$me->name, '[') || str_contains(User::$me->name, ']') || str_contains(User::$me->name, '\'') || str_contains(User::$me->name, '"')) {
-			$message = preg_replace('~(\A|\n)/me(?: |&nbsp;)([^\n]*)(?:\z)?~i', '$1[me=&quot;' . User::$me->name . '&quot;]$2[/me]', $message);
-		} else {
-			$message = preg_replace('~(\A|\n)/me(?: |&nbsp;)([^\n]*)(?:\z)?~i', '$1[me=' . User::$me->name . ']$2[/me]', $message);
-		}
-
-		if (!$previewing && str_contains($message, '[html]')) {
-			if (User::$me->allowedTo('bbc_html')) {
-				$message = preg_replace_callback(
-					'~\[html\](.+?)\[/html\]~is',
-					function ($m) {
-						return '[html]' . strtr(Utils::htmlspecialcharsDecode($m[1]), ["\n" => '&#13;', '  ' => ' &#32;', '[' => '&#91;', ']' => '&#93;']) . '[/html]';
-					},
-					$message,
-				);
-			}
-			// We should edit them out, or else if an admin edits the message they will get shown...
-			else {
-				while (str_contains($message, '[html]')) {
-					$message = preg_replace('~\[[/]?html\]~i', '', $message);
-				}
-			}
-		}
-
-		// Let's look at the time tags...
-		$message = preg_replace_callback(
-			'~\[time(?:=([^\\]]*))?\](.+?)\[/time\]~i',
-			function ($matches) {
-				return preg_replace(
-					[
-						'~^<time[^>]*\bdatetime="([^"]+)"[^>]*>(.*)</time>$~',
-						'~^<span[^>]*>.*</span>$~',
-					],
-					[
-						// If it parsed successfully, insert the resolved datetime value.
-						// This ensures that "[time]today[/time]" ends up resolving to
-						// the date the post was written, not the date it is being read.
-						'[time=$1]$2[/time]',
-						// If it didn't parse successfully, remove the BBC entirely.
-						$matches[2],
-					],
-					Parser::transform($matches[0], Parser::INPUT_BBC),
-				);
-			},
-			$message,
-		);
-
-		// Change the color specific tags to [color=the color].
-		// First do the opening tags.
-		$message = preg_replace('~\[(black|blue|green|red|white)\]~', '[color=$1]', $message);
-
-		// And now do the closing tags
-		$message = preg_replace('~\[/(black|blue|green|red|white)\]~', '[/color]', $message);
-
-		// Neutralize any BBC tags this member isn't permitted to use.
-		if (empty($disallowed_tags_regex)) {
-			// Legacy BBC are only retained for historical reasons.
-			// They're not for use in new posts.
-			$disallowed_bbc = Utils::$context['legacy_bbc'];
-
-			// Some BBC require permissions.
-			foreach (Utils::$context['restricted_bbc'] as $bbc) {
-				// Skip html, since we handled it separately above.
-				if ($bbc === 'html') {
-					continue;
-				}
-
-				if (!User::$me->allowedTo('bbc_' . $bbc)) {
-					$disallowed_bbc[] = $bbc;
-				}
-			}
-
-			$disallowed_tags_regex = Utils::buildRegex(array_unique($disallowed_bbc), '~');
-		}
-
-		if (!empty($disallowed_tags_regex)) {
-			$message = preg_replace('~\[(?=/?' . $disallowed_tags_regex . '\b)~i', '&#91;', $message);
-		}
-
-		// Make sure all tags are lowercase.
-		$message = preg_replace_callback(
-			'~\[(/?)(list|li|table|tr|td)\b([^\]]*)\]~i',
-			function ($m) {
-				return "[{$m[1]}" . strtolower("{$m[2]}") . "{$m[3]}]";
-			},
-			$message,
-		);
-
-		$list_open = substr_count($message, '[list]') + substr_count($message, '[list ');
-		$list_close = substr_count($message, '[/list]');
-
-		if ($list_close - $list_open > 0) {
-			$message = str_repeat('[list]', $list_close - $list_open) . $message;
-		}
-
-		if ($list_open - $list_close > 0) {
-			$message = $message . str_repeat('[/list]', $list_open - $list_close);
-		}
-
-		$mistake_fixes = [
-			// Find [table]s not followed by [tr].
-			'~\[table\](?![\s\x{A0}]*\[tr\])~su' => '[table][tr]',
-			// Find [tr]s not followed by [td].
-			'~\[tr\](?![\s\x{A0}]*\[td\])~su' => '[tr][td]',
-			// Find [/td]s not followed by something valid.
-			'~\[/td\](?![\s\x{A0}]*(?:\[td\]|\[/tr\]|\[/table\]))~su' => '[/td][/tr]',
-			// Find [/tr]s not followed by something valid.
-			'~\[/tr\](?![\s\x{A0}]*(?:\[tr\]|\[/table\]))~su' => '[/tr][/table]',
-			// Find [/td]s incorrectly followed by [/table].
-			'~\[/td\][\s\x{A0}]*\[/table\]~su' => '[/td][/tr][/table]',
-			// Find [table]s, [tr]s, and [/td]s (possibly correctly) followed by [td].
-			'~\[(table|tr|/td)\]([\s\x{A0}]*)\[td\]~su' => '[$1]$2[_td_]',
-			// Now, any [td]s left should have a [tr] before them.
-			'~\[td\]~s' => '[tr][td]',
-			// Look for [tr]s which are correctly placed.
-			'~\[(table|/tr)\]([\s\x{A0}]*)\[tr\]~su' => '[$1]$2[_tr_]',
-			// Any remaining [tr]s should have a [table] before them.
-			'~\[tr\]~s' => '[table][tr]',
-			// Look for [/td]s followed by [/tr].
-			'~\[/td\]([\s\x{A0}]*)\[/tr\]~su' => '[/td]$1[_/tr_]',
-			// Any remaining [/tr]s should have a [/td].
-			'~\[/tr\]~s' => '[/td][/tr]',
-			// Look for properly opened [li]s which aren't closed.
-			'~\[li\]([^\[\]]+?)\[li\]~s' => '[li]$1[_/li_][_li_]',
-			'~\[li\]([^\[\]]+?)\[/list\]~s' => '[_li_]$1[_/li_][/list]',
-			'~\[li\]([^\[\]]+?)$~s' => '[li]$1[/li]',
-			// Lists - find correctly closed items/lists.
-			'~\[/li\]([\s\x{A0}]*)\[/list\]~su' => '[_/li_]$1[/list]',
-			// Find list items closed and then opened.
-			'~\[/li\]([\s\x{A0}]*)\[li\]~su' => '[_/li_]$1[_li_]',
-			// Now, find any [list]s or [/li]s followed by [li].
-			'~\[(list(?: [^\]]*?)?|/li)\]([\s\x{A0}]*)\[li\]~su' => '[$1]$2[_li_]',
-			// Allow for sub lists.
-			'~\[/li\]([\s\x{A0}]*)\[list\]~u' => '[_/li_]$1[list]',
-			'~\[/list\]([\s\x{A0}]*)\[li\]~u' => '[/list]$1[_li_]',
-			// Any remaining [li]s weren't inside a [list].
-			'~\[li\]~' => '[list][li]',
-			// Any remaining [/li]s weren't before a [/list].
-			'~\[/li\]~' => '[/li][/list]',
-			// Put the correct ones back how we found them.
-			'~\[_(li|/li|td|tr|/tr)_\]~' => '[$1]',
-			// Images with no real url.
-			'~\[img\]https?://.{0,7}\[/img\]~' => '',
-		];
-
-		// Fix up some use of tables without [tr]s, etc. (it has to be done more than once to catch it all.)
-		for ($j = 0; $j < 3; $j++) {
-			$message = preg_replace(array_keys($mistake_fixes), $mistake_fixes, $message);
-		}
-
-		// Remove empty bbc from the sections outside the code tags
-		if (empty($tags_regex)) {
-			$allowed_empty = ['anchor', 'td'];
-
-			$tags = [];
-
-			foreach (Parser::getBBCodes() as $code) {
-				if (!\in_array($code['tag'], $allowed_empty)) {
-					$tags[] = $code['tag'];
-				}
-			}
-
-			$tags_regex = Utils::buildRegex($tags, '~');
-		}
-
-		while (preg_match('~\[(' . $tags_regex . ')\b[^\]]*\]\s*\[/\1\]\s?~i', $message)) {
-			$message = preg_replace('~\[(' . $tags_regex . ')[^\]]*\]\s*\[/\1\]\s?~i', '', $message);
-		}
-
-		// Restore code blocks
-		if (!empty($code_tags)) {
-			$message = str_replace(array_keys($code_tags), array_values($code_tags), $message);
-		}
-
-		// Restore white space entities
-		if (!$previewing) {
-			$message = strtr($message, ['  ' => '&nbsp; ', "\n" => '<br>', "\u{A0}" => '&nbsp;']);
-		} else {
-			$message = strtr($message, ['  ' => '&nbsp; ', "\u{A0}" => '&nbsp;']);
-		}
-
-		// Now let's quickly clean up things that will slow our parser (which are common in posted code.)
-		$message = strtr($message, ['[]' => '&#91;]', '[&#039;' => '&#91;&#039;']);
-
-		// Any hooks want to work here?
-		IntegrationHook::call('integrate_preparsecode', [&$message, $previewing]);
-	}
-
-	/**
-	 * This is very simple, and just removes things done by preparsecode.
-	 *
-	 * @param string $message The message
-	 * @return string The message with preparsecode changes reverted.
-	 */
-	public static function un_preparsecode(string $message): string
-	{
-		// Any hooks want to work here?
-		IntegrationHook::call('integrate_unpreparsecode', [&$message]);
-
-		// We're going to unparse only the stuff outside [code]...
-		$parts = preg_split('/(\[code(?:=[^\]]+)?\](?:[^\[]|\[(?!\/code\])|(?R))*\[\/code])/i', $message, -1, PREG_SPLIT_DELIM_CAPTURE);
-
-		for ($i = 0, $n = \count($parts); $i < $n; $i++) {
-			if ($i % 2 == 1) {
-				$substitute = md5($parts[$i]);
-				$code_tags[$substitute] = $parts[$i];
-				$parts[$i] = $substitute;
-			}
-		}
-
-		$message = implode('', $parts);
-
-		$message = preg_replace_callback(
-			'~\[html\](.+?)\[/html\]~i',
-			function ($matches) {
-				return '[html]' . strtr(Utils::htmlspecialchars($matches[1], ENT_QUOTES), ['\\&quot;' => '&quot;', '&amp;#13;' => '<br>', '&amp;#32;' => ' ', '&amp;#91;' => '[', '&amp;#93;' => ']']) . '[/html]';
-			},
-			$message,
-		);
-
-		if (str_contains($message, '[cowsay') && !User::$me->allowedTo('bbc_cowsay')) {
-			$message = preg_replace('~\[(/?)cowsay[^\]]*\]~iu', '[$1pre]', $message);
-		}
-
-		// Attempt to un-parse the time to something less awful.
-		// This form will never be created by Msg::preparsecode() in SMF 3.0+
-		// but it might be present in old data.
-		$message = preg_replace_callback(
-			'~\[time\](\d{0,10})\[/time\]~i',
-			function ($matches) {
-				$time = Time::create('@' . $matches[1]);
-
-				return '[time=' . $time->format('Y-m-d\TH:i:sP') . ']' . $time->format(null, false) . '[/time]';
-			},
-			$message,
-		);
-
-		if (!empty($code_tags)) {
-			$message = strtr($message, $code_tags);
-		}
-
-		// Change breaks back to \n's and &nsbp; back to spaces.
-		return preg_replace('~<br\s*/?' . '>~', "\n", str_replace('&nbsp;', ' ', $message));
-	}
-
-	/**
-	 * Fix any URLs posted - ie. remove 'javascript:'.
-	 * Used by preparsecode, fixes links in message and returns nothing.
-	 *
-	 * @param string &$message The message
-	 */
-	public static function fixTags(string &$message): void
-	{
-		// WARNING: Editing the below can cause large security holes in your forum.
-		// Edit only if you are sure you know what you are doing.
-
-		$fixArray = [
-			// [img]http://...[/img] or [img width=1]http://...[/img]
-			[
-				'tag' => 'img',
-				'protocols' => ['http', 'https'],
-				'embeddedUrl' => false,
-				'hasEqualSign' => false,
-				'hasExtra' => true,
-			],
-			// [url]http://...[/url]
-			[
-				'tag' => 'url',
-				'protocols' => ['http', 'https'],
-				'embeddedUrl' => false,
-				'hasEqualSign' => false,
-			],
-			// [url=http://...]name[/url]
-			[
-				'tag' => 'url',
-				'protocols' => ['http', 'https'],
-				'embeddedUrl' => true,
-				'hasEqualSign' => true,
-			],
-			// [iurl]http://...[/iurl]
-			[
-				'tag' => 'iurl',
-				'protocols' => ['http', 'https'],
-				'embeddedUrl' => false,
-				'hasEqualSign' => false,
-			],
-			// [iurl=http://...]name[/iurl]
-			[
-				'tag' => 'iurl',
-				'protocols' => ['http', 'https'],
-				'embeddedUrl' => true,
-				'hasEqualSign' => true,
-			],
-			// The rest of these are deprecated.
-			// [ftp]ftp://...[/ftp]
-			[
-				'tag' => 'ftp',
-				'protocols' => ['ftp', 'ftps', 'sftp'],
-				'embeddedUrl' => false,
-				'hasEqualSign' => false,
-			],
-			// [ftp=ftp://...]name[/ftp]
-			[
-				'tag' => 'ftp',
-				'protocols' => ['ftp', 'ftps', 'sftp'],
-				'embeddedUrl' => true,
-				'hasEqualSign' => true,
-			],
-			// [flash]http://...[/flash]
-			[
-				'tag' => 'flash',
-				'protocols' => ['http', 'https'],
-				'embeddedUrl' => false,
-				'hasEqualSign' => false,
-				'hasExtra' => true,
-			],
-		];
-
-		// Fix each type of tag.
-		foreach ($fixArray as $param) {
-			self::fixTag($message, $param['tag'], $param['protocols'], $param['embeddedUrl'], $param['hasEqualSign'], !empty($param['hasExtra']));
-		}
-
-		// Now fix possible security problems with images loading links automatically...
-		$message = preg_replace_callback(
-			'~(\[img.*?\])(.+?)\[/img\]~is',
-			function ($m) {
-				return "{$m[1]}" . preg_replace('~action(=|%3d)(?!dlattach)~i', 'action-', "{$m[2]}") . '[/img]';
-			},
-			$message,
-		);
-	}
-
-	/**
-	 * Fix a specific class of tag - ie. url with =.
-	 * Used by fixTags, fixes a specific tag's links.
-	 *
-	 * @param string &$message The message
-	 * @param string $myTag The tag
-	 * @param array $protocols The protocols
-	 * @param bool $embeddedUrl Whether it *can* be set to something
-	 * @param bool $hasEqualSign Whether it *is* set to something
-	 * @param bool $hasExtra Whether it can have extra cruft after the begin tag.
-	 */
-	public static function fixTag(string &$message, string $myTag, array $protocols, bool $embeddedUrl = false, bool $hasEqualSign = false, bool $hasExtra = false): void
-	{
-		$forbidden_protocols = [
-			// Poses security risks.
-			'javascript',
-			// Allows file data to be embedded, bypassing our attachment system.
-			'data',
-		];
-
-		if (preg_match('~^([^:]+://[^/]+)~', Config::$boardurl, $match) != 0) {
-			$domain_url = $match[1];
-		} else {
-			$domain_url = Config::$boardurl . '/';
-		}
-
-		$replaces = [];
-
-		if ($hasEqualSign && $embeddedUrl) {
-			$quoted = preg_match('~\[(' . $myTag . ')=&quot;~', $message);
-
-			preg_match_all('~\[(' . $myTag . ')=' . ($quoted ? '&quot;(.*?)&quot;' : '([^\]]*?)') . '\](?:(.+?)\[/(' . $myTag . ')\])?~is', $message, $matches);
-		} elseif ($hasEqualSign) {
-			preg_match_all('~\[(' . $myTag . ')=([^\]]*?)\](?:(.+?)\[/(' . $myTag . ')\])?~is', $message, $matches);
-		} else {
-			preg_match_all('~\[(' . $myTag . ($hasExtra ? '(?:[^\]]*?)' : '') . ')\](.+?)\[/(' . $myTag . ')\]~is', $message, $matches);
-		}
-
-		foreach ($matches[0] as $k => $dummy) {
-			// Remove all leading and trailing whitespace.
-			$replace = trim($matches[2][$k]);
-			$this_tag = $matches[1][$k];
-			$this_close = $hasEqualSign ? (empty($matches[4][$k]) ? '' : $matches[4][$k]) : $matches[3][$k];
-
-			$found = false;
-
-			foreach ($protocols as $protocol) {
-				$found = strncasecmp($replace, $protocol . '://', \strlen($protocol) + 3) === 0;
-
-				if ($found) {
-					break;
-				}
-			}
-
-			$current_protocol = strtolower(Url::create($replace)->scheme ?? '');
-
-			if (\in_array($current_protocol, $forbidden_protocols)) {
-				$replace = 'about:invalid';
-			} elseif (!$found && $protocols[0] == 'http') {
-				// A path
-				if (str_starts_with($replace, '/') && !str_starts_with($replace, '//')) {
-					$replace = $domain_url . $replace;
-				}
-				// A query
-				elseif (str_starts_with($replace, '?')) {
-					$replace = Config::$scripturl . $replace;
-				}
-				// A fragment
-				elseif (str_starts_with($replace, '#') && $embeddedUrl) {
-					$replace = '#' . preg_replace('~[^A-Za-z0-9_\-#]~', '', substr($replace, 1));
-					$this_tag = 'iurl';
-					$this_close = 'iurl';
-				} elseif (!str_starts_with($replace, '//') && empty($current_protocol)) {
-					$replace = $protocols[0] . '://' . $replace;
-				}
-			} elseif (!$found && $protocols[0] == 'ftp') {
-				$replace = $protocols[0] . '://' . preg_replace('~^(?!ftps?)[^:]+://~', '', $replace);
-			} elseif (!$found && empty($current_protocol)) {
-				$replace = $protocols[0] . '://' . $replace;
-			}
-
-			if ($hasEqualSign && $embeddedUrl) {
-				$replaces[$matches[0][$k]] = '[' . $this_tag . '=&quot;' . $replace . '&quot;]' . (empty($matches[4][$k]) ? '' : $matches[3][$k] . '[/' . $this_close . ']');
-			} elseif ($hasEqualSign) {
-				$replaces['[' . $matches[1][$k] . '=' . $matches[2][$k] . ']'] = '[' . $this_tag . '=' . $replace . ']';
-			} elseif ($embeddedUrl) {
-				$replaces['[' . $matches[1][$k] . ']' . $matches[2][$k] . '[/' . $matches[3][$k] . ']'] = '[' . $this_tag . '=' . $replace . ']' . $matches[2][$k] . '[/' . $this_close . ']';
-			} else {
-				$replaces['[' . $matches[1][$k] . ']' . $matches[2][$k] . '[/' . $matches[3][$k] . ']'] = '[' . $this_tag . ']' . $replace . '[/' . $this_close . ']';
-			}
-		}
-
-		foreach ($replaces as $k => $v) {
-			if ($k == $v) {
-				unset($replaces[$k]);
-			}
-		}
-
-		if (!empty($replaces)) {
-			$message = strtr($message, $replaces);
-		}
 	}
 
 	/**
@@ -1526,7 +970,7 @@ class Msg implements \ArrayAccess, Routable
 
 			// Add to the approval queue too.
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}approval_queue',
 				['id_msg' => 'int'],
 				[[$msg->id]],
@@ -1534,7 +978,7 @@ class Msg implements \ArrayAccess, Routable
 			);
 
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -1542,7 +986,7 @@ class Msg implements \ArrayAccess, Routable
 					'claimed_time' => 'int'],
 				[
 					[
-						'SMF\\Tasks\\ApprovePost_Notify',
+						Tasks\ApprovePost_Notify::class,
 						Utils::jsonEncode([
 							'msgOptions' => $msgOptions,
 							'topicOptions' => $topicOptions,
@@ -1558,7 +1002,7 @@ class Msg implements \ArrayAccess, Routable
 
 		if ($msgOptions['approved'] && empty($topicOptions['is_approved']) && $posterOptions['id'] != User::$me->id) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -1567,7 +1011,7 @@ class Msg implements \ArrayAccess, Routable
 				],
 				[
 					[
-						'SMF\\Tasks\\ApproveReply_Notify',
+						Tasks\ApproveReply_Notify::class,
 						Utils::jsonEncode([
 							'msgOptions' => $msgOptions,
 							'topicOptions' => $topicOptions,
@@ -1588,13 +1032,14 @@ class Msg implements \ArrayAccess, Routable
 		}
 
 		// Increase the post counter for the user that created the post.
-		if (!empty($posterOptions['update_post_count']) && !empty($posterOptions['id']) && $msgOptions['approved']) {
-			// Are you the one that happened to create this post?
-			if (User::$me->id == $posterOptions['id']) {
-				User::$me->posts++;
-			}
-
-			User::updateMemberData($posterOptions['id'], ['posts' => '+']);
+		if (
+			!empty($posterOptions['update_post_count'])
+			&& !empty($posterOptions['id'])
+			&& $msgOptions['approved']
+		) {
+			$member = current(User::load((int) $posterOptions['id'], dataset: UserDataset::Minimal));
+			$member->posts++;
+			$member->save();
 		}
 
 		// They've posted, so they can make the view count go up one if they really want. (this is to keep views >= replies...)
@@ -1625,7 +1070,7 @@ class Msg implements \ArrayAccess, Routable
 		// Queue createPost background notification
 		if ($msgOptions['send_notifications'] && $msgOptions['approved']) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -1634,7 +1079,7 @@ class Msg implements \ArrayAccess, Routable
 				],
 				[
 					[
-						'SMF\\Tasks\\CreatePost_Notify',
+						Tasks\CreatePost_Notify::class,
 						Utils::jsonEncode([
 							'msgOptions' => $msgOptions,
 							'topicOptions' => $topicOptions,
@@ -1711,7 +1156,7 @@ class Msg implements \ArrayAccess, Routable
 			$edit_history = (array) Utils::jsonDecode($edit_history ?? '[]', true);
 			usort($edit_history, fn($a, $b) => $b[0] <=> $a[0]);
 
-			if ($msgOptions['body'] != $msgOptions['old_body']) {
+			if ($msgOptions['body'] != $msgOptions['old_body'] || $edit_history === []) {
 				// Body changed, so make a new diff.
 				$msgOptions['modify_time'] = (string) ($msgOptions['modify_time'] ?? time());
 				$msgOptions['modify_id'] = (int) ($msgOptions['modify_id'] ?? 0);
@@ -1845,7 +1290,7 @@ class Msg implements \ArrayAccess, Routable
 			)
 		) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -1854,7 +1299,7 @@ class Msg implements \ArrayAccess, Routable
 				],
 				[
 					[
-						'SMF\\Tasks\\CreatePost_Notify',
+						Tasks\CreatePost_Notify::class,
 						Utils::jsonEncode([
 							'msgOptions' => $msgOptions,
 							'topicOptions' => $topicOptions,
@@ -1927,7 +1372,7 @@ class Msg implements \ArrayAccess, Routable
 		$request = Db::$db->query(
 			'SELECT m.id_msg, m.approved, m.id_topic, m.id_board, t.id_first_msg, t.id_last_msg,
 				m.body, m.subject, COALESCE(mem.real_name, m.poster_name) AS poster_name, m.id_member,
-				t.approved AS topic_approved, b.count_posts
+				t.approved AS topic_approved, b.posts_count
 			FROM {db_prefix}messages AS m
 				INNER JOIN {db_prefix}topics AS t ON (t.id_topic = m.id_topic)
 				INNER JOIN {db_prefix}boards AS b ON (b.id_board = m.id_board)
@@ -2016,7 +1461,7 @@ class Msg implements \ArrayAccess, Routable
 			$board_changes[$row['id_board']]['posts'] += $approve ? 1 : -1;
 
 			// Post count for the user?
-			if ($row['id_member'] && empty($row['count_posts'])) {
+			if ($row['id_member'] && !empty($row['posts_count'])) {
 				$member_post_changes[$row['id_member']] = isset($member_post_changes[$row['id_member']]) ? $member_post_changes[$row['id_member']] + 1 : 1;
 			}
 		}
@@ -2097,7 +1542,7 @@ class Msg implements \ArrayAccess, Routable
 
 			foreach (array_merge($notification_topics, $notification_posts) as $topic) {
 				$task_rows[] = [
-					'SMF\\Tasks\\CreatePost_Notify',
+					Tasks\CreatePost_Notify::class,
 					Utils::jsonEncode([
 						'msgOptions' => [
 							'id' => $topic['msg'],
@@ -2120,7 +1565,7 @@ class Msg implements \ArrayAccess, Routable
 
 			if ($notify) {
 				Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}background_tasks',
 					[
 						'task_class' => 'string',
@@ -2160,7 +1605,7 @@ class Msg implements \ArrayAccess, Routable
 			}
 
 			Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}approval_queue',
 				['id_msg' => 'int'],
 				$msgInserts,
@@ -2173,9 +1618,21 @@ class Msg implements \ArrayAccess, Routable
 
 		// Post count for the members?
 		if (!empty($member_post_changes)) {
-			foreach ($member_post_changes as $id_member => $count_change) {
-				User::updateMemberData($id_member, ['posts' => 'posts ' . ($approve ? '+' : '-') . ' ' . $count_change]);
+			$members = User::load(
+				array_map('intval', array_keys($member_post_changes)),
+				dataset: UserDataset::Minimal,
+			);
+
+			foreach ($members as $member) {
+				if ($approve) {
+					$member->posts += $member_post_changes[$member->id];
+				} else {
+					$member->posts -= $member_post_changes[$member->id];
+					$member->posts = max(0, $member->posts);
+				}
 			}
+
+			User::saveBatch($members);
 		}
 
 		if (!empty(CacheApi::$enable) && CacheApi::$enable >= 3) {
@@ -2393,7 +1850,7 @@ class Msg implements \ArrayAccess, Routable
 				m.id_member, m.icon, m.poster_time, m.subject, m.body,
 				m.approved, t.id_topic, t.id_first_msg, t.id_last_msg, t.num_replies, t.id_board,
 				t.id_member_started AS id_member_poster,
-				b.count_posts
+				b.posts_count
 			FROM {db_prefix}messages AS m
 				INNER JOIN {db_prefix}topics AS t ON (t.id_topic = m.id_topic)
 				INNER JOIN {db_prefix}boards AS b ON (b.id_board = t.id_board)
@@ -2411,6 +1868,12 @@ class Msg implements \ArrayAccess, Routable
 		}
 		$row = Db::$db->fetch_assoc($request);
 		Db::$db->free_result($request);
+
+		// Old mods would have expected $row['count_posts'], which had
+		// an inverted value (i.e. 0 = true, 1 = false).
+		if (!empty(Config::$backward_compatibility)) {
+			$row['count_posts'] = (int) empty($row['posts_count']);
+		}
 
 		// Give mods a heads-up before we do anything.
 		IntegrationHook::call('integrate_pre_remove_message', [$message, $decreasePostCount, $row]);
@@ -2608,7 +2071,7 @@ class Msg implements \ArrayAccess, Routable
 			// Insert a new topic in the recycle board if $id_recycle_topic is empty.
 			if (empty($id_recycle_topic)) {
 				$id_topic = Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}topics',
 					[
 						'id_board' => 'int',
@@ -2633,7 +2096,7 @@ class Msg implements \ArrayAccess, Routable
 						],
 					],
 					['id_topic'],
-					Db::INSERT_RETURN_MODE_SINGLE,
+					ReturnMode::SingleRow,
 				);
 			}
 
@@ -2674,7 +2137,7 @@ class Msg implements \ArrayAccess, Routable
 				// Mark recycled topic as read.
 				if (!User::$me->is_guest) {
 					Db::$db->insert(
-						'replace',
+						InsertType::Replace,
 						'{db_prefix}log_topics',
 						[
 							'id_topic' => 'int',
@@ -2697,7 +2160,7 @@ class Msg implements \ArrayAccess, Routable
 				// Mark recycle board as seen, if it was marked as seen before.
 				if (!empty($isRead) && !User::$me->is_guest) {
 					Db::$db->insert(
-						'replace',
+						InsertType::Replace,
 						'{db_prefix}log_boards',
 						[
 							'id_board' => 'int',
@@ -2781,8 +2244,10 @@ class Msg implements \ArrayAccess, Routable
 
 		// If the poster was registered and the board this message was on incremented
 		// the member's posts when it was posted, decrease his or her post count.
-		if (!empty($row['id_member']) && $decreasePostCount && empty($row['count_posts']) && $row['approved']) {
-			User::updateMemberData((int) $row['id_member'], ['posts' => '-']);
+		if (!empty($row['id_member']) && $decreasePostCount && !empty($row['posts_count']) && $row['approved']) {
+			$member = current(User::load((int) $row['id_member'], dataset: UserDataset::Minimal));
+			$member->posts--;
+			$member->save();
 		}
 
 		// Only remove posts if they're not recycled.
@@ -2897,7 +2362,7 @@ class Msg implements \ArrayAccess, Routable
 	 * @param array $params Parameters to substitute into query text.
 	 * @param array $joins Zero or more *complete* JOIN clauses.
 	 *    E.g.: 'LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)'
-	 *    Note that 'FROM {db_prefix}boards AS b' is always part of the query.
+	 *    Note that 'FROM {db_prefix}messages AS m' is always part of the query.
 	 * @param array $where Zero or more conditions for the WHERE clause.
 	 *    Conditions will be placed in parentheses and concatenated with AND.
 	 *    If this is left empty, no WHERE clause will be used.

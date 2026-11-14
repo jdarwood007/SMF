@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Damascus
  */
-class Damascus extends \SMF\Calendar\VTimeZone
+class Damascus extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Damascus extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Damascus';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -50,7 +68,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		1 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19200418T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=3SU;UNTIL=19230415T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=3SU;UNTIL=19230415T000000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -58,7 +76,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19201003T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19231007T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19231006T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -80,7 +98,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19630501T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19650501T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19650501T000000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -116,7 +134,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19661001T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19761001T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19760930T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -124,7 +142,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19670501T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19780501T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19780501T000000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -132,7 +150,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19770901T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=1;UNTIL=19780901T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=1;UNTIL=19780831T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -140,7 +158,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19830409T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=9;UNTIL=19840409T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=9;UNTIL=19840409T000000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -148,7 +166,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19831001T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19841001T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19840930T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -177,7 +195,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19871031T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=31;UNTIL=19881031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=31;UNTIL=19881030T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -227,7 +245,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		25 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19911001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19921001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19920930T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -256,7 +274,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		29 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19940401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19960401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19960331T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -264,7 +282,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		30 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19941001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=20051001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=20050930T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -272,7 +290,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		31 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19970331T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1MO;UNTIL=19980330T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1MO;UNTIL=19980329T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -280,7 +298,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		32 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19990401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=20060401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=20060331T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -330,7 +348,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20091030T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1FR;UNTIL=20221028T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1FR;UNTIL=20221027T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -338,7 +356,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		40 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20100402T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1FR;UNTIL=20110401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1FR;UNTIL=20110331T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -346,7 +364,7 @@ class Damascus extends \SMF\Calendar\VTimeZone
 		41 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20120330T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1FR;UNTIL=20220325T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1FR;UNTIL=20220324T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,7 @@ namespace SMF\PersonalMessage;
 
 use SMF\ArrayAccessHelper;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Theme;
 use SMF\User;
 use SMF\Utils;
@@ -239,13 +240,13 @@ class Received implements \ArrayAccess
 		Db::$db->query(
 			'UPDATE {db_prefix}pm_recipients
 			SET
-				id_member = {int:member},
 				bcc = {int:bcc},
 				is_read = {int:is_read},
 				is_new = {int:is_new},
 				deleted = {int:deleted},
 				in_inbox = {int:in_inbox}
-			WHERE id_pm = {int:id}',
+			WHERE id_pm = {int:id}
+				AND id_member = {int:member}',
 			[
 				'id' => (int) $this->id,
 				'member' => (int) $this->member,
@@ -259,12 +260,19 @@ class Received implements \ArrayAccess
 
 		$labels = array_diff($this->labels, [-1]);
 
+		// Only clear the labels this member owns.
 		Db::$db->query(
 			'DELETE FROM {db_prefix}pm_labeled_messages
-			WHERE id_pm = {int:current_pm}' . (empty($labels) ? '' : '
+			WHERE id_pm = {int:current_pm}
+				AND id_label IN (
+					SELECT id_label
+					FROM {db_prefix}pm_labels
+					WHERE id_member = {int:member}
+				)' . (empty($labels) ? '' : '
 				AND id_label NOT IN ({array_int:labels})'),
 			[
 				'current_pm' => $this->id,
+				'member' => (int) $this->member,
 				'labels' => $labels,
 			],
 		);
@@ -277,7 +285,7 @@ class Received implements \ArrayAccess
 			}
 
 			Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}pm_labeled_messages',
 				['id_pm' => 'int', 'id_label' => 'int'],
 				$inserts,
@@ -315,7 +323,9 @@ class Received implements \ArrayAccess
 	 * for future reference.
 	 *
 	 * @param int|array $ids The IDs of one or more personal messages.
-	 * @return array The newly loaded instances of this class.
+	 * @return array The newly loaded instances of this class, keyed first by
+	 *    the PM's ID and then by the recipient's ID. A PM has one of these per
+	 *    person it was sent to.
 	 */
 	public static function loadByPm(int|array $ids): array
 	{
@@ -326,9 +336,7 @@ class Received implements \ArrayAccess
 		// Have we already loaded these?
 		foreach ($ids as $key => $id) {
 			if (isset(self::$loaded[$id])) {
-				foreach (self::$loaded[$id] as $received) {
-					$loaded[$id] = $received;
-				}
+				$loaded[$id] = self::$loaded[$id];
 
 				unset($ids[$key]);
 			}
@@ -343,7 +351,7 @@ class Received implements \ArrayAccess
 		// We have new ones that we need to load.
 		$selects = [
 			'pmr.*',
-			'COALESCE(mem.real_name, "") AS real_name',
+			'COALESCE(mem.real_name, {string:blank_string}) AS real_name',
 		];
 
 		$joins = [
@@ -356,10 +364,14 @@ class Received implements \ArrayAccess
 
 		$params = [
 			'ids' => $ids,
+			'blank_string' => '',
 		];
 
+		// One row per recipient, so the member has to be part of the key here.
+		// Keying on the PM alone leaves only whichever recipient the database
+		// happened to hand over last.
 		foreach (self::queryData($selects, $params, $joins, $where) as $row) {
-			$loaded[(int) $row['id_pm']] = new self($row);
+			$loaded[(int) $row['id_pm']][(int) $row['id_member']] = new self($row);
 		}
 
 		ksort($loaded);
@@ -571,7 +583,8 @@ class Received implements \ArrayAccess
 	 */
 	public static function setNotNew(): void
 	{
-		User::updateMemberData(User::$me->id, ['new_pm' => 0]);
+		User::$me->new_pm = 0;
+		User::$me->save();
 
 		Db::$db->query(
 			'UPDATE {db_prefix}pm_recipients

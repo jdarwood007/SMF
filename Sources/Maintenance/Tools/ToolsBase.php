@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -41,6 +41,13 @@ abstract class ToolsBase
 	 * Script name of the tool we are running.
 	 */
 	public string $script_file;
+
+	/**
+	 * @var string
+	 *
+	 * HTML element ID for the submission form in this tool's HTML templates.
+	 */
+	public string $form_id;
 
 	/**
 	 * @var bool
@@ -118,7 +125,21 @@ abstract class ToolsBase
 			$message = print_r($message, true);
 		}
 
-		$message = preg_replace('/(<br\b[^>]*>)+|\R/', PHP_EOL, $message);
+		$message = preg_replace(
+			[
+				// Convert line breaks into the correct EOL for this platform.
+				'/(<br\b[^>]*>)+|\R/',
+				// Convert HTML lists into plain text lists.
+				'/\s*<\/?((ol|ul)\b[^>]*|\/li)>\s*/',
+				'/<li\b[^>]*>\s*/',
+			],
+			[
+				PHP_EOL,
+				PHP_EOL,
+				' - ',
+			],
+			$message,
+		);
 
 		$message .= $ongoing ? '... ' : PHP_EOL;
 
@@ -150,7 +171,7 @@ abstract class ToolsBase
 
 			// Try to make the file the writable.
 			if (file_exists($this->log_file) && !is_writable($this->log_file)) {
-				chmod($this->log_file, 0664);
+				@chmod($this->log_file, 0664);
 			}
 		}
 
@@ -252,7 +273,7 @@ abstract class ToolsBase
 	{
 		$db_class = '\\SMF\\Db\\APIs\\' . Db::getClass(Config::$db_type);
 
-		require_once Config::canonicalPath(Config::$sourcedir . '/Db/APIs/' . Db::getClass(Config::$db_type) . '.php');
+		require_once Sapi::canonicalPath(Config::$sourcedir . '/Db/APIs/' . Db::getClass(Config::$db_type) . '.php');
 
 		return new $db_class();
 	}
@@ -366,7 +387,7 @@ abstract class ToolsBase
 		}
 
 		// What still needs to be done?
-		Maintenance::$context['chmod_files'] = $files;
+		Utils::$context['chmod_files'] = $files;
 
 		// If it's windows it's a mess...
 		if (!empty($files) && Sapi::isOS(Sapi::OS_WINDOWS)) {
@@ -385,29 +406,29 @@ abstract class ToolsBase
 		if (!empty($files)) {
 			// Load any session data we might have...
 			if (!isset($_POST['ftp_username']) && isset($_SESSION['temp_ftp'])) {
-				Maintenance::$context['chmod']['server'] = $_SESSION['temp_ftp']['server'];
-				Maintenance::$context['chmod']['port'] = $_SESSION['temp_ftp']['port'];
-				Maintenance::$context['chmod']['username'] = $_SESSION['temp_ftp']['username'];
-				Maintenance::$context['chmod']['password'] = $_SESSION['temp_ftp']['password'];
-				Maintenance::$context['chmod']['path'] = $_SESSION['temp_ftp']['path'];
+				Utils::$context['chmod']['server'] = $_SESSION['temp_ftp']['server'];
+				Utils::$context['chmod']['port'] = $_SESSION['temp_ftp']['port'];
+				Utils::$context['chmod']['username'] = $_SESSION['temp_ftp']['username'];
+				Utils::$context['chmod']['password'] = $_SESSION['temp_ftp']['password'];
+				Utils::$context['chmod']['path'] = $_SESSION['temp_ftp']['path'];
 			}
 			// Or have we submitted?
 			elseif (isset($_POST['ftp_username'])) {
-				Maintenance::$context['chmod']['server'] = $_POST['ftp_server'];
-				Maintenance::$context['chmod']['port'] = $_POST['ftp_port'];
-				Maintenance::$context['chmod']['username'] = $_POST['ftp_username'];
-				Maintenance::$context['chmod']['password'] = $_POST['ftp_password'];
-				Maintenance::$context['chmod']['path'] = $_POST['ftp_path'];
+				Utils::$context['chmod']['server'] = $_POST['ftp_server'];
+				Utils::$context['chmod']['port'] = $_POST['ftp_port'];
+				Utils::$context['chmod']['username'] = $_POST['ftp_username'];
+				Utils::$context['chmod']['password'] = $_POST['ftp_password'];
+				Utils::$context['chmod']['path'] = $_POST['ftp_path'];
 			}
 
-			if (isset(Maintenance::$context['chmod']['username'])) {
-				$ftp = new FtpConnection(Maintenance::$context['chmod']['server'], Maintenance::$context['chmod']['port'], Maintenance::$context['chmod']['username'], Maintenance::$context['chmod']['password']);
+			if (isset(Utils::$context['chmod']['username'])) {
+				$ftp = new FtpConnection(Utils::$context['chmod']['server'], Utils::$context['chmod']['port'], Utils::$context['chmod']['username'], Utils::$context['chmod']['password']);
 
 				if ($ftp->error === false) {
 					// Try it without /home/abc just in case they messed up.
-					if (!$ftp->chdir(Maintenance::$context['chmod']['path'])) {
-					Maintenance::$context['chmod']['ftp_error'] = $ftp->last_message;
-						$ftp->chdir(preg_replace('~^/home[2]?/[^/]+?~', '', Maintenance::$context['chmod']['path']));
+					if (!$ftp->chdir(Utils::$context['chmod']['path'])) {
+						Utils::$context['chmod']['ftp_error'] = $ftp->last_message;
+						$ftp->chdir(preg_replace('~^/home[2]?/[^/]+?~', '', Utils::$context['chmod']['path']));
 					}
 				}
 			}
@@ -419,32 +440,32 @@ abstract class ToolsBase
 				// Save the error so we can mess with listing...
 				elseif (
 					$ftp->error !== false
-					&& !isset(Maintenance::$context['chmod']['ftp_error'])
+					&& !isset(Utils::$context['chmod']['ftp_error'])
 				) {
-					Maintenance::$context['chmod']['ftp_error'] = $ftp->last_message === null ? '' : $ftp->last_message;
+					Utils::$context['chmod']['ftp_error'] = $ftp->last_message === null ? '' : $ftp->last_message;
 				}
 
 				list($username, $detect_path, $found_path) = $ftp->detect_path(\dirname(__FILE__));
 
-				if ($found_path || !isset(Maintenance::$context['chmod']['path'])) {
-					Maintenance::$context['chmod']['path'] = $detect_path;
+				if ($found_path || !isset(Utils::$context['chmod']['path'])) {
+					Utils::$context['chmod']['path'] = $detect_path;
 				}
 
-				if (!isset(Maintenance::$context['chmod']['username'])) {
-					Maintenance::$context['chmod']['username'] = $username;
+				if (!isset(Utils::$context['chmod']['username'])) {
+					Utils::$context['chmod']['username'] = $username;
 				}
 
 				// Don't forget the login token.
-				Maintenance::$context += SecurityToken::create('login');
+				SecurityToken::create('login');
 
 				return false;
 			}
 
 			// We want to do a relative path for FTP.
-			if (!\in_array(Maintenance::$context['chmod']['path'], ['', '/'])) {
-				$ftp_root = strtr(Config::$boarddir, [Maintenance::$context['chmod']['path'] => '']);
+			if (!\in_array(Utils::$context['chmod']['path'], ['', '/'])) {
+				$ftp_root = strtr(Config::$boarddir, [Utils::$context['chmod']['path'] => '']);
 
-				if (substr($ftp_root, -1) == '/' && (Maintenance::$context['chmod']['path'] == '' || Maintenance::$context['chmod']['path'][0] === '/')) {
+				if (substr($ftp_root, -1) == '/' && (Utils::$context['chmod']['path'] == '' || Utils::$context['chmod']['path'][0] === '/')) {
 					$ftp_root = substr($ftp_root, 0, -1);
 				}
 			} else {
@@ -453,11 +474,11 @@ abstract class ToolsBase
 
 			// Save the info for next time!
 			$_SESSION['temp_ftp'] = [
-				'server' => Maintenance::$context['chmod']['server'],
-				'port' => Maintenance::$context['chmod']['port'],
-				'username' => Maintenance::$context['chmod']['username'],
-				'password' => Maintenance::$context['chmod']['password'],
-				'path' => Maintenance::$context['chmod']['path'],
+				'server' => Utils::$context['chmod']['server'],
+				'port' => Utils::$context['chmod']['port'],
+				'username' => Utils::$context['chmod']['username'],
+				'password' => Utils::$context['chmod']['password'],
+				'path' => Utils::$context['chmod']['path'],
 				'root' => $ftp_root,
 			];
 
@@ -496,9 +517,9 @@ abstract class ToolsBase
 
 				if (is_writable($file)) {
 					unset($files[$k]);
-					$this->logProgress(Lang::getTxt('done', file: 'Maintenance'));
+					$this->logProgress(Lang::getTxt('log_done', file: 'Maintenance'));
 				} else {
-					$this->logProgress(Lang::getTxt('failed', file: 'Maintenance'));
+					$this->logProgress(Lang::getTxt('log_failed', file: 'Maintenance'));
 				}
 			}
 
@@ -506,7 +527,7 @@ abstract class ToolsBase
 		}
 
 		// What remains?
-		Maintenance::$context['chmod']['files'] = $files;
+		Utils::$context['chmod']['files'] = $files;
 
 		return (bool) (empty($files));
 	}
@@ -540,26 +561,34 @@ abstract class ToolsBase
 	}
 
 	/**
-	 * This will check if we need to handle a timeout, if so, it sets up data for the next round.
+	 * This will check if we need to handle a timeout, if so, it sets up data
+	 * for the next round.
 	 *
+	 * @param array $json_response_data Data to send in a JSON response if we
+	 *    have timed out. This data is passed to Maintenance::jsonResponse().
+	 *    Only used when Maintenance::isJson() returns true.
 	 * @throws \ValueError
 	 * @throws \Exception
 	 */
-	public function checkAndHandleTimeout(): void
+	public function checkAndHandleTimeout(array $json_response_data = []): void
 	{
 		if (!Maintenance::isOutOfTime()) {
 			return;
 		}
 
+		$this->logProgress(Lang::getTxt('log_paused_step', ['num' => $this->getStep()->getId()], file: 'Maintenance'));
+
 		// If this is not json, we need to do a few things.
 		if (!Maintenance::isJson()) {
 			// We're going to pause after this!
-			Maintenance::$context['pause'] = true;
+			Utils::$context['pause'] = true;
 
 			Maintenance::setQueryString();
+		} else {
+			Maintenance::jsonResponse($json_response_data);
 		}
 
-		Maintenance::exit();
+		Maintenance::exit(Maintenance::isJson());
 
 		throw new \Exception('Zombies!');
 	}
@@ -585,13 +614,23 @@ abstract class ToolsBase
 			$this->logProgress(Lang::getTxt('log_settings_file_save', ['setting_names' => Lang::sentenceList(array_keys($config_vars))], file: 'Maintenance'), true);
 		}
 
+		if ($rebuild) {
+			// Remove all the existing comments to make the rebuild nice and clean.
+			Config::safeFileWrite(
+				file: SMF_SETTINGS_FILE,
+				data: Config::stripPhpComments(file_get_contents(SMF_SETTINGS_FILE)),
+				mtime: time(),
+			);
+		}
+
 		if (!Config::updateSettingsFile($config_vars, $keep_quotes, $rebuild)) {
 			$this->logProgress(Lang::getTxt('log_failed_with_error', ['error' => Lang::getTxt('settings_error', file: 'Maintenance')], file: 'Maintenance'));
 
-			if (Sapi::isCLI()) {
-				die();
-			}
-
+			// This used to die() outright on the command line, which reported
+			// nothing and exited 0 -- a scripted install that could not write
+			// Settings.php looked exactly like one that worked. Recording the
+			// error and returning stops the run just as firmly, and now the
+			// caller gets to say why.
 			Maintenance::$fatal_error = Lang::getTxt('settings_error', file: 'Maintenance');
 
 			return false;
@@ -641,6 +680,7 @@ abstract class ToolsBase
 	protected function deleteOldSchemaAndMaintenanceFiles(?FtpConnection $ftp): void
 	{
 		if (!isset(Config::$modSettings['smf_version'])) {
+			Db::load();
 			Config::reloadModSettings();
 		}
 

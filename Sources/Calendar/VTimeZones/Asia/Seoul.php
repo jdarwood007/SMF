@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Seoul
  */
-class Seoul extends \SMF\Calendar\VTimeZone
+class Seoul extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Seoul extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Seoul';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Korea',
+		],
+	];
 
 	/**
 	 * @var array
@@ -85,7 +103,7 @@ class Seoul extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19490911T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=SA;BYMONTHDAY=7,8,9,10,11,12,13;UNTIL=19510909T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=SA;BYMONTHDAY=7,8,9,10,11,12,13;UNTIL=19510908T140000Z',
 			'TZNAME' => 'KST',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+0900',
@@ -142,7 +160,7 @@ class Seoul extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19570505T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19600501T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=1SU;UNTIL=19600430T153000Z',
 			'TZNAME' => 'KDT',
 			'TZOFFSETFROM' => '+0830',
 			'TZOFFSETTO' => '+0930',
@@ -150,7 +168,7 @@ class Seoul extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19570922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=SA;BYMONTHDAY=17,18,19,20,21,22,23;UNTIL=19600918T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=SA;BYMONTHDAY=17,18,19,20,21,22,23;UNTIL=19600917T143000Z',
 			'TZNAME' => 'KST',
 			'TZOFFSETFROM' => '+0930',
 			'TZOFFSETTO' => '+0830',
@@ -165,7 +183,7 @@ class Seoul extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870510T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=2SU;UNTIL=19880508T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=2SU;UNTIL=19880507T170000Z',
 			'TZNAME' => 'KDT',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+1000',
@@ -173,7 +191,7 @@ class Seoul extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19871011T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19881009T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19881008T170000Z',
 			'TZNAME' => 'KST',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+0900',

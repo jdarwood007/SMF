@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Asuncion
  */
-class Asuncion extends \SMF\Calendar\VTimeZone
+class Asuncion extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Asuncion';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Paraguay',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +82,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19751001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19881001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19881001T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -72,7 +90,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19750301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19780301T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19780301T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -80,7 +98,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19910401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19910401T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -130,7 +148,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19931001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19951001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19951001T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -138,7 +156,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19940227T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=-1SU;UNTIL=19950226T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=-1SU;UNTIL=19950226T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -153,7 +171,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19961006T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=20011007T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=20011007T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -168,7 +186,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19980301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=20010304T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=20010304T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -176,7 +194,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20020407T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20040404T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20040404T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -184,7 +202,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20020901T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=20030907T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=20030907T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -192,7 +210,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20041017T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=20091018T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=20091018T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -200,7 +218,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20050313T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20090308T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20090308T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -208,7 +226,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20100411T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=2SU;UNTIL=20120408T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=2SU;UNTIL=20120408T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -216,7 +234,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		23 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20101003T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=20241006T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=20241006T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -224,7 +242,7 @@ class Asuncion extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20130324T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=4SU;UNTIL=20240324T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=4SU;UNTIL=20240324T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',

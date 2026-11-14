@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -163,12 +163,24 @@ class Folder
 		// @todo Can we consolidate these into a single variable?
 		foreach (['pmid', 'pmsg'] as $var) {
 			if (isset($_GET[$var])) {
-				$this->requested_pm = current(PM::load((int) $_GET[$var]));
+				$id = (int) $_GET[$var];
+
+				// Anything that is not a real ID never reaches the database:
+				// PM::load() answers an empty array of IDs with "given array of
+				// integer values is empty", which is a 500 for a URL a member
+				// only has to mistype.
+				$requested_pm = $id > 0 ? current(PM::load($id)) : false;
 
 				// Make sure you have access to this PM.
-				if (!$this->requested_pm->canAccess($this->is_inbox ? 'inbox' : 'sent')) {
+				// PM::load() also finds nothing for an ID that has been pruned
+				// or was never real, and current() answers false for that,
+				// which is not something $requested_pm can hold. A PM that is
+				// not there is no more accessible than somebody else's.
+				if (!($requested_pm instanceof PM) || !$requested_pm->canAccess($this->is_inbox ? 'inbox' : 'sent')) {
 					ErrorHandler::fatalLang('no_access', false);
 				}
+
+				$this->requested_pm = $requested_pm;
 			}
 		}
 
@@ -282,7 +294,8 @@ class Folder
 	{
 		$this->mode = ($this->mode + 1) % 3;
 
-		User::updateMemberData(User::$me->id, ['pm_prefs' => (User::$me->pm_prefs & 252) | $this->mode]);
+		User::$me->pm_prefs = (User::$me->pm_prefs & 252) | $this->mode;
+		User::$me->save();
 
 		// Remove 'view' from the query string so that refreshing the browser
 		// doesn't cause the view to change again.

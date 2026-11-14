@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,8 @@ declare(strict_types=1);
 namespace SMF;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 
 /**
  * Represents a poll.
@@ -426,7 +428,7 @@ class Poll implements \ArrayAccess
 
 			// Now add it to the poll's contextual theme data.
 			$this->formatted['choices'][$i] = [
-				'id' => 'options-' . $i,
+				'id' => $i,
 				'number' => ++$choice_number,
 				'percent' => $bar,
 				'votes' => $option->votes,
@@ -561,7 +563,7 @@ class Poll implements \ArrayAccess
 			}
 
 			$this->id = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}polls',
 				[
 					'question' => 'string-255',
@@ -586,7 +588,7 @@ class Poll implements \ArrayAccess
 					],
 				],
 				['id_poll'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			// Create each answer choice.
@@ -765,7 +767,7 @@ class Poll implements \ArrayAccess
 				}
 			}
 		} else {
-			$this->custom[$prop] = $value;
+			$this->internal_data[$prop] = $value;
 		}
 	}
 
@@ -1059,15 +1061,11 @@ class Poll implements \ArrayAccess
 			'guest_vote' => !empty($_POST['poll_guest_vote']),
 		]);
 
-		// Make all five poll choices empty.
-		Utils::$context['last_choice_id'] = 4;
-
-		for ($i = 0; $i <= Utils::$context['last_choice_id']; $i++) {
+		for ($i = 0; $i <= 4; $i++) {
 			$this->addChoice([
 				'id' => $i,
 				'number' => $i + 1,
 				'label' => '',
-				'is_last' => $i === Utils::$context['last_choice_id'],
 			], true);
 		}
 	}

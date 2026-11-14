@@ -5,21 +5,23 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Maintenance\Migration\v2_1;
 
-use SMF\Db\DatabaseApi as Db;
 use SMF\Db\Schema;
+use SMF\Maintenance\Migration\MigrationBase;
 
-class Ipv6LogReportedComments extends Ipv6Base
+class Ipv6LogReportedComments extends MigrationBase
 {
+	use IPv6Converter;
+
 	/*******************
 	 * Public properties
 	 *******************/
@@ -27,7 +29,7 @@ class Ipv6LogReportedComments extends Ipv6Base
 	/**
 	 *
 	 */
-	public string $name = 'Update log_reported_comments member_ip with ipv6 support';
+	public string $name = 'Updating log_reported_comments table with IPv6 support';
 
 	/****************
 	 * Public methods
@@ -36,26 +38,12 @@ class Ipv6LogReportedComments extends Ipv6Base
 	/**
 	 *
 	 */
-	public function __construct()
-	{
-		if (Db::$db->title !== POSTGRE_TITLE) {
-			$this->name .= ' without converting';
-		}
-	}
-
-	/**
-	 *
-	 */
 	public function isCandidate(): bool
 	{
-		$table = new Schema\v2_1\LogFloodcontrol();
+		$table = new Schema\v2_1\LogReportedComments();
 		$existing_structure = $table->getCurrentStructure();
 
-		if (Db::$db->title === POSTGRE_TITLE) {
-			return $existing_structure['columns']['ip']['type'] !== 'inet';
-		}
-
-		return $existing_structure['columns']['ip']['type'] !== 'varbinary';
+		return $existing_structure['columns']['member_ip']['type'] !== 'inet';
 	}
 
 	/**
@@ -63,8 +51,12 @@ class Ipv6LogReportedComments extends Ipv6Base
 	 */
 	public function execute(): bool
 	{
-		$table = new Schema\v2_1\LogFloodcontrol();
+		$table = new Schema\v2_1\LogReportedComments();
 
-		return $this->convertWithNoDataPreservation($table, 'ip');
+		$this->convertStringColumnToInet($table, $table->columns['member_ip']);
+
+		$this->handleTimeout();
+
+		return true;
 	}
 }

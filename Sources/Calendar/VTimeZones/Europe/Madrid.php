@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Madrid
  */
-class Madrid extends \SMF\Calendar\VTimeZone
+class Madrid extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Madrid extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Madrid';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19181007T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=6;UNTIL=19191007T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=6;UNTIL=19191006T230000Z',
 			'TZNAME' => 'WET',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0000',
@@ -93,7 +111,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19261003T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19291006T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19291005T230000Z',
 			'TZNAME' => 'WET',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0000',
@@ -185,7 +203,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19430417T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SA;BYMONTHDAY=13,14,15,16,17,18,19;UNTIL=19460413T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SA;BYMONTHDAY=13,14,15,16,17,18,19;UNTIL=19460413T220000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -193,7 +211,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19431003T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19441001T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19440930T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -201,7 +219,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19450930T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19460929T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19460928T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -223,7 +241,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		25 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19740413T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SA;BYMONTHDAY=12,13,14,15,16,17,18;UNTIL=19750412T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SA;BYMONTHDAY=12,13,14,15,16,17,18;UNTIL=19750412T220000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -231,7 +249,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		26 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19741006T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19751005T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19751004T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -246,7 +264,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		28 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19760926T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19770925T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19770924T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -275,7 +293,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		32 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19770831T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T000000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -283,7 +301,7 @@ class Madrid extends \SMF\Calendar\VTimeZone
 		33 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19800227T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',

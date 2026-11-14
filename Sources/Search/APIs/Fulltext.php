@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -231,7 +231,10 @@ class Fulltext extends SearchApi implements SearchApiInterface
 		}
 
 		$fulltextWord = \count($subwords) === 1 ? $word : '"' . $word . '"';
-		$wordsSearch['indexed_words'][] = $fulltextWord;
+
+		// InnoDB full-text search does not support the use of multiple operators on a single search word, as in this example: '++apple'. Use of multiple operators on a single search word returns a syntax error to standard out. MyISAM full-text search successfully processes the same search, ignoring all operators except for the operator immediately adjacent to the search word.
+		// InnoDB full-text search only supports leading plus or minus signs. For example, InnoDB supports '+apple' but does not support 'apple+'. Specifying a trailing plus or minus sign causes InnoDB to report a syntax error.
+		$wordsSearch['indexed_words'][] = rtrim(rtrim(ltrim(ltrim($fulltextWord, '++'), '--'), '+'), '-');
 
 		if ($isExcluded) {
 			$wordsExclude[] = $fulltextWord;
@@ -599,7 +602,7 @@ class Fulltext extends SearchApi implements SearchApiInterface
 					if (
 						isset($row['Engine'])
 						&& strtolower($row['Engine']) != 'myisam'
-						&& !(strtolower($row['Engine']) == 'innodb' && version_compare(Db::$db->get_version(), '5.6.4', '>='))
+						&& !(strtolower($row['Engine']) == 'innodb' && version_compare(Utils::standardizeVersionString(Db::$db->get_version()), '5.6.4', '>='))
 					) {
 						Utils::$context['cannot_create_fulltext'] = true;
 					}

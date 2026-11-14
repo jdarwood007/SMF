@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,7 +17,6 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\Group;
@@ -40,7 +39,6 @@ use SMF\Utils;
 class Members implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -302,7 +300,7 @@ class Members implements ActionInterface
 					'type' => 'string',
 				],
 				'email' => [
-					'db_fields' => ['email_address'],
+					'db_fields' => ['email_address_ci'],
 					'type' => 'string',
 				],
 				'website' => [
@@ -366,7 +364,7 @@ class Members implements ActionInterface
 				}
 				// Date values have to match a date format that PHP recognizes.
 				elseif ($param_info['type'] == 'date') {
-					$search_params[$param_name] = strtotime($search_params[$param_name] . ' ' . User::getTimezone());
+					$search_params[$param_name] = strtotime($search_params[$param_name] . ' ' . User::$me->timezone);
 
 					if (!\is_int($search_params[$param_name])) {
 						continue;
@@ -453,15 +451,21 @@ class Members implements ActionInterface
 						$where_params[$param_name . '_low'] = $search_params[$param_name]['low'];
 						$where_params[$param_name . '_high'] = $search_params[$param_name]['high'];
 					}
-				} elseif ($param_info['type'] != 'groups') {
+				}
+				// Email.
+				elseif ($param_name == 'email') {
+					$parameter = strtolower(strtr(Utils::htmlspecialchars($search_params[$param_name], ENT_QUOTES), ['%' => '\\%', '_' => '\\_', '*' => '%', '?' => '_']));
+
+					$query_parts[] = '(' . $param_info['db_fields'][0] . ' LIKE {string:' . $param_name . '})';
+
+					$where_params[$param_name] = '%' . $parameter . '%';
+				}
+				// Anything else except groups.
+				elseif ($param_info['type'] != 'groups') {
 					// Replace the wildcard characters ('*' and '?') into MySQL ones.
 					$parameter = strtolower(strtr(Utils::htmlspecialchars($search_params[$param_name], ENT_QUOTES), ['%' => '\\%', '_' => '\\_', '*' => '%', '?' => '_']));
 
-					if (Db::$db->case_sensitive) {
-						$query_parts[] = '(LOWER(' . implode(') LIKE {string:' . $param_name . '_normal} OR LOWER(', $param_info['db_fields']) . ') LIKE {string:' . $param_name . '_normal})';
-					} else {
-						$query_parts[] = '(' . implode(' LIKE {string:' . $param_name . '_normal} OR ', $param_info['db_fields']) . ' LIKE {string:' . $param_name . '_normal})';
-					}
+					$query_parts[] = '({column_ci:' . implode('} LIKE {string:' . $param_name . '_normal} OR {column_ci:', $param_info['db_fields']) . '} LIKE {string:' . $param_name . '_normal})';
 
 					$where_params[$param_name . '_normal'] = '%' . $parameter . '%';
 				}
@@ -596,8 +600,8 @@ class Members implements ActionInterface
 						],
 					],
 					'sort' => [
-						'default' => 'email_address',
-						'reverse' => 'email_address DESC',
+						'default' => 'email_address_ci',
+						'reverse' => 'email_address_ci DESC',
 					],
 				],
 				'ip' => [
@@ -627,7 +631,7 @@ class Members implements ActionInterface
 							if (empty($rowData['last_login'])) {
 								$difference = Lang::getTxt('never', file: 'General');
 							} else {
-								$tz = timezone_open(User::getTimezone());
+								$tz = timezone_open(User::$me->timezone);
 								$today = new \DateTime('today', $tz);
 								$prev = (new \DateTime('@' . $rowData['last_login']))->setTimezone($tz)->setTime(0, 0, 0, 0);
 
@@ -944,8 +948,8 @@ class Members implements ActionInterface
 						],
 					],
 					'sort' => [
-						'default' => 'email_address',
-						'reverse' => 'email_address DESC',
+						'default' => 'email_address_ci',
+						'reverse' => 'email_address_ci DESC',
 					],
 				],
 				'ip' => [
@@ -1192,7 +1196,7 @@ class Members implements ActionInterface
 				'username' => $row['member_name'],
 				'name' => $row['real_name'],
 				'email' => $row['email_address'],
-				'language' => empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $row['lngfile'],
+				'language' => empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $row['lngfile'],
 				'code' => $row['validation_code'],
 			];
 		}

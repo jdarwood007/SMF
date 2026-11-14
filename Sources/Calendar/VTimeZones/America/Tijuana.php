@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Tijuana
  */
-class Tijuana extends \SMF\Calendar\VTimeZone
+class Tijuana extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Tijuana extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Tijuana';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Pacific',
+		],
+	];
 
 	/**
 	 * @var array
@@ -154,7 +172,8 @@ class Tijuana extends \SMF\Calendar\VTimeZone
 		],
 		16 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19520928T020000',
+			'DTSTART' => '19500924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19610924T090000Z',
 			'TZNAME' => 'PST',
 			'TZOFFSETFROM' => '-0700',
 			'TZOFFSETTO' => '-0800',
@@ -162,23 +181,23 @@ class Tijuana extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19500430T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19660424T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19660424T090000Z',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
 		],
 		18 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19500924T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19610924T020000',
+			'DTSTART' => '19621028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19661030T090000Z',
 			'TZNAME' => 'PST',
 			'TZOFFSETFROM' => '-0700',
 			'TZOFFSETTO' => '-0800',
 		],
 		19 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19760425T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'DTSTART' => '19670430T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T100000Z',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
@@ -186,52 +205,74 @@ class Tijuana extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T090000Z',
 			'TZNAME' => 'PST',
 			'TZOFFSETFROM' => '-0700',
 			'TZOFFSETTO' => '-0800',
 		],
 		21 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'DTSTART' => '19740106T020000',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
 		],
 		22 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19960407T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20000402T020000',
+			'DTSTART' => '19750223T020000',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
 		],
 		23 => [
-			'type' => 'STANDARD',
-			'DTSTART' => '19961027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20001029T020000',
-			'TZNAME' => 'PST',
-			'TZOFFSETFROM' => '-0700',
-			'TZOFFSETTO' => '-0800',
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19760425T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T100000Z',
+			'TZNAME' => 'PDT',
+			'TZOFFSETFROM' => '-0800',
+			'TZOFFSETTO' => '-0700',
 		],
 		24 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '20020407T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20220403T020000',
+			'DTSTART' => '19870405T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T100000Z',
 			'TZNAME' => 'PDT',
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
 		],
 		25 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19960407T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20000402T100000Z',
+			'TZNAME' => 'PDT',
+			'TZOFFSETFROM' => '-0800',
+			'TZOFFSETTO' => '-0700',
+		],
+		26 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '20021027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20221030T020000',
+			'DTSTART' => '19961027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20001029T090000Z',
 			'TZNAME' => 'PST',
 			'TZOFFSETFROM' => '-0700',
 			'TZOFFSETTO' => '-0800',
 		],
-		26 => [
+		27 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '20020407T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20220403T100000Z',
+			'TZNAME' => 'PDT',
+			'TZOFFSETFROM' => '-0800',
+			'TZOFFSETTO' => '-0700',
+		],
+		28 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '20021027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20221030T090000Z',
+			'TZNAME' => 'PST',
+			'TZOFFSETFROM' => '-0700',
+			'TZOFFSETTO' => '-0800',
+		],
+		29 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20070311T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
@@ -239,7 +280,7 @@ class Tijuana extends \SMF\Calendar\VTimeZone
 			'TZOFFSETFROM' => '-0800',
 			'TZOFFSETTO' => '-0700',
 		],
-		27 => [
+		30 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20071104T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',

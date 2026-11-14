@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -26,12 +26,12 @@ use SMF\Editor;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
-use SMF\Msg;
 use SMF\OutputTypeInterface;
 use SMF\OutputTypes;
 use SMF\Parser;
 use SMF\Profile;
 use SMF\Routable;
+use SMF\Sapi;
 use SMF\Theme;
 use SMF\User;
 use SMF\Utils;
@@ -184,7 +184,7 @@ class XmlHttp implements ActionInterface, Routable
 		if (empty($news)) {
 			$errors[] = ['value' => 'no_news'];
 		} else {
-			Msg::preparsecode($news, false, !empty(Config::$modSettings['autoLinkUrls']));
+			$news = Parser::sanitize($news, autolink: !empty(Config::$modSettings['autoLinkUrls']));
 		}
 
 		Utils::$context['xml_data'] = [
@@ -230,7 +230,7 @@ class XmlHttp implements ActionInterface, Routable
 	 */
 	public function sig_preview(): void
 	{
-		require_once Config::canonicalPath(Config::$sourcedir . '/Profile-Modify.php');
+		require_once Sapi::canonicalPath(Config::$sourcedir . '/Profile-Modify.php');
 
 		$user = isset($_POST['user']) ? (int) $_POST['user'] : 0;
 		$is_owner = $user == User::$me->id;
@@ -388,9 +388,7 @@ class XmlHttp implements ActionInterface, Routable
 			}
 
 			if (!empty($_POST['body'])) {
-				Msg::preparsecode($warning_body, false, !empty(Config::$modSettings['autoLinkUrls']));
-
-				$warning_body = Parser::transform($warning_body);
+				$warning_body = Parser::transform(Parser::sanitize($warning_body, autolink: !empty(Config::$modSettings['autoLinkUrls'])));
 				$warning_body = Utils::adjustHeadingLevels($warning_body, null);
 			}
 

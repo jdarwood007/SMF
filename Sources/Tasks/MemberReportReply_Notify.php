@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -147,13 +147,13 @@ class MemberReportReply_Notify extends BackgroundTask
 			// Iterate through each language, load the relevant templates and set up sending.
 			foreach ($emails as $this_lang => $recipients) {
 				$replacements = [
-					'MEMBERNAME' => $this->_details['member_name'],
+					'MEMBERNAME' => $this->_details['user_name'],
 					'COMMENTERNAME' => $this->_details['sender_name'],
-					'PROFILELINK' => Config::$scripturl . 'action=profile;u=' . $this->_details['user_id'],
-					'REPORTLINK' => Config::$scripturl . '?action=moderate;area=userreports;report=' . $this->_details['report_id'],
+					'PROFILELINK' => Config::$scripturl . '?action=profile;u=' . $this->_details['user_id'],
+					'REPORTLINK' => Config::$scripturl . '?action=moderate;area=reportedmembers;sa=details;rid=' . $this->_details['report_id'],
 				];
 
-				$emaildata = Mail::loadEmailTemplate('reply_to_user_reports', $replacements, empty(Config::$modSettings['userLanguage']) ? Config::$language : $this_lang);
+				$emaildata = Mail::loadEmailTemplate('reply_to_member_report', $replacements, empty(Config::$modSettings['userLanguage']) ? Config::$language : $this_lang);
 
 				// And do the actual sending...
 				foreach ($recipients as $id_member => $email_address) {

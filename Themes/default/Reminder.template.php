@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
@@ -29,8 +30,8 @@ function template_main()
 			<div class="roundframe">
 				<p class="smalltext centertext">', Lang::getTxt('password_reminder_desc', file: 'Profile'), '</p>
 				<dl>
-					<dt>', Lang::getTxt('user_email', file: 'Profile'), '</dt>
-					<dd><input type="text" name="user" size="30"></dd>
+					<dt><label for="user">', Lang::getTxt('user_email', file: 'Profile'), '</label></dt>
+					<dd><input type="text" name="user" id="user" size="30"></dd>
 				</dl>
 				<input type="submit" value="', Lang::getTxt('reminder_continue', file: 'Profile'), '" class="button">
 				<br class="clear">
@@ -105,17 +106,11 @@ function template_set_password()
 				<dl>
 					<dt>', Lang::getTxt('choose_pass', file: 'General'), '</dt>
 					<dd>
-						<input type="password" name="passwrd1" id="smf_autov_pwmain" size="22">
-						<span id="smf_autov_pwmain_div" style="display: none;">
-							<span id="smf_autov_pwmain_img" class="main_icons invalid"></span>
-						</span>
+						<input type="password" name="passwrd1" data-autov="pwmain" size="22">
 					</dd>
 					<dt>', Lang::getTxt('verify_pass', file: 'General'), '</dt>
 					<dd>
-						<input type="password" name="passwrd2" id="smf_autov_pwverify" size="22">
-						<span id="smf_autov_pwverify_div" style="display: none;">
-							<span id="smf_autov_pwverify_img" class="main_icons invalid"></span>
-						</span>
+						<input type="password" name="passwrd2" data-autov="pwverify" size="22">
 					</dd>
 				</dl>
 				<p class="align_center">
@@ -161,17 +156,11 @@ function template_ask()
 					<dd><input type="text" name="secret_answer" size="22"></dd>
 					<dt>', Lang::getTxt('choose_pass', file: 'General'), '</dt>
 					<dd>
-						<input type="password" name="passwrd1" id="smf_autov_pwmain" size="22">
-						<span id="smf_autov_pwmain_div" style="display: none;">
-							<span id="smf_autov_pwmain_img" class="main_icons invalid"></span>
-						</span>
+						<input type="password" name="passwrd1" data-autov="pwmain" size="22">
 					</dd>
 					<dt>', Lang::getTxt('verify_pass', file: 'General'), '</dt>
 					<dd>
-						<input type="password" name="passwrd2" id="smf_autov_pwverify" size="22">
-						<span id="smf_autov_pwverify_div" style="display: none;">
-							<span id="smf_autov_pwverify_img" class="main_icons valid"></span>
-						</span>
+						<input type="password" name="passwrd2" data-autov="pwverify" size="22">
 					</dd>
 				</dl>
 				<div class="auto_flow">

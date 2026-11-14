@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,10 +17,10 @@ namespace SMF\Actions;
 
 use SMF\ActionInterface;
 use SMF\ActionRouter;
-use SMF\Actions\Admin\ACP;
 use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Routable;
+use SMF\Statistics;
 use SMF\User;
 
 /**
@@ -70,64 +70,16 @@ class SmStats implements ActionInterface, Routable
 		}
 
 		// Verify the referer...
-		if (!User::$me->is_admin && (!isset($_SERVER['HTTP_REFERER']) || md5($_SERVER['HTTP_REFERER']) != '746cb59a1a0d5cf4bd240e5a67c73085')) {
+		if (!User::$me->is_admin && !Statistics::refererIsValid()) {
 			die();
 		}
 
-		// Get some server versions.
-		$checkFor = [
-			'php',
-			'db_server',
-		];
-		$serverVersions = ACP::getServerVersions($checkFor);
-
-		// Get the actual stats.
-		$stats_to_send = [
-			'UID' => Config::$modSettings['sm_stats_key'],
-			'time_added' => time(),
-			'members' => Config::$modSettings['totalMembers'],
-			'messages' => Config::$modSettings['totalMessages'],
-			'topics' => Config::$modSettings['totalTopics'],
-			'boards' => 0,
-			'php_version' => $serverVersions['php']['version'],
-			'database_type' => strtolower($serverVersions['db_engine']['version']),
-			'database_version' => $serverVersions['db_server']['version'],
-			'smf_version' => SMF_FULL_VERSION,
-			'smfd_version' => Config::$modSettings['smfVersion'],
-		];
-
-		// Encode all the data, for security.
-		foreach ($stats_to_send as $k => $v) {
-			$stats_to_send[$k] = urlencode($k) . '=' . urlencode($v);
-		}
-
-		// Turn this into the query string!
-		$stats_to_send = implode('&', $stats_to_send);
-
 		// If we're an admin, just plonk them out.
 		if (User::$me->is_admin) {
-			echo $stats_to_send;
+			// Turn this into the query string!
+			echo http_build_query(Statistics::collect());
 		} else {
-			// Connect to the collection script.
-			$fp = @fsockopen('www.simplemachines.org', 443, $errno, $errstr);
-
-			if (!$fp) {
-				$fp = @fsockopen('www.simplemachines.org', 80, $errno, $errstr);
-			}
-
-			if ($fp) {
-				$length = \strlen($stats_to_send);
-
-				$out = 'POST /smf/stats/collect_stats.php HTTP/1.1' . "\r\n";
-				$out .= 'Host: www.simplemachines.org' . "\r\n";
-				$out .= 'user-agent: ' . SMF_USER_AGENT . "\r\n";
-				$out .= 'content-type: application/x-www-form-urlencoded' . "\r\n";
-				$out .= 'connection: Close' . "\r\n";
-				$out .= 'content-length: ' . $length . "\r\n\r\n";
-				$out .= $stats_to_send . "\r\n";
-				fwrite($fp, $out);
-				fclose($fp);
-			}
+			Statistics::sendToCollector();
 		}
 
 		// Die.

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -29,22 +29,6 @@ use SMF\Uuid;
 abstract class DatabaseApi
 {
 	use BackwardCompatibility;
-
-	/*****************
-	 * Class constants
-	 *****************/
-
-	/**
-	 * @var int
-	 *
-	 * Insert return modes.
-	 * 	- Off returns null.
-	 * 	- Single returns the last id.
-	 * 	- Multi returns all ids.
-	 */
-	public const INSERT_RETURN_MODE_OFF = 0;
-	public const INSERT_RETURN_MODE_SINGLE = 1;
-	public const INSERT_RETURN_MODE_MULTI = 2;
 
 	/*******************
 	 * Public properties
@@ -93,10 +77,30 @@ abstract class DatabaseApi
 	/**
 	 * @var bool
 	 *
-	 * Whether the database supports PCRE regular expressions.
-	 * Always true for PostgreSQL. Depends on version for MySQL.
+	 * Whether the database supports ICU regular expressions.
 	 */
-	public bool $supports_pcre;
+	public bool $regex_icu;
+
+	/**
+	 * @var bool
+	 *
+	 * Whether the database supports PCRE regular expressions.
+	 */
+	public bool $regex_pcre;
+
+	/**
+	 * @var bool
+	 *
+	 * Whether the database supports TCL regular expressions.
+	 */
+	public bool $regex_tcl;
+
+	/**
+	 * @var bool
+	 *
+	 * Whether the database supports POSIX regular expressions.
+	 */
+	public bool $regex_posix;
 
 	/**
 	 * @var string
@@ -196,7 +200,7 @@ abstract class DatabaseApi
 	public static array $package_log = [];
 
 	/**
-	 * @var object
+	 * @var object|false
 	 *
 	 * A static copy of $this->connection. This exists solely to facilitate
 	 * backward compatibility by populating the global $db_connection variable.
@@ -323,7 +327,7 @@ abstract class DatabaseApi
 	 ****************/
 
 	/**
-	 * Protected constructor to prevent multiple instances.
+	 * Constructor.
 	 */
 	public function __construct()
 	{
@@ -375,16 +379,51 @@ abstract class DatabaseApi
 	 */
 	public function getTypeIndicators(string $table_name, array $column_values): array
 	{
-		$columns = $this->list_columns($table_name, true);
+		static $column_types = [];
+
+		// Strip off the prefix.
+		foreach (['{db_prefix}', Config::$db_prefix, $this->prefix] as $prefix) {
+			if (str_starts_with($table_name, $prefix)) {
+				$table_name = substr($table_name, \strlen($prefix));
+				break;
+			}
+		}
+
+		if (!isset($column_types[$table_name])) {
+			$column_types[$table_name] = [];
+
+			// First try looking up the column info from the schema files.
+			// We do this first to try to avoid an extra database query.
+			// This approach does assume that the columns in the database are
+			// defined the way they are supposed to be, but that's fine since
+			// if the theoretical column type doesn't match the actual column
+			// type, we are doomed to run into errors anyway.
+			$table = Schema\Table::find($table_name, preg_replace('/^(\d+)\.(\d+).*/', 'v$1_$2', SMF_VERSION));
+
+			if ($table instanceof Schema\Table) {
+				foreach ($table->columns as $col) {
+					$column_types[$table_name][$col->name] = $col->type;
+				}
+			}
+
+			// If we didn't find a schema file for this table, or if $column_values
+			// refers to any columns that are not defined in the schema file, then
+			// we need to do a database query.
+			if (array_diff_key($column_values, $column_types[$table_name]) !== []) {
+				foreach ($this->list_columns('{db_prefix}' . $table_name, true) as $col) {
+					$column_types[$table_name][$col['name']] = $col['type'];
+				}
+			}
+		}
 
 		$types = [];
 
 		foreach ($column_values as $column_name => $value) {
-			if (!isset($columns[$column_name])) {
+			if (!isset($column_types[$table_name][$column_name])) {
 				continue;
 			}
 
-			switch (strtolower($columns[$column_name]['type'])) {
+			switch (strtolower($column_types[$table_name][$column_name])) {
 				case 'decimal':
 				case 'numeric':
 				case 'float':
@@ -570,8 +609,14 @@ abstract class DatabaseApi
 			'db_case_sensitive' => &$this->case_sensitive,
 			'db_mb4' => &$this->mb4,
 			'db_support_ignore' => &$this->support_ignore,
-			'db_supports_pcre' => &$this->supports_pcre,
 		];
+
+		// Previous versions of SMF didn't distinguish between PCRE vs. ICU regex support.
+		if ($this->regex_icu) {
+			Utils::$smcFunc['db_supports_pcre'] = &$this->regex_icu;
+		} else {
+			Utils::$smcFunc['db_supports_pcre'] = &$this->regex_pcre;
+		}
 
 		// Methods to export.
 		$methods = [

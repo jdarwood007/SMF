@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,7 @@ namespace SMF\Actions;
 use SMF\ActionInterface;
 use SMF\ActionRouter;
 use SMF\ActionTrait;
+use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\Routable;
 use SMF\User;
@@ -65,18 +66,23 @@ class RequestMembers implements ActionInterface, Routable
 
 		header('content-type: text/plain; charset=UTF-8');
 
+		// Can't search for buddies if that feature is disabled.
+		if (empty(Config::$modSettings['enable_buddylist'])) {
+			unset($_REQUEST['buddies']);
+		}
+
 		$request = Db::$db->query(
 			'SELECT real_name
 			FROM {db_prefix}members
-			WHERE {raw:real_name} LIKE {string:search}' . (isset($_REQUEST['buddies']) ? '
+			WHERE {column_ci:real_name} LIKE {string:search}' . (isset($_REQUEST['buddies']) ? '
 				AND id_member IN ({array_int:buddy_list})' : '') . '
 				AND is_activated IN ({array_int:activated})
-			LIMIT ' . (Utils::entityStrlen($this->search) <= 2 ? '100' : '800'),
+			LIMIT {int:limit}',
 			[
-				'real_name' => Db::$db->case_sensitive ? 'LOWER(real_name)' : 'real_name',
 				'buddy_list' => User::$me->buddies,
 				'search' => $this->search,
 				'activated' => [User::ACTIVATED, User::ACTIVATED_BANNED],
+				'limit' => Utils::entityStrlen($this->search) <= 2 ? 100 : 800,
 			],
 		);
 

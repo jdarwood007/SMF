@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Australia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Australia/Lord_Howe
  */
-class Lord_Howe extends \SMF\Calendar\VTimeZone
+class Lord_Howe extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,26 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Australia/Lord_Howe';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Australia_Eastern',
+		],
+		1 => [
+			'ts' => '1981-02-28T14:00:00+0000',
+			'metazone' => 'Lord_Howe',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +79,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19811025T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19841028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19841027T153000Z',
 			'TZNAME' => 'UTC+1130',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+1130',
@@ -65,7 +87,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19820307T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850303T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850302T143000Z',
 			'TZNAME' => 'UTC+1030',
 			'TZOFFSETFROM' => '+1130',
 			'TZOFFSETTO' => '+1030',
@@ -80,7 +102,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860316T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19890319T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19890318T150000Z',
 			'TZNAME' => 'UTC+1030',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1030',
@@ -95,7 +117,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19871025T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991030T153000Z',
 			'TZNAME' => 'UTC+11',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+1100',
@@ -103,7 +125,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19900304T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19950305T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19950304T150000Z',
 			'TZNAME' => 'UTC+1030',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1030',
@@ -111,7 +133,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19960331T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050326T150000Z',
 			'TZNAME' => 'UTC+1030',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1030',
@@ -126,7 +148,7 @@ class Lord_Howe extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20011028T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071027T153000Z',
 			'TZNAME' => 'UTC+11',
 			'TZOFFSETFROM' => '+1030',
 			'TZOFFSETTO' => '+1100',

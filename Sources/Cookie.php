@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -205,8 +205,8 @@ class Cookie
 		$this->expires = $expires ?? time() + self::LENGTH_DEFAULT;
 		$this->domain = $domain ?? self::$default_domain;
 		$this->path = $path ?? self::$default_path;
-		$this->secure = $secure ?? !empty(Config::$modSettings['secureCookies']);
-		$this->httponly = $httponly ?? !empty(Config::$modSettings['httponlyCookies']);
+		$this->secure = (bool) ($secure ?? Config::$modSettings['secureCookies'] ?? (!empty(Config::$modSettings['force_ssl']) || Sapi::httpsOn()));
+		$this->httponly = (bool) ($httponly ?? Config::$modSettings['httponlyCookies'] ?? true);
 		$this->samesite = $samesite ?? !empty(Config::$modSettings['samesiteCookies']) ? Config::$modSettings['samesiteCookies'] : 'lax';
 
 		// Allow mods to add custom info to the cookie
@@ -339,18 +339,20 @@ class Cookie
 	}
 
 	/**
-	 * Sets the SMF-style login cookie and session based on the id_member and password passed.
+	 * Sets the SMF-style login cookie and session based on the id_member and
+	 * password passed.
 	 *
 	 * - password should be already encrypted with the cookie salt.
 	 * - logs the user out if id_member is zero.
-	 * - sets the cookie and session to last the number of seconds specified by cookie_length, or
-	 *   ends them if cookie_length is less than 0.
-	 * - when logging out, if the globalCookies setting is enabled, attempts to clear the subdomain's
-	 *   cookie too.
+	 * - sets the cookie and session to last the number of seconds specified by
+	 *   cookie_length, or ends them if cookie_length is less than 0.
+	 * - when logging out, if the globalCookies setting is enabled, attempts to
+	 *   clear the subdomain's cookie too.
 	 *
-	 * @param int $cookie_length How many seconds the cookie should last. If negative, forces logout.
-	 * @param int $id The ID of the member to set the cookie for
-	 * @param string $password The hashed password
+	 * @param int $cookie_length How many seconds the cookie should last.
+	 *    If negative, forces logout.
+	 * @param int $id The ID of the member to set the cookie for.
+	 * @param string $password The hashed password.
 	 */
 	public static function setLoginCookie(int $cookie_length, int $id, string $password = ''): void
 	{
@@ -432,12 +434,8 @@ class Cookie
 
 			// Recreate and restore the new session.
 			Session::load();
-
-			// @todo should we use session_regenerate_id(true); now that we are 5.1+
-			session_regenerate_id();
-
+			session_regenerate_id(true);
 			$_SESSION = $oldSessionData;
-
 			$_SESSION['login_' . Config::$cookiename] = $_COOKIE[Config::$cookiename];
 		}
 	}
@@ -456,6 +454,7 @@ class Cookie
 		// Verify the data.
 		if (
 			User::$me->is_guest
+			|| !isset($cookie)
 			|| $cookie->member !== User::$me->id
 			|| $cookie->hash !== self::encrypt(User::$me->passwd, User::$me->password_salt)
 		) {
@@ -541,17 +540,25 @@ class Cookie
 
 		$host = $url->host;
 
-		// Manually specified the global domain.
-		// @todo Why doesn't this check whether $global is true?
-		if (!empty(Config::$modSettings['globalCookiesDomain']) && str_contains(Config::$boardurl, Config::$modSettings['globalCookiesDomain'])) {
-			$host = Config::$modSettings['globalCookiesDomain'];
-		}
-		// Globalize cookies across domains? (filter out IP-addresses)
-		elseif ($use_global && preg_match('~^\d{1,3}(\.\d{1,3}){3}$~', $host) == 0 && preg_match('~(?:[^\.]+\.)?([^\.]{2,}\..+)\z~i', $host, $parts) == 1) {
-			$host = '.' . $parts[1];
+		// Globalize cookies across domains?
+		if ($use_global) {
+			// Manually specified the global domain.
+			if (
+				!empty(Config::$modSettings['globalCookiesDomain'])
+				&& str_ends_with(Config::$boardurl, Config::$modSettings['globalCookiesDomain'])
+			) {
+				$host = '.' . ltrim(Config::$modSettings['globalCookiesDomain'], '.');
+			}
+			// Globalize cookies across domains? (filter out IP-addresses)
+			elseif (
+				!IP::create($host)->isValid()
+				&& preg_match('/(?:[^\.]+\.)?([^\.]{2,}\..+)\z/i', $host, $parts)
+			) {
+				$host = '.' . $parts[1];
+			}
 		}
 		// We shouldn't use a host at all if both options are off.
-		elseif (!$use_local && !$use_global) {
+		elseif (!$use_local) {
 			$host = '';
 		}
 		// The host also shouldn't be set if there aren't any dots in it.
@@ -590,5 +597,29 @@ class Cookie
 		}
 
 		list(self::$default_domain, self::$default_path) = self::urlParts(!empty(Config::$modSettings['localCookies']), !empty(Config::$modSettings['globalCookies']));
+	}
+
+	/**
+	 * Gets (and if necessary, sets) the value of self::$default_domain.
+	 */
+	public static function getDefaultDomain(): string
+	{
+		if (!isset(self::$default_domain)) {
+			self::setDefaults();
+		}
+
+		return self::$default_domain;
+	}
+
+	/**
+	 * Gets (and if necessary, sets) the value of self::$default_path.
+	 */
+	public static function getDefaultPath(): string
+	{
+		if (!isset(self::$default_path)) {
+			self::setDefaults();
+		}
+
+		return self::$default_path;
 	}
 }

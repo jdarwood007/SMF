@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -22,11 +22,6 @@ use SMF\Sapi;
 use SMF\Url;
 use SMF\Utils;
 use SMF\WebFetch\WebFetchApi;
-
-// IMAGETYPE_AVIF was added in PHP 8.1
-if (!\defined('IMAGETYPE_AVIF')) {
-	\define('IMAGETYPE_AVIF', 19);
-}
 
 /**
  * Represents an image and allows low-level graphics operations to be performed,
@@ -43,20 +38,35 @@ class Image
 
 	// Maps certain IMAGETYPE_* constants to ImageMagick formats.
 	public const IMAGETYPE_TO_IMAGICK = [
-		IMAGETYPE_BMP => 'bmp',
 		IMAGETYPE_GIF => 'gif',
-		IMAGETYPE_ICO => 'ico',
-		IMAGETYPE_JP2 => 'jp2',
 		IMAGETYPE_JPEG => 'jpeg',
-		IMAGETYPE_JPEG2000 => 'jp2',
 		IMAGETYPE_PNG => 'png',
 		IMAGETYPE_PSD => 'psd',
+		IMAGETYPE_BMP => 'bmp',
 		IMAGETYPE_TIFF_II => 'tiff',
 		IMAGETYPE_TIFF_MM => 'tiff',
+		IMAGETYPE_JPC => 'j2c',
+		IMAGETYPE_JP2 => 'jp2',
 		IMAGETYPE_WBMP => 'wbmp',
-		IMAGETYPE_WEBP => 'webp',
 		IMAGETYPE_XBM => 'xbm',
+		IMAGETYPE_ICO => 'ico',
+		IMAGETYPE_WEBP => 'webp',
 		IMAGETYPE_AVIF => 'avif',
+		// IMAGETYPE_HEIF, added in PHP 8.5.
+		20 => 'heic', // No, that 'c' is not a typo.
+		// IMAGETYPE_SVG, added in PHP 8.5 when libxml is loaded.
+		21 => 'svg',
+	];
+
+	// Maps certain IMAGETYPE_* constants to IMG_* constants.
+	public const IMAGETYPE_TO_IMG = [
+		IMAGETYPE_GIF => IMG_GIF,
+		IMAGETYPE_JPEG => IMG_JPG,
+		IMAGETYPE_PNG => IMG_PNG,
+		IMAGETYPE_BMP => IMG_BMP,
+		IMAGETYPE_WBMP => IMG_WBMP,
+		IMAGETYPE_WEBP => IMG_WEBP,
+		IMAGETYPE_AVIF => IMG_AVIF,
 	];
 
 	/*******************
@@ -149,30 +159,6 @@ class Image
 	 */
 	public bool $embedded_thumb = false;
 
-	/**************************
-	 * Public static properties
-	 **************************/
-
-	/**
-	 * @var array
-	 *
-	 * All IMAGETYPE_* constants known by this version of PHP.
-	 *
-	 * Keys are the string names of the constants.
-	 * Values are the literal integer values of those constants.
-	 */
-	public static array $image_types;
-
-	/**
-	 * @var array
-	 *
-	 * Raster image types that are fully supported both by this class and by the
-	 * installed graphics library.
-	 *
-	 * Values are the integer values of IMAGETYPE_* constants.
-	 */
-	public static array $supported;
-
 	/*********************
 	 * Internal properties
 	 *********************/
@@ -184,6 +170,24 @@ class Image
 	 * This is used by the reencode() method.
 	 */
 	protected bool $force_resize = false;
+
+	/****************************
+	 * Internal static properties
+	 ****************************/
+
+	/**
+	 * @var array
+	 *
+	 * Cache for self::getImageTypes()
+	 */
+	protected static array $image_types;
+
+	/**
+	 * @var array
+	 *
+	 * Cache for self::getSupportedFormats()
+	 */
+	protected static array $supported;
 
 	/****************
 	 * Public methods
@@ -211,8 +215,13 @@ class Image
 			$this->original = $this->source;
 			$this->is_temp = false;
 		} else {
+			// Is $source the URL for an external file?
+			$url = Url::create($source);
+			$is_url = $url->isValid();
+			unset($url);
+
 			// External file.
-			if (Url::create($source)->isValid()) {
+			if ($is_url) {
 				// Remember the URL as the original source.
 				$this->original = $source;
 
@@ -233,11 +242,14 @@ class Image
 			}
 		}
 
+		// Save memory.
+		unset($source);
+
 		// Get the MIME type of the source file.
 		$mime_type = Utils::getMimeType($this->source, true);
 
 		// Not an image? Error and bail out.
-		if (!\is_string($mime_type) || strpos($mime_type, 'image/') !== 0) {
+		if (!\is_string($mime_type) || !str_starts_with($mime_type, 'image/')) {
 			if ($this->is_temp) {
 				@unlink($this->source);
 			}
@@ -313,7 +325,11 @@ class Image
 		}
 
 		// We don't need to create a thumbnail if one is already embedded.
-		if (\function_exists('exif_thumbnail') && exif_thumbnail($this->source) !== false) {
+		// checkForEmbeddedThumb() answered this when the image was loaded, and
+		// it does so without a warning: exif_thumbnail() emits one for every
+		// format that cannot carry an embedded thumbnail, so asking it here
+		// again put a row in the error log for each PNG anyone uploaded.
+		if ($this->embedded_thumb) {
 			return false;
 		}
 
@@ -323,6 +339,11 @@ class Image
 
 		// Do the actual resize.
 		$success = $this->resize($dst_name, $max_width, $max_height, $preferred_type);
+
+		// Well this failed.
+		if (!file_exists($dst_name)) {
+			return false;
+		}
 
 		// Okay, we're done with the temporary stuff.
 		$dst_name = substr($dst_name, 0, -4);
@@ -343,7 +364,7 @@ class Image
 	 * with the appropriate file extension for the new format, and then removes
 	 * the original file.
 	 *
-	 * @param int $preferred_type And IMAGETYPE_* constant, or 0 for automatic.
+	 * @param int $preferred_type An IMAGETYPE_* constant, or 0 for automatic.
 	 * @return bool Whether the reencoding operation was successful.
 	 */
 	public function reencode(int $preferred_type = 0): bool
@@ -408,7 +429,7 @@ class Image
 	 * @param string $destination The path to the destination image.
 	 * @param int $max_width The maximum allowed width.
 	 * @param int $max_height The maximum allowed height.
-	 * @param int &$preferred_type And IMAGETYPE_* constant, or 0 for automatic.
+	 * @param int &$preferred_type An IMAGETYPE_* constant, or 0 for automatic.
 	 * @return bool Whether it succeeded.
 	 */
 	public function resize(string $destination, int $max_width, int $max_height, int &$preferred_type = 0): bool
@@ -425,12 +446,17 @@ class Image
 
 		// If it doesn't need to be resized, just copy it to the destination.
 		if (!$this->shouldResize($max_width, $max_height)) {
-			if ($this->source !== $destination) {
-				copy($this->source, $destination);
-				$this->source = $destination;
+			if ($this->source === $destination) {
+				return true;
 			}
 
-			return true;
+			if (@copy($this->source, $destination)) {
+				$this->source = $destination;
+
+				return true;
+			}
+
+			return false;
 		}
 
 		// Nothing to do without GD or Imagick.
@@ -444,7 +470,7 @@ class Image
 		}
 
 		// What destination format do we want?
-		if ($preferred_type === 0 || !\in_array($preferred_type, self::$supported)) {
+		if ($preferred_type === 0 || !\in_array($preferred_type, self::getSupportedFormats())) {
 			$preferred_type = $this->type ?? self::DEFAULT_IMAGETYPE;
 		}
 
@@ -548,7 +574,7 @@ class Image
 				}
 			} elseif (\extension_loaded('gd')) {
 				foreach (self::getImageTypes() as $name => $int) {
-					if (imagetypes() & $int) {
+					if (imagetypes() & (self::IMAGETYPE_TO_IMG[$int] ?? 0)) {
 						self::$supported[$name] = $int;
 					}
 				}
@@ -660,8 +686,13 @@ class Image
 			return;
 		}
 
-		// SVGs don't have an IMAGETYPE_*.
+		// In PHP 8.5 when libxml is loaded, exif_imagetype() can detect SVGs
+		// and assigns them the type IMAGETYPE_SVG. But since we don't know
+		// whether that'll work on this particular server, just set it manually.
 		if ($this->mime_type === 'image/svg+xml') {
+			// IMAGETYPE_SVG === 21
+			$this->type = 21;
+
 			return;
 		}
 
@@ -680,10 +711,19 @@ class Image
 		}
 
 		// If all else fails, see if we can guess from the MIME type.
-		if (strpos($this->mime_type, 'image/') === 0) {
-			// Unfortunately, 'image/tiff' could be two different things,
-			// and if we got here, we have no way to guess which one.
+		if (str_starts_with($this->mime_type, 'image/')) {
+			// 'image/tiff' could be two different things.
 			if ($this->mime_type === 'image/tiff') {
+				switch (file_get_contents($this->source, offset: 0, length: 2)) {
+					case 'II':
+						$this->type = IMAGETYPE_TIFF_II;
+						break;
+
+					case 'MM':
+						$this->type = IMAGETYPE_TIFF_MM;
+						break;
+				}
+
 				return;
 			}
 
@@ -931,14 +971,43 @@ class Image
 			ErrorHandler::fatalLang('attach_timeout');
 		}
 
+		// The patterns below match UTF-8 and ASCII bytes. UTF-16 and UTF-32
+		// encode ASCII characters with NUL bytes, so the markup would not match.
+		$head = fread($fp, 8192);
+
+		if ($head === false || strpos($head, "\0") !== false) {
+			fclose($fp);
+
+			return false;
+		}
+
+		// XML defaults to UTF-8. Reject a declaration that names another encoding,
+		// because the patterns cannot see markup encoded another way.
+		if (preg_match('/^(?:\xEF\xBB\xBF)?\s*<\?xml\s[^>]*\bencoding\s*=\s*(["\'])([^"\']+)\1/i', $head, $matches)
+			&& !\in_array(trim(strtolower($matches[2])), ['utf-8', 'us-ascii', 'ascii'])) {
+			fclose($fp);
+
+			return false;
+		}
+
+		// A declaration that does not end in the first chunk could hide its
+		// encoding attribute from the check above.
+		if (preg_match('/^(?:\xEF\xBB\xBF)?\s*<\?xml\s/i', $head) && strpos($head, '?>') === false) {
+			fclose($fp);
+
+			return false;
+		}
+
+		rewind($fp);
+
 		$patterns = [
 			// No external or embedded scripts allowed.
 			'/<(\S*:)?script\b/i',
 			'/\b(\S:)?href\s*=\s*["\']\s*javascript:/i',
 
 			// No SVG event attributes allowed, since they execute scripts.
-			'/\bon\w+\s*=\s*["\']/',
-			'/<(\S*:)?set\b[^>]*\battributeName\s*=\s*(["\'])\s*on\w+\1/i',
+			'/\bon\w+\s*=\s*["\']/i',
+			'/<(\S*:)?(set|animate(Motion|Transform)?)\b[^>]*\battributeName\s*=\s*(["\'])\s*(on\w+|(\S*:)?href)\\1/i',
 
 			// No XML Events allowed, since they execute scripts.
 			'~\bhttp://www\.w3\.org/2001/xml-events\b~i',
@@ -954,7 +1023,7 @@ class Image
 			'/<!ENTITY\b/',
 
 			// Embedded external images can't have custom cross-origin rules.
-			'/<\b(\S*:)?image\b[^>]*\bcrossorigin\s*=/',
+			'/<\b(\S*:)?image\b[^>]*\bcrossorigin\s*=/i',
 
 			// No embedded PHP tags allowed.
 			// Harmless if the SVG is just the src of an img element, but very
@@ -966,6 +1035,12 @@ class Image
 
 		while (!feof($fp)) {
 			$cur_chunk = fread($fp, 8192);
+
+			if ($cur_chunk === false || strpos($cur_chunk, "\0") !== false) {
+				fclose($fp);
+
+				return false;
+			}
 
 			foreach ($patterns as $pattern) {
 				if (preg_match($pattern, $prev_chunk . $cur_chunk)) {
@@ -988,7 +1063,7 @@ class Image
 	 * @param string $destination The path to the destination image.
 	 * @param int $max_width The maximum allowed width.
 	 * @param int $max_height The maximum allowed height.
-	 * @param int $preferred_type And IMAGETYPE_* constant.
+	 * @param int $preferred_type An IMAGETYPE_* constant.
 	 * @return bool Whether the operation was successful.
 	 */
 	protected function resizeUsingGD(string $destination, int $max_width, int $max_height, int $preferred_type): bool
@@ -1004,9 +1079,9 @@ class Image
 		}
 
 		// Figure out the functions we need.
-		$imagecreatefrom = 'imagecreatefrom' . strtolower(substr(array_search($this->type, self::$supported), 10));
+		$imagecreatefrom = 'imagecreatefrom' . strtolower(substr(array_search($this->type, self::getSupportedFormats()), 10));
 
-		$imagesave = 'image' . strtolower(substr(array_search($preferred_type, self::$supported), 10));
+		$imagesave = 'image' . strtolower(substr(array_search($preferred_type, self::getSupportedFormats()), 10));
 
 		// Do the functions exist?
 		if (!\function_exists($imagecreatefrom) || !\function_exists($imagesave)) {
@@ -1022,8 +1097,6 @@ class Image
 			return false;
 		}
 
-		$success = false;
-
 		// Determine whether to resize to max width or to max height (depending on the limits.)
 		if (!empty($max_width) && (empty($max_height) || round($this->height * $max_width / $this->width) <= $max_height)) {
 			$dst_width = (int) $max_width;
@@ -1031,6 +1104,9 @@ class Image
 		} elseif (!empty($max_height)) {
 			$dst_width = (int) round($this->width * $max_height / $this->height);
 			$dst_height = (int) $max_height;
+		} else {
+			$dst_width = 0;
+			$dst_height = 0;
 		}
 
 		// Don't bother resizing if it's already smaller...
@@ -1091,7 +1167,7 @@ class Image
 	 * @param string $destination The path to the destination image.
 	 * @param int $max_width The maximum allowed width.
 	 * @param int $max_height The maximum allowed height.
-	 * @param int $preferred_type And IMAGETYPE_* constant.
+	 * @param int $preferred_type An IMAGETYPE_* constant.
 	 * @return bool Whether the operation was successful.
 	 */
 	protected function resizeUsingImagick(string $destination, int $max_width, int $max_height, int $preferred_type): bool
@@ -1139,37 +1215,5 @@ class Image
 		}
 
 		return $imagick->writeImage($destination);
-	}
-
-	/*************************
-	 * Internal static methods
-	 *************************/
-
-	/**
-	 * Gets the IMAGETYPE_* constant corresponding to the passed MIME type.
-	 *
-	 * This doesn't work for all cases, but it does for the most common ones.
-	 *
-	 * @return int An IMAGETYPE_* constant, or 0 if no match was found.
-	 */
-	protected static function mimeTypeToImageType(string $mime_type): int
-	{
-		// We can't do anything useful with 'application/octet-stream', etc.
-		if (strpos($mime_type, 'image/') !== 0) {
-			return 0;
-		}
-
-		// Unfortunately, 'image/tiff' could be two different things.
-		if ($mime_type === 'image/tiff') {
-			return 0;
-		}
-
-		foreach (self::getImageTypes() as $type) {
-			if (image_type_to_mime_type($type) === $mime_type) {
-				return $type;
-			}
-		}
-
-		return 0;
 	}
 }

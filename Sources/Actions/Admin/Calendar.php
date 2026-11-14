@@ -7,10 +7,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,12 +19,12 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Board;
 use SMF\Calendar\Event;
 use SMF\Calendar\Holiday;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\IntegrationHook;
 use SMF\ItemList;
 use SMF\Lang;
@@ -46,7 +46,6 @@ use SMF\WebFetch\WebFetchApi;
 class Calendar implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -138,10 +137,10 @@ class Calendar implements ActionInterface
 			'base_href' => Config::$scripturl . '?action=admin;area=managecalendar;sa=holidays',
 			'default_sort_col' => 'name',
 			'get_items' => [
-				'function' => 'SMF\\Calendar\\Holiday::list',
+				'function' => Holiday::class . '::list',
 			],
 			'get_count' => [
-				'function' => 'SMF\\Calendar\\Holiday::count',
+				'function' => Holiday::class . '::count',
 			],
 			'no_items_label' => Lang::getTxt('holidays_no_entries', file: 'ManageCalendar'),
 			'columns' => [
@@ -302,13 +301,14 @@ class Calendar implements ActionInterface
 
 		// An all day event? Set up some nice defaults in case the user wants to change that
 		if (Utils::$context['event']->allday == true) {
-			Utils::$context['event']->selected_occurrence->tz = User::getTimezone();
+			Utils::$context['event']->selected_occurrence->tz = User::$me->timezone;
 			Utils::$context['event']->selected_occurrence->start->modify(Time::create('now')->format('%H:%M:%S'));
 			Utils::$context['event']->selected_occurrence->duration = new TimeInterval('PT1H');
 		}
 
 		// Need this so the user can select a timezone for the event.
-		Utils::$context['all_timezones'] = TimeZone::list(Utils::$context['event']->start_datetime);
+		Utils::$context['all_timezones'] = TimeZone::list(Utils::$context['event']->id > 0 ? Utils::$context['event']->datetime : null);
+		Theme::loadTemplate('TimeZoneSelect');
 
 		// If the event's timezone is not in SMF's standard list of time zones, try to fix it.
 		Utils::$context['event']->selected_occurrence->fixTimezone();
@@ -373,7 +373,7 @@ class Calendar implements ActionInterface
 
 					if (!$exists) {
 						$id_task = Db::$db->insert(
-							'',
+							InsertType::Insert,
 							'{db_prefix}scheduled_tasks',
 							[
 								'next_time' => 'int',

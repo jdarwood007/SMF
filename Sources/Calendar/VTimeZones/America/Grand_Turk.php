@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Grand_Turk
  */
-class Grand_Turk extends \SMF\Calendar\VTimeZone
+class Grand_Turk extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,30 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Grand_Turk';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Eastern',
+		],
+		1 => [
+			'ts' => '2015-03-08T07:00:00+0000',
+			'metazone' => 'Atlantic',
+		],
+		2 => [
+			'ts' => '2018-03-11T07:00:00+0000',
+			'metazone' => 'America_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -50,7 +76,7 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 		1 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19760425T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T070000Z',
 			'TZNAME' => 'EDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -58,7 +84,7 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T060000Z',
 			'TZNAME' => 'EST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -66,7 +92,7 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T070000Z',
 			'TZNAME' => 'EDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -74,7 +100,7 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20070311T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20150308T070000Z',
 			'TZNAME' => 'EDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -82,7 +108,7 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20071104T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=20141102T060000Z',
 			'TZNAME' => 'EST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -99,6 +125,22 @@ class Grand_Turk extends \SMF\Calendar\VTimeZone
 			'DTSTART' => '20180311T030000',
 			'TZNAME' => 'EDT',
 			'TZOFFSETFROM' => '-0400',
+			'TZOFFSETTO' => '-0400',
+		],
+		8 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '20071104T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+			'TZNAME' => 'EST',
+			'TZOFFSETFROM' => '-0400',
+			'TZOFFSETTO' => '-0500',
+		],
+		9 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '20070311T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+			'TZNAME' => 'EDT',
+			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
 		],
 	];

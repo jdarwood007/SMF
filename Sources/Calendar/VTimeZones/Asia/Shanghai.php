@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Shanghai
  */
-class Shanghai extends \SMF\Calendar\VTimeZone
+class Shanghai extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Shanghai extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Shanghai';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'China',
+		],
+	];
 
 	/**
 	 * @var array
@@ -134,7 +152,7 @@ class Shanghai extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19480501T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19490501T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19490430T160000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -142,7 +160,7 @@ class Shanghai extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19481001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=30;UNTIL=19491001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=30;UNTIL=19490930T150000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -164,7 +182,7 @@ class Shanghai extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860914T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=SU;BYMONTHDAY=11,12,13,14,15,16,17;UNTIL=19910915T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=SU;BYMONTHDAY=11,12,13,14,15,16,17;UNTIL=19910914T170000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -172,7 +190,7 @@ class Shanghai extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19870412T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=11,12,13,14,15,16,17;UNTIL=19910414T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=11,12,13,14,15,16,17;UNTIL=19910413T180000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -113,7 +113,7 @@ class Calendar implements ActionInterface, Routable
 	{
 		// You can't do anything if the calendar is off.
 		if (empty(Config::$modSettings['cal_enabled'])) {
-			ErrorHandler::fatalLang('calendar_off', false);
+			ErrorHandler::fatalLang('calendar_off', false, [], 403);
 		}
 
 		// This is gonna be needed...
@@ -197,7 +197,7 @@ class Calendar implements ActionInterface, Routable
 		$month = !empty($_REQUEST['month']) ? (int) $_REQUEST['month'] : $today['month'];
 		$day = !empty($_REQUEST['day']) ? (int) $_REQUEST['day'] : (!empty($_REQUEST['month']) ? 1 : $today['day']);
 
-		$start_object = checkdate($month, $day, $year) === true ? new Time(implode('-', [$year, $month, $day]) . ' ' . User::getTimezone()) : new Time(implode('-', [$today['year'], $today['month'], $today['day']]) . ' ' . User::getTimezone());
+		$start_object = checkdate($month, $day, $year) === true ? new Time(implode('-', [$year, $month, $day]) . ' ' . User::$me->timezone) : new Time(implode('-', [$today['year'], $today['month'], $today['day']]) . ' ' . User::$me->timezone);
 
 		// Need an end date for the list view
 		if (!empty($_REQUEST['end_date'])) {
@@ -216,13 +216,13 @@ class Calendar implements ActionInterface, Routable
 		$end_object = null;
 
 		if (isset($end_month, $end_day, $end_year) && checkdate($end_month, $end_day, $end_year)) {
-			$end_object = new Time(implode('-', [$end_year, $end_month, $end_day]) . ' ' . User::getTimezone());
+			$end_object = new Time(implode('-', [$end_year, $end_month, $end_day]) . ' ' . User::$me->timezone);
 		}
 
 		if (empty($end_object) || $start_object >= $end_object) {
 			$num_days_shown = empty(Config::$modSettings['cal_days_for_index']) || Config::$modSettings['cal_days_for_index'] < 1 ? 1 : Config::$modSettings['cal_days_for_index'];
 
-			$end_object = new Time($start_object->format('Y-m-d') . ' ' . User::getTimezone());
+			$end_object = new Time($start_object->format('Y-m-d') . ' ' . User::$me->timezone);
 
 			date_add($end_object, date_interval_create_from_date_string($num_days_shown . ' days'));
 		}
@@ -240,11 +240,11 @@ class Calendar implements ActionInterface, Routable
 
 		// Make sure the year and month are in valid ranges.
 		if ($curPage['month'] < 1 || $curPage['month'] > 12) {
-			ErrorHandler::fatalLang('invalid_month', false);
+			ErrorHandler::fatalLang('invalid_month', false, [], 400);
 		}
 
 		if ($curPage['year'] < Config::$modSettings['cal_minyear'] || $curPage['year'] > Config::$modSettings['cal_maxyear']) {
-			ErrorHandler::fatalLang('invalid_year', false);
+			ErrorHandler::fatalLang('invalid_year', false, [], 400);
 		}
 
 		// If we have a day clean that too.
@@ -252,7 +252,7 @@ class Calendar implements ActionInterface, Routable
 			$isValid = checkdate((int) $curPage['month'], (int) $curPage['day'], (int) $curPage['year']);
 
 			if (!$isValid) {
-				ErrorHandler::fatalLang('invalid_day', false);
+				ErrorHandler::fatalLang('invalid_day', false, [], 400);
 			}
 		}
 
@@ -371,7 +371,7 @@ class Calendar implements ActionInterface, Routable
 
 				default:
 					$ics_url .= ';start_date=' . $start_object->format('Y-m-d');
-					$ics_url .= ';duration=' . (string) TimeInterval::createFromDateInterval($start_object->diff($end_object));
+					$ics_url .= ';duration=' . (string) $start_object->diff($end_object);
 					break;
 			}
 
@@ -524,7 +524,7 @@ class Calendar implements ActionInterface, Routable
 			list(Utils::$context['event']) = Event::load($_REQUEST['eventid']);
 
 			if (empty(Utils::$context['event'])) {
-				ErrorHandler::fatalLang('no_access', false);
+				ErrorHandler::fatalLang('no_access', false, [], 403);
 			}
 
 			// If it has a board, then they should be editing it within the topic.
@@ -555,13 +555,14 @@ class Calendar implements ActionInterface, Routable
 		// An all day event? Set up some nice defaults in case the user wants to change that
 		if (Utils::$context['event']->allday) {
 			$now = Time::create('now');
-			Utils::$context['event']->selected_occurrence->tz = User::getTimezone();
+			Utils::$context['event']->selected_occurrence->tz = User::$me->timezone;
 			Utils::$context['event']->selected_occurrence->start->modify($now->format('H:i:s'));
 			Utils::$context['event']->selected_occurrence->duration = new TimeInterval('PT' . ($now->format('H') < 23 ? '1H' : (59 - $now->format('i')) . 'M'));
 		}
 
 		// Need this so the user can select a timezone for the event.
-		Utils::$context['all_timezones'] = TimeZone::list(Utils::$context['event']->start_datetime);
+		Utils::$context['all_timezones'] = TimeZone::list(Utils::$context['event']->id > 0 ? Utils::$context['event']->datetime : null);
+		Theme::loadTemplate('TimeZoneSelect');
 
 		// If the event's timezone is not in SMF's standard list of time zones, try to fix it.
 		Utils::$context['event']->selected_occurrence->fixTimezone();
@@ -608,7 +609,7 @@ class Calendar implements ActionInterface, Routable
 	{
 		// You can't export if the calendar export feature is off.
 		if (empty(Config::$modSettings['cal_export'])) {
-			ErrorHandler::fatalLang('calendar_export_off', false);
+			ErrorHandler::fatalLang('calendar_export_off', false, [], 403);
 		}
 
 		$file = [
@@ -632,7 +633,7 @@ class Calendar implements ActionInterface, Routable
 			$event = current(Event::load((int) $_REQUEST['eventid']));
 
 			if (!($event instanceof Event)) {
-				ErrorHandler::fatalLang('no_access', false);
+				ErrorHandler::fatalLang('no_access', false, [], 403);
 			}
 
 			// Was a specific occurrence requested, or the event in general?
@@ -654,7 +655,11 @@ class Calendar implements ActionInterface, Routable
 
 			// Get all the visible events within a date range.
 			if (isset($_REQUEST['start_date'])) {
-				$low_date = @(new Time($_REQUEST['start_date']));
+				try {
+					$low_date = new Time($_REQUEST['start_date']);
+				} catch (\Throwable $e) {
+					ErrorHandler::fatalLang('invalid_date', false, [], 400);
+				}
 			}
 
 			if (!isset($low_date)) {
@@ -663,7 +668,11 @@ class Calendar implements ActionInterface, Routable
 			}
 
 			if (isset($_REQUEST['duration'])) {
-				$duration = @(new TimeInterval($_REQUEST['duration']));
+				try {
+					$duration = new TimeInterval($_REQUEST['duration']);
+				} catch (\Throwable $e) {
+					ErrorHandler::fatalLang('invalid_days_numb', false, [], 400);
+				}
 			}
 
 			if (!isset($duration)) {
@@ -753,9 +762,6 @@ class Calendar implements ActionInterface, Routable
 	 */
 	public function clock(): void
 	{
-		Utils::$context['onimg'] = Theme::$current->settings['images_url'] . '/bbc/bbc_hoverbg.png';
-		Utils::$context['offimg'] = Theme::$current->settings['images_url'] . '/bbc/bbc_bg.png';
-
 		Utils::$context['page_title'] = 'Anyone know what time it is?';
 		Utils::$context['linktree'][] = [
 			'url' => Config::$scripturl . '?action=calendar',
@@ -771,6 +777,11 @@ class Calendar implements ActionInterface, Routable
 		$bcd = !isset($_REQUEST['rb']) && !isset($_REQUEST['omfg']) && !isset($_REQUEST['time']);
 
 		Theme::loadTemplate('Calendar');
+
+		// The lamps are drawn by calendar.css and lit by calendar.js. Neither is
+		// loaded for us, because clock() is not reached through show().
+		Theme::loadCSSFile('calendar.css', ['force_current' => false, 'validate' => true, 'rtl' => 'calendar.rtl.css'], 'smf_calendar');
+		Theme::loadJavaScriptFile('calendar.js', ['defer' => true], 'smf_calendar');
 
 		if ($bcd) {
 			Utils::$context['sub_template'] = 'bcd';
@@ -788,6 +799,11 @@ class Calendar implements ActionInterface, Routable
 			Utils::$context['sub_template'] = 'thetime';
 			$_REQUEST['time'] = $_REQUEST['time'] == '' ? 'now' : $_REQUEST['time'];
 			$time = getdate($_REQUEST['time'] == 'now' ? time() : (int) $_REQUEST['time']);
+
+			// Only seven lamps for the year, so show it the way the OMFG clock
+			// does. The full year saturates them all and says nothing.
+			$time['year'] %= 100;
+
 			Utils::$context['linktree'][] = ['url' => Config::$scripturl . '?action=calendar;sa=clock;time=' . $_REQUEST['time'], 'name' => 'Requested Time'];
 			Utils::$context['clockicons'] = [
 				'year' => array_fill_keys(array_map(fn($p) => 2 ** $p, range(6, 0)), false),
@@ -860,7 +876,7 @@ class Calendar implements ActionInterface, Routable
 		$occurrences = [];
 
 		$one_day = new \DateInterval('P1D');
-		$tz = new \DateTimeZone(User::getTimezone());
+		$tz = TimeZone::create(User::$me->timezone);
 		$high_date = (new \DateTimeImmutable($high_date . ' +1 day'))->format('Y-m-d');
 
 		foreach (Event::getOccurrencesInRange($low_date, $high_date, $use_permissions) as $occurrence) {
@@ -933,7 +949,7 @@ class Calendar implements ActionInterface, Routable
 		// Is the calendar enabled?
 		if (empty(Config::$modSettings['cal_enabled'])) {
 			if ($trigger_error) {
-				ErrorHandler::fatalLang('calendar_off', false);
+				ErrorHandler::fatalLang('calendar_off', false, [], 403);
 			}
 
 			return false;
@@ -953,7 +969,7 @@ class Calendar implements ActionInterface, Routable
 		// Are we in a topic?
 		if (empty(Topic::$topic_id)) {
 			if ($trigger_error) {
-				ErrorHandler::fatalLang('missing_topic_id', false);
+				ErrorHandler::fatalLang('missing_topic_id', false, [], 400);
 			}
 
 			return false;
@@ -962,7 +978,7 @@ class Calendar implements ActionInterface, Routable
 		// Don't let guests edit the posts of other guests.
 		if (User::$me->is_guest) {
 			if ($trigger_error) {
-				ErrorHandler::fatalLang('not_your_topic', false);
+				ErrorHandler::fatalLang('not_your_topic', false, [], 403);
 			}
 
 			return false;
@@ -971,7 +987,7 @@ class Calendar implements ActionInterface, Routable
 		// Linking an event counts as modifying the first post.
 		Topic::load();
 
-		$perm = User::$me->started ? ['modify_own', 'modify_any'] : 'modify_any';
+		$perm = Topic::$info->started_by_me ? ['modify_own', 'modify_any'] : 'modify_any';
 
 		if (!User::$me->allowedTo($perm, Topic::$info->id_board, true)) {
 			if ($trigger_error) {
@@ -994,10 +1010,10 @@ class Calendar implements ActionInterface, Routable
 	public static function getTodayInfo(): array
 	{
 		return [
-			'day' => (int) Time::strftime('%d', time(), User::getTimezone()),
-			'month' => (int) Time::strftime('%m', time(), User::getTimezone()),
-			'year' => (int) Time::strftime('%Y', time(), User::getTimezone()),
-			'date' => Time::strftime('%Y-%m-%d', time(), User::getTimezone()),
+			'day' => (int) Time::strftime('%d', time(), User::$me->timezone),
+			'month' => (int) Time::strftime('%m', time(), User::$me->timezone),
+			'year' => (int) Time::strftime('%Y', time(), User::$me->timezone),
+			'date' => Time::strftime('%Y-%m-%d', time(), User::$me->timezone),
 		];
 	}
 
@@ -1011,12 +1027,12 @@ class Calendar implements ActionInterface, Routable
 	 */
 	public static function getCalendarGrid(string $selected_date, array $calendarOptions, bool $is_previous = false): array
 	{
-		$selected_object = new Time($selected_date . ' ' . User::getTimezone());
+		$selected_object = new Time($selected_date . ' ' . User::$me->timezone);
 
-		$next_object = new Time($selected_date . ' ' . User::getTimezone());
+		$next_object = new Time($selected_date . ' ' . User::$me->timezone);
 		$next_object->modify('first day of next month');
 
-		$prev_object = new Time($selected_date . ' ' . User::getTimezone());
+		$prev_object = new Time($selected_date . ' ' . User::$me->timezone);
 		$prev_object->modify('first day of previous month');
 
 		// Eventually this is what we'll be returning.
@@ -1051,8 +1067,8 @@ class Calendar implements ActionInterface, Routable
 		// Get today's date.
 		$today = self::getTodayInfo();
 
-		$first_day_object = new Time($selected_object->format('Y-m-01') . ' ' . User::getTimezone());
-		$last_day_object = new Time($selected_object->format('Y-m-t') . ' ' . User::getTimezone());
+		$first_day_object = new Time($selected_object->format('Y-m-01') . ' ' . User::$me->timezone);
+		$last_day_object = new Time($selected_object->format('Y-m-t') . ' ' . User::$me->timezone);
 
 		// Get information about this month.
 		$month_info = [
@@ -1065,8 +1081,8 @@ class Calendar implements ActionInterface, Routable
 				'day_of_month' => $last_day_object->format('t'),
 				'date' => $last_day_object->format('Y-m-d'),
 			],
-			'first_day_of_year' => Time::create($selected_object->format('Y-01-01') . ' ' . User::getTimezone())->format('w'),
-			'first_day_of_next_year' => Time::create(($selected_object->format('Y') + 1) . '-01-01' . ' ' . User::getTimezone())->format('w'),
+			'first_day_of_year' => Time::create($selected_object->format('Y-01-01') . ' ' . User::$me->timezone)->format('w'),
+			'first_day_of_next_year' => Time::create(($selected_object->format('Y') + 1) . '-01-01' . ' ' . User::$me->timezone)->format('w'),
 		];
 
 		// The number of days the first row is shifted to the right for the starting day.
@@ -1164,7 +1180,7 @@ class Calendar implements ActionInterface, Routable
 	 */
 	public static function getCalendarWeek(string $selected_date, array $calendarOptions): array
 	{
-		$selected_object = new Time($selected_date . ' ' . User::getTimezone());
+		$selected_object = new Time($selected_date . ' ' . User::$me->timezone);
 
 		// Get today's date.
 		$today = self::getTodayInfo();
@@ -1173,7 +1189,7 @@ class Calendar implements ActionInterface, Routable
 		$calendarOptions['start_day'] = empty($calendarOptions['start_day']) ? 0 : (int) $calendarOptions['start_day'];
 
 		$day_of_week = $selected_object->format('w');
-		$first_day_object = new Time($selected_date . ' ' . User::getTimezone());
+		$first_day_object = new Time($selected_date . ' ' . User::$me->timezone);
 
 		if ($day_of_week != $calendarOptions['start_day']) {
 			// Here we offset accordingly to get things to the real start of a week.
@@ -1186,17 +1202,17 @@ class Calendar implements ActionInterface, Routable
 			date_sub($first_day_object, date_interval_create_from_date_string($date_diff . ' days'));
 		}
 
-		$last_day_object = new Time($first_day_object->format('Y-m-d') . ' ' . User::getTimezone());
+		$last_day_object = new Time($first_day_object->format('Y-m-d') . ' ' . User::$me->timezone);
 		date_add($last_day_object, date_interval_create_from_date_string('1 week'));
 
 		$month = $first_day_object->format('n');
 		$year = $first_day_object->format('Y');
 		$day = $first_day_object->format('d');
 
-		$next_object = new Time($selected_date . ' ' . User::getTimezone());
+		$next_object = new Time($selected_date . ' ' . User::$me->timezone);
 		date_add($next_object, date_interval_create_from_date_string('1 week'));
 
-		$prev_object = new Time($selected_date . ' ' . User::getTimezone());
+		$prev_object = new Time($selected_date . ' ' . User::$me->timezone);
 		date_sub($prev_object, date_interval_create_from_date_string('1 week'));
 
 		// Now start filling in the calendar grid.
@@ -1233,7 +1249,7 @@ class Calendar implements ActionInterface, Routable
 		// This holds all the main data - there is at least one month!
 		$calendarGrid['months'] = [];
 
-		$current_day_object = new Time($first_day_object->format('Y-m-d') . ' ' . User::getTimezone());
+		$current_day_object = new Time($first_day_object->format('Y-m-d') . ' ' . User::$me->timezone);
 
 		for ($i = 0; $i < 7; $i++) {
 			$current_month = $current_day_object->format('n');
@@ -1280,8 +1296,8 @@ class Calendar implements ActionInterface, Routable
 	public static function getCalendarList(string $start_date, string $end_date, array $calendarOptions): array
 	{
 		// DateTime objects make life easier
-		$start_object = new Time($start_date . ' ' . User::getTimezone());
-		$end_object = new Time($end_date . ' ' . User::getTimezone());
+		$start_object = new Time($start_date . ' ' . User::$me->timezone);
+		$end_object = new Time($end_date . ' ' . User::$me->timezone);
 
 		$calendarGrid = [
 			'start_date' => $start_object->format(Time::getDateFormat()),
@@ -1379,7 +1395,7 @@ class Calendar implements ActionInterface, Routable
 	public static function cache_getRecentEvents(array $eventOptions): array
 	{
 		// With the 'static' cached data we can calculate the user-specific data.
-		$cached_data = CacheApi::quickGet('calendar_index', 'Actions/Calendar.php', 'SMF\\Actions\\Calendar::cache_getOffsetIndependentEvents', [$eventOptions]);
+		$cached_data = CacheApi::quickGet('calendar_index', 'Actions/Calendar.php', Calendar::class . '::cache_getOffsetIndependentEvents', [$eventOptions]);
 
 		// Get the information about today (from user perspective).
 		$today = self::getTodayInfo();
@@ -1473,7 +1489,7 @@ class Calendar implements ActionInterface, Routable
 				'callback' => self::class . '::cacheIsOutdated',
 				'args' => [
 					'date' => Time::strftime('%Y%m%d', time()),
-					'timestamp' => time(),
+					'time' => time(),
 				],
 			],
 			'update_callback' => self::class . '::cacheAdjustData',
@@ -1503,7 +1519,10 @@ class Calendar implements ActionInterface, Routable
 		foreach ($cache_block['data']['calendar_events'] as $k => $event) {
 			// Remove events that the user may not see or wants to ignore.
 			if (
-				\in_array($event->id_board, User::$me->ignoreboards)
+				(
+					!empty(Config::$modSettings['allow_ignore_boards'])
+					&& \in_array($event->id_board, User::$me->ignoreboards)
+				)
 				|| (
 					\count(array_intersect(User::$me->groups, $event->allowed_groups)) === 0
 					&& !User::$me->allowedTo('admin_forum')
@@ -1547,49 +1566,49 @@ class Calendar implements ActionInterface, Routable
 				$d = date_parse(str_replace(',', '', Time::convertToEnglish($_POST['start_date'])));
 
 				if (!empty($d['error_count']) || !empty($d['warning_count'])) {
-					ErrorHandler::fatalLang('invalid_date', false);
+					ErrorHandler::fatalLang('invalid_date', false, [], 400);
 				}
 
 				if (empty($d['year'])) {
-					ErrorHandler::fatalLang('event_year_missing', false);
+					ErrorHandler::fatalLang('event_year_missing', false, [], 400);
 				}
 
 				if (empty($d['month'])) {
-					ErrorHandler::fatalLang('event_month_missing', false);
+					ErrorHandler::fatalLang('event_month_missing', false, [], 400);
 				}
 			} elseif (isset($_POST['start_datetime'])) {
 				$d = date_parse(str_replace(',', '', Time::convertToEnglish($_POST['start_datetime'])));
 
 				if (!empty($d['error_count']) || !empty($d['warning_count'])) {
-					ErrorHandler::fatalLang('invalid_date', false);
+					ErrorHandler::fatalLang('invalid_date', false, [], 400);
 				}
 
 				if (empty($d['year'])) {
-					ErrorHandler::fatalLang('event_year_missing', false);
+					ErrorHandler::fatalLang('event_year_missing', false, [], 400);
 				}
 
 				if (empty($d['month'])) {
-					ErrorHandler::fatalLang('event_month_missing', false);
+					ErrorHandler::fatalLang('event_month_missing', false, [], 400);
 				}
 			}
 			// The 2.0 way
 			else {
 				// No month?  No year?
 				if (!isset($_POST['month'])) {
-					ErrorHandler::fatalLang('event_month_missing', false);
+					ErrorHandler::fatalLang('event_month_missing', false, [], 400);
 				}
 
 				if (!isset($_POST['year'])) {
-					ErrorHandler::fatalLang('event_year_missing', false);
+					ErrorHandler::fatalLang('event_year_missing', false, [], 400);
 				}
 
 				// Check the month and year...
 				if ($_POST['month'] < 1 || $_POST['month'] > 12) {
-					ErrorHandler::fatalLang('invalid_month', false);
+					ErrorHandler::fatalLang('invalid_month', false, [], 400);
 				}
 
 				if ($_POST['year'] < Config::$modSettings['cal_minyear'] || $_POST['year'] > Config::$modSettings['cal_maxyear']) {
-					ErrorHandler::fatalLang('invalid_year', false);
+					ErrorHandler::fatalLang('invalid_year', false, [], 400);
 				}
 			}
 		}
@@ -1599,7 +1618,7 @@ class Calendar implements ActionInterface, Routable
 
 		// If they want to us to calculate an end date, make sure it will fit in an acceptable range.
 		if (isset($_POST['span']) && (($_POST['span'] < 1) || (!empty(Config::$modSettings['cal_maxspan']) && $_POST['span'] > Config::$modSettings['cal_maxspan']))) {
-			ErrorHandler::fatalLang('invalid_days_numb', false);
+			ErrorHandler::fatalLang('invalid_days_numb', false, [], 400);
 		}
 
 		// There is no need to validate the following values if we are just deleting the event.
@@ -1608,18 +1627,18 @@ class Calendar implements ActionInterface, Routable
 			if (empty($_POST['start_date']) && empty($_POST['start_datetime'])) {
 				// No day?
 				if (!isset($_POST['day'])) {
-					ErrorHandler::fatalLang('event_day_missing', false);
+					ErrorHandler::fatalLang('event_day_missing', false, [], 400);
 				}
 
 				// Bad day?
 				if (!checkdate($_POST['month'], $_POST['day'], $_POST['year'])) {
-					ErrorHandler::fatalLang('invalid_date', false);
+					ErrorHandler::fatalLang('invalid_date', false, [], 400);
 				}
 			}
 
 			if (!isset($_POST['evtitle'])) {
 				if (!isset($_POST['subject'])) {
-					ErrorHandler::fatalLang('event_title_missing', false);
+					ErrorHandler::fatalLang('event_title_missing', false, [], 400);
 				}
 
 				$_POST['evtitle'] = $_POST['subject'];
@@ -1627,7 +1646,7 @@ class Calendar implements ActionInterface, Routable
 
 			// No title?
 			if (Utils::htmlTrim($_POST['evtitle']) === '') {
-				ErrorHandler::fatalLang('event_title_missing', false);
+				ErrorHandler::fatalLang('event_title_missing', false, [], 400);
 			}
 
 			if (Utils::entityStrlen($_POST['evtitle']) > 100) {
@@ -1808,7 +1827,7 @@ class Calendar implements ActionInterface, Routable
 			if (
 				!($user instanceof User)
 				|| !$user->allowedTo('calendar_view')
-				|| $_REQUEST['token'] !== $this->createToken($user)
+				|| !hash_equals($this->createToken($user), $_REQUEST['token'])
 			) {
 				exit;
 			}
@@ -1844,7 +1863,7 @@ class Calendar implements ActionInterface, Routable
 		if (User::$me->is_guest && !empty($_REQUEST['u']) && isset($_REQUEST['token'])) {
 			$user = current(User::load((int) $_REQUEST['u']));
 
-			if (($user instanceof User) && $_REQUEST['token'] === $this->createToken($user)) {
+			if (($user instanceof User) && hash_equals($this->createToken($user), $_REQUEST['token'])) {
 				return $user;
 			}
 		}

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace SMF\Maintenance\Migration\v2_1;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Db\Schema;
 use SMF\Maintenance\Maintenance;
 use SMF\Maintenance\Migration\MigrationBase;
@@ -60,15 +61,8 @@ class CreateAlerts extends MigrationBase
 		$user_alert_table = new Schema\v2_1\UserAlerts();
 		$user_alert_prefs_table = new Schema\v2_1\UserAlertsPrefs();
 
-		$tables = Db::$db->list_tables();
-
-		if (!\in_array($user_alert_table->name, $tables)) {
-			$user_alert_table->create();
-		}
-
-		if (!\in_array($user_alert_prefs_table->name, $tables)) {
-			$user_alert_prefs_table->create();
-		}
+		$user_alert_table->create();
+		$user_alert_prefs_table->create();
 
 		$existing_structure = $members_table->getCurrentStructure();
 
@@ -135,7 +129,7 @@ class CreateAlerts extends MigrationBase
 				Db::$db->free_result($request);
 
 				Db::$db->insert(
-					'ignore',
+					InsertType::Ignore,
 					'{db_prefix}user_alerts_prefs',
 					[
 						'id_member' => 'int',
@@ -150,25 +144,10 @@ class CreateAlerts extends MigrationBase
 			} while (Maintenance::getCurrentStart() < Maintenance::$total_items);
 		}
 
-		if (\in_array('notify_send_body', $member_columns)) {
-			Db::$db->remove_column('{db_prefix}members', 'notify_send_body');
-			$this->handleTimeout();
-		}
-
-		if (\in_array('notify_types', $member_columns)) {
-			Db::$db->remove_column('{db_prefix}members', 'notify_types');
-			$this->handleTimeout();
-		}
-
-		if (\in_array('notify_regularity', $member_columns)) {
-			Db::$db->remove_column('{db_prefix}members', 'notify_regularity');
-			$this->handleTimeout();
-		}
-
-		if (\in_array('notify_announcements', $member_columns)) {
-			Db::$db->remove_column('{db_prefix}members', 'notify_announcements');
-			$this->handleTimeout();
-		}
+		$members_table->dropColumn('notify_send_body');
+		$members_table->dropColumn('notify_types');
+		$members_table->dropColumn('notify_regularity');
+		$members_table->dropColumn('notify_announcements');
 
 		return true;
 	}

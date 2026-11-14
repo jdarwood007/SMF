@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,6 +19,7 @@ use SMF\ArrayAccessHelper;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Lang;
 use SMF\User;
 use SMF\Utils;
@@ -307,7 +308,7 @@ class Label implements \ArrayAccess
 					$inserts[] = [User::$me->id, $label];
 				}
 
-				Db::$db->insert('', '{db_prefix}pm_labels', ['id_member' => 'int', 'name' => 'string-30'], $inserts, []);
+				Db::$db->insert(InsertType::Insert, '{db_prefix}pm_labels', ['id_member' => 'int', 'name' => 'string-30'], $inserts, []);
 			}
 
 			// Update existing labels as needed

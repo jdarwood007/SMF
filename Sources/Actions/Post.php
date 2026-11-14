@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -348,25 +348,35 @@ class Post implements ActionInterface, Routable
 
 		// Mentions
 		if (!empty(Config::$modSettings['enable_mentions']) && User::$me->allowedTo('mention')) {
-			Theme::loadJavaScriptFile('jquery.caret.min.js', ['defer' => true], 'smf_caret');
-			Theme::loadJavaScriptFile('jquery.atwho.min.js', ['defer' => true], 'smf_atwho');
+			Theme::loadCSSFile('atwho.css', ['minimize' => true], 'smf_atwho');
+			Theme::loadJavaScriptFile('caret.js', ['defer' => true, 'minimize' => true], 'smf_caret');
+			Theme::loadJavaScriptFile('atwho.js', ['defer' => true, 'minimize' => true], 'smf_atwho');
 			Theme::loadJavaScriptFile('mentions.js', ['defer' => true, 'minimize' => true], 'smf_mentions');
 		}
 
-		// Load the drafts.js file
+		// Load the draft autosave plugin.
 		if (Utils::$context['drafts_autosave']) {
-			Theme::loadJavaScriptFile('drafts.js', ['defer' => false, 'minimize' => true], 'smf_drafts');
+			Theme::loadJavaScriptFile('sceditor.plugins.drafts.js', ['minimize' => true], 'smf_drafts');
 		}
 
 		// quotedText.js
 		Theme::loadJavaScriptFile('quotedText.js', ['defer' => true, 'minimize' => true], 'smf_quotedText');
 
+		// The poll fieldsets bring their own script along.
+		if (Utils::$context['make_poll']) {
+			Theme::loadJavaScriptFile('poll.js', ['defer' => true, 'minimize' => true], 'smf_poll');
+		}
+
 		// Knowing the current board ID might be handy.
 		Theme::addInlineJavaScript('
-		var current_board = ' . (empty(Utils::$context['current_board']) ? 'null' : Utils::$context['current_board']) . ';', false);
+		var current_board = ' . (empty(Utils::$context['current_board']) ? 'null' : Utils::$context['current_board']) . ';
+		var current_msg = ' . (!empty($_REQUEST['msg']) && ((int) $_REQUEST['msg']) > 0 ? ((int) $_REQUEST['msg']) : 'null') . ';', false);
 
 		// Set up the fields for the posting form header.
 		$this->setupPostingFields();
+
+		// Set up the checkboxes below the editor.
+		$this->setupPostOptions();
 
 		// Finally, load the template.
 		if (!isset($_REQUEST['xml'])) {
@@ -776,12 +786,30 @@ class Post implements ActionInterface, Routable
 		}
 
 		if (!isset(Utils::$context['event']) || !(Utils::$context['event'] instanceof Event)) {
-			$props = [
-				'title' => isset($_REQUEST['evtitle']) ? Utils::htmlspecialchars(stripslashes($_REQUEST['evtitle'])) : null,
-				'location' => isset($_REQUEST['event_location']) ? Utils::htmlspecialchars(stripslashes($_REQUEST['event_location'])) : null,
-			];
+			$props = [];
 
-			Event::setRequestedStartAndDuration($props);
+			if (isset($_REQUEST['evtitle'])) {
+				$props['title'] = Utils::htmlspecialchars(stripslashes($_REQUEST['evtitle']));
+			}
+
+			if (isset($_REQUEST['event_location'])) {
+				$props['location'] = Utils::htmlspecialchars(stripslashes($_REQUEST['event_location']));
+			}
+
+			// Default to the date and time the member was viewing.
+			foreach (['year', 'month', 'day', 'hour', 'minute', 'second'] as $key) {
+				if (isset($_GET[$key]) && !isset($_POST[$key])) {
+					$props[$key] = (int) $_GET[$key];
+				}
+			}
+
+			// Only try to set the start and duration if we were given the relevant data.
+			$date_params = array_flip(['year', 'month', 'day', 'start_date', 'start_datetime', 'start_year', 'start_month', 'start_day']);
+
+			if (array_intersect_key($props, $date_params) !== [] || array_intersect_key($_POST, $date_params) !== []) {
+				Event::setRequestedStartAndDuration($props);
+			}
+
 			Event::setRequestedRRule($props);
 			Utils::$context['event'] = new Event(-1, $props);
 			Event::setRequestedRDatesAndExDates(Utils::$context['event']);
@@ -842,13 +870,14 @@ class Post implements ActionInterface, Routable
 
 		// An all day event? Set up some nice defaults in case the user wants to change that
 		if (Utils::$context['event']->allday == true) {
-			Utils::$context['event']->selected_occurrence->tz = User::getTimezone();
+			Utils::$context['event']->selected_occurrence->tz = User::$me->timezone;
 			Utils::$context['event']->selected_occurrence->start->modify(Time::create('now')->format('%H:%M:%S'));
 			Utils::$context['event']->selected_occurrence->end->modify(Time::create('now + 1 hour')->format('%H:%M:%S'));
 		}
 
 		// Need this so the user can select a timezone for the event.
-		Utils::$context['all_timezones'] = TimeZone::list(Utils::$context['event']->timestamp);
+		Utils::$context['all_timezones'] = TimeZone::list(Utils::$context['event']->id > 0 ? Utils::$context['event']->datetime : null);
+		Theme::loadTemplate('TimeZoneSelect');
 
 		// If the event's timezone is not in SMF's standard list of time zones, try to fix it.
 		Utils::$context['event']->selected_occurrence->fixTimezone();
@@ -911,10 +940,10 @@ class Post implements ActionInterface, Routable
 	protected function setResponsePrefix(): void
 	{
 		if (!isset(Utils::$context['response_prefix'])) {
-			if (Lang::$default === User::$me->language) {
+			if (Config::$language === User::$me->language) {
 				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General');
 			} elseif (!(Utils::$context['response_prefix'] = CacheApi::get('response_prefix', 600))) {
-				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Lang::$default);
+				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Config::$language);
 				CacheApi::put('response_prefix', Utils::$context['response_prefix'], 600);
 			}
 		}
@@ -1021,9 +1050,8 @@ class Post implements ActionInterface, Routable
 		// Only show the preview stuff if they hit Preview.
 		if (($really_previewing == true || isset($_REQUEST['xml'])) && !isset($_REQUEST['save_draft'])) {
 			// Set up the preview message and subject and censor them...
-			Utils::$context['preview_message'] = $this->form_message;
-			Msg::preparsecode($this->form_message, true);
-			Msg::preparsecode(Utils::$context['preview_message']);
+			Utils::$context['preview_message'] = Parser::sanitize($this->form_message);
+			$this->form_message = Parser::sanitize($this->form_message, true);
 
 			// Do all bulletin board code tags, with or without smileys.
 			Utils::$context['preview_message'] = Parser::transform(
@@ -1199,12 +1227,15 @@ class Post implements ActionInterface, Routable
 			Utils::$context['last_modified_reason'] = Lang::censorText($row['modified_reason']);
 			Utils::$context['last_modified_reason_raw'] = $row['modified_reason'];
 			Utils::$context['last_modified_name'] = $row['modified_name'];
-			Utils::$context['last_modified_text'] = Lang::getTxt('last_edit_by', ['time' => Utils::$context['last_modified'], 'member' => $row['modified_name']], file: 'General') . empty($row['modified_reason']) ? '' : ' ' . Lang::getTxt('last_edit_reason', ['reason' => $row['modified_reason']], file: 'General');
+			// The reason is optional, so it needs brackets of its own here.
+			// Concatenation binds tighter than the ternary, so without them the
+			// whole thing is the condition and the note is always empty.
+			Utils::$context['last_modified_text'] = Lang::getTxt('last_edit_by', ['time' => Utils::$context['last_modified'], 'member' => $row['modified_name']], file: 'General') . (empty($row['modified_reason']) ? '' : ' ' . Lang::getTxt('last_edit_reason', ['reason' => $row['modified_reason']], file: 'General'));
 		}
 
 		// Get the stuff ready for the form.
 		$this->form_subject = $row['subject'];
-		$this->form_message = Msg::un_preparsecode($row['body']);
+		$this->form_message = Parser::getEditableString($row['body']);
 		Lang::censorText($this->form_message);
 		Lang::censorText($this->form_subject);
 
@@ -1764,6 +1795,26 @@ class Post implements ActionInterface, Routable
 	 */
 	protected function loadEditor(): void
 	{
+		$plugins = [];
+		$options = [
+			'autofocus' => $this->intent !== self::INTENT_NEW_TOPIC,
+		];
+
+		if (Utils::$context['drafts_autosave']) {
+			$plugins[] = 'drafts';
+			$plugins[] = 'messageDrafts';
+			$options['draftOptions'] = [
+				'sLastNote' => 'draft_lastautosave',
+				'sLastID' => 'id_draft',
+				'sQueryParams' => 'action=post2;board=' . (Board::$info->id ?? 0),
+				'iFreq' => empty(Config::$modSettings['drafts_autosave_frequency']) ? 60000 : Config::$modSettings['drafts_autosave_frequency'] * 1000,
+			];
+		}
+
+		if (!empty(Config::$modSettings['enable_mentions']) && User::$me->allowedTo('mention')) {
+			$plugins[] = 'mentions';
+		}
+
 		new Editor([
 			'id' => 'message',
 			'value' => Utils::$context['message'],
@@ -1773,9 +1824,8 @@ class Post implements ActionInterface, Routable
 			// We do XML preview here.
 			'preview_type' => Editor::PREVIEW_XML,
 			'required' => true,
-			'options' => [
-				'autofocus' => $this->intent !== self::INTENT_NEW_TOPIC,
-			],
+			'plugins' => $plugins,
+			'options' => $options,
 		]);
 	}
 
@@ -1823,6 +1873,100 @@ class Post implements ActionInterface, Routable
 				'selected' => true,
 			]);
 		}
+	}
+
+	/**
+	 * Sets up the checkboxes that sit below the editor.
+	 *
+	 * Each item in Utils::$context['post_options'] is an array like this:
+	 *
+	 *     [
+	 *         'can_show' => Utils::$context['can_lock'], // required
+	 *         'name' => 'lock',                          // required
+	 *         'id' => 'check_lock',                      // required
+	 *         'checked' => Utils::$context['locked'],    // required
+	 *         'label' => Lang::getTxt('lock_topic'),     // required
+	 *         'value' => '1',                            // optional, defaults to '1'
+	 *         'hidden' => ['lock' => '0'],               // optional
+	 *     ]
+	 *
+	 * An unchecked checkbox submits nothing at all, so anything that can be
+	 * switched back off needs a hidden field of the same name carrying the
+	 * "off" value ahead of it. That is what 'hidden' is for; the fields in it
+	 * are written out immediately before the checkbox.
+	 */
+	protected function setupPostOptions(): void
+	{
+		Utils::$context['post_options'] = [
+			[
+				'can_show' => Utils::$context['can_notify'],
+				'name' => 'notify',
+				'id' => 'check_notify',
+				'checked' => Utils::$context['notify'] || !empty(Theme::$current->options['auto_notify']) || Utils::$context['auto_notify'],
+				'label' => Lang::getTxt('notify_replies', file: 'Post'),
+				'hidden' => ['notify' => '0'],
+			],
+			[
+				'can_show' => Utils::$context['can_lock'],
+				'name' => 'lock',
+				'id' => 'check_lock',
+				'checked' => (bool) Utils::$context['locked'],
+				'label' => Lang::getTxt('lock_topic', file: 'Post'),
+				'hidden' => [
+					'already_locked' => Utils::$context['already_locked'],
+					'lock' => '0',
+				],
+			],
+			[
+				'can_show' => true,
+				'name' => 'goback',
+				'id' => 'check_back',
+				'checked' => Utils::$context['back_to_topic'] || !empty(Theme::$current->options['return_to_post']),
+				'label' => Lang::getTxt('back_to_topic', file: 'Post'),
+			],
+			[
+				'can_show' => Utils::$context['can_sticky'],
+				'name' => 'sticky',
+				'id' => 'check_sticky',
+				'checked' => (bool) Utils::$context['sticky'],
+				'label' => Lang::getTxt('sticky_after_posting', file: 'Post'),
+				'hidden' => [
+					'already_sticky' => Utils::$context['already_sticky'],
+					'sticky' => '0',
+				],
+			],
+			[
+				'can_show' => true,
+				'name' => 'ns',
+				'id' => 'check_smileys',
+				'checked' => empty(Utils::$context['use_smileys']),
+				'label' => Lang::getTxt('dont_use_smileys', file: 'Post'),
+				'value' => 'NS',
+			],
+			[
+				'can_show' => Utils::$context['can_move'],
+				'name' => 'move',
+				'id' => 'check_move',
+				'checked' => !empty(Utils::$context['move']),
+				'label' => Lang::getTxt('move_after_posting', file: 'Post'),
+				'hidden' => ['move' => '0'],
+			],
+			[
+				'can_show' => Utils::$context['can_announce'] && Utils::$context['is_first_post'],
+				'name' => 'announce_topic',
+				'id' => 'check_announce',
+				'checked' => !empty(Utils::$context['announce']),
+				'label' => Lang::getTxt('announce_topic', file: 'Post'),
+			],
+			[
+				'can_show' => !empty(Utils::$context['show_approval']),
+				'name' => 'approve',
+				'id' => 'approve',
+				'checked' => Utils::$context['show_approval'] === 2,
+				'label' => Lang::getTxt('approve_this_post', file: 'Post'),
+				'value' => '2',
+			],
+		];
 	}
 
 	/**

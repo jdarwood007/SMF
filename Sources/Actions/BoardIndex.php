@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -22,6 +22,7 @@ use SMF\Board;
 use SMF\Cache\CacheApi;
 use SMF\Category;
 use SMF\Config;
+use SMF\Group;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Logging;
@@ -36,7 +37,8 @@ use SMF\Utils;
 /**
  * This class shows the board index.
  *
- * It uses the BoardIndex template, and main sub template.
+ * It uses the BoardIndex template, and the newsfader, boardindex and
+ * info_center sub templates.
  * It updates most of the online statistics.
  *
  * Although this class is not accessed using an ?action=... URL query, it
@@ -57,7 +59,15 @@ class BoardIndex implements ActionInterface, Routable
 	public function execute(): void
 	{
 		Theme::loadTemplate('BoardIndex');
-		Utils::$context['template_layers'][] = 'boardindex_outer';
+
+		// The three parts of this page are siblings, not a wrapper around a
+		// middle. Naming them is clearer than a layer whose _above and _below
+		// halves each call one of them.
+		Utils::$context['sub_templates'] = [
+			'newsfader',
+			'boardindex',
+			'info_center',
+		];
 
 		Utils::$context['page_title'] = Lang::getTxt('forum_index', ['forum_name' => Utils::$context['forum_name']], file: 'General');
 
@@ -80,7 +90,7 @@ class BoardIndex implements ActionInterface, Routable
 
 		// Set a few minor things.
 		Utils::$context['show_stats'] = User::$me->allowedTo('view_stats') && !empty(Config::$modSettings['trackStats']);
-		Utils::$context['show_buddies'] = !empty(User::$me->buddies);
+		Utils::$context['show_buddies'] = !empty(User::$me->buddies) && !empty(Config::$modSettings['enable_buddylist']);
 		Utils::$context['show_who'] = User::$me->allowedTo('who_view') && !empty(Config::$modSettings['who_enabled']);
 
 		// Retrieve the categories and boards.
@@ -125,7 +135,7 @@ class BoardIndex implements ActionInterface, Routable
 				'num_days_shown' => empty(Config::$modSettings['cal_days_for_index']) || Config::$modSettings['cal_days_for_index'] < 1 ? 1 : Config::$modSettings['cal_days_for_index'],
 			];
 
-			Utils::$context += CacheApi::quickGet('calendar_index_offset_' . User::$me->time_offset, 'Actions/Calendar.php', 'SMF\\Actions\\Calendar::cache_getRecentEvents', [$eventOptions]);
+			Utils::$context += CacheApi::quickGet('calendar_index_offset_' . User::$me->time_offset, 'Actions/Calendar.php', Calendar::class . '::cache_getRecentEvents', [$eventOptions]);
 
 			// Whether one or multiple days are shown on the board index.
 			Utils::$context['calendar_only_today'] = Config::$modSettings['cal_days_for_index'] == 1;
@@ -168,7 +178,7 @@ class BoardIndex implements ActionInterface, Routable
 
 		// Are we showing all membergroups on the board index?
 		if (!empty(Theme::$current->settings['show_group_key'])) {
-			Utils::$context['membergroups'] = CacheApi::quickGet('membergroup_list', 'Group.php', 'SMF\\Group::getCachedList', []);
+			Utils::$context['membergroups'] = CacheApi::quickGet('membergroup_list', 'Group.php', Group::class . '::getCachedList', []);
 		}
 
 		// Mark read button
@@ -232,7 +242,7 @@ class BoardIndex implements ActionInterface, Routable
 			$msg_load_options['params']['is_approved'] = 1;
 		}
 
-		/** @var \SMF\Msg $msg */
+		/** @var Msg $msg */
 		foreach (Msg::get(0, $msg_load_options) as $msg) {
 			$posts[$msg->id] = $msg->format(0, [
 				'do_permissions' => false,
@@ -436,7 +446,7 @@ class BoardIndex implements ActionInterface, Routable
 			$parent = Board::$loaded[$row_board['id_parent']] ?? null;
 
 			// Perhaps we are ignoring this board?
-			$ignoreThisBoard = \in_array($row_board['id_board'], User::$me->ignoreboards);
+			$ignoreThisBoard = !empty(Config::$modSettings['allow_ignore_boards']) && \in_array($row_board['id_board'], User::$me->ignoreboards);
 			$row_board['is_read'] = !empty($row_board['is_read']) || $ignoreThisBoard ? '1' : '0';
 
 			if ($board_index_options['include_categories']) {
@@ -671,7 +681,7 @@ class BoardIndex implements ActionInterface, Routable
 	/**
 	 * Propagates statistics (e.g. post and topic counts) to parent boards.
 	 *
-	 * @param \SMF\Board $board An instance of SMF\Board.
+	 * @param Board $board An instance of SMF\Board.
 	 * @param array $board_index_options The options passed to BoardIndex:get().
 	 */
 	protected static function propagateStatsToParents(Board $board, array $board_index_options): void
@@ -773,12 +783,11 @@ class BoardIndex implements ActionInterface, Routable
 
 		unset($msg, Msg::$loaded[$row_board['id_msg']]);
 
+		// Make sure they're loaded...
+		User::load($row_board['id_member']);
+
 		if (!empty(Theme::$current->settings['avatars_on_boardIndex'])) {
-			$last_post['member']['avatar'] = User::setAvatarData([
-				'avatar' => $row_board['avatar'],
-				'email' => $row_board['email_address'],
-				'filename' => !empty($row_board['member_filename']) ? $row_board['member_filename'] : '',
-			]);
+			$last_post['member']['avatar'] = User::$loaded[$row_board['id_member']]['avatar'];
 		}
 
 		IntegrationHook::call('integrate_boardindex_last_post', [&$last_post, $row_board]);

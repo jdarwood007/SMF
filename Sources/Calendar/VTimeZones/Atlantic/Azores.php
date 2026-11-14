@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Atlantic;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Atlantic/Azores
  */
-class Azores extends \SMF\Calendar\VTimeZone
+class Azores extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,30 @@ class Azores extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Atlantic/Azores';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Azores',
+		],
+		1 => [
+			'ts' => '1992-12-27T02:00:00+0000',
+			'metazone' => 'Europe_Western',
+		],
+		2 => [
+			'ts' => '1993-06-17T01:00:00+0000',
+			'metazone' => 'Azores',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +90,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19170301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19210301T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19210301T020000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0100',
@@ -72,7 +98,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19171015T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=14;UNTIL=19211015T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=14;UNTIL=19211015T010000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -101,7 +127,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19261003T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19291005T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19291006T000000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -137,7 +163,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19311004T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19321001T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19321002T000000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -159,7 +185,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19341007T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19381001T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19381002T000000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -237,7 +263,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		27 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19420314T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SA;UNTIL=19450310T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SA;UNTIL=19450311T010000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0100',
@@ -259,7 +285,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		30 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19421025T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SA;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19451027T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SA;BYMONTHDAY=24,25,26,27,28,29,30;UNTIL=19451028T000000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -274,7 +300,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		32 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19430829T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=8;BYDAY=SA;BYMONTHDAY=25,26,27,28,29,30,31;UNTIL=19450825T220000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=8;BYDAY=SA;BYMONTHDAY=25,26,27,28,29,30,31;UNTIL=19450825T220000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '+0000',
 			'TZOFFSETTO' => '-0100',
@@ -282,7 +308,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		33 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19440422T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SA;BYMONTHDAY=21,22,23,24,25,26,27;UNTIL=19450421T220000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SA;BYMONTHDAY=21,22,23,24,25,26,27;UNTIL=19450421T230000Z',
 			'TZNAME' => 'GMT',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '+0000',
@@ -304,7 +330,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		36 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19470406T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19660403T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19660403T040000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0100',
@@ -312,7 +338,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		37 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19471005T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19651003T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19651003T030000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -327,7 +353,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810329T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19860330T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19860330T010000Z',
 			'TZNAME' => 'GMT',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '+0000',
@@ -335,7 +361,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		40 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19810927T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19850929T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19850929T000000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '+0000',
 			'TZOFFSETTO' => '-0100',
@@ -343,7 +369,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		41 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19801030T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19920329T010000Z',
 			'TZNAME' => 'GMT',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '+0000',
@@ -351,7 +377,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		42 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790503T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '+0000',
 			'TZOFFSETTO' => '-0100',
@@ -366,7 +392,7 @@ class Azores extends \SMF\Calendar\VTimeZone
 		44 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810329T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19930328T010000Z',
 			'TZNAME' => 'WEST',
 			'TZOFFSETFROM' => '+0000',
 			'TZOFFSETTO' => '+0100',
@@ -379,6 +405,14 @@ class Azores extends \SMF\Calendar\VTimeZone
 			'TZOFFSETTO' => '+0000',
 		],
 		46 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19801030T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'TZNAME' => 'GMT',
+			'TZOFFSETFROM' => '-0100',
+			'TZOFFSETTO' => '+0000',
+		],
+		47 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19960530T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',

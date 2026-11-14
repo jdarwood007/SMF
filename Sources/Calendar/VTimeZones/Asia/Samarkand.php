@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Samarkand
  */
-class Samarkand extends \SMF\Calendar\VTimeZone
+class Samarkand extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Samarkand extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Samarkand';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1991-08-31T18:00:00+0000',
+			'metazone' => 'Uzbekistan',
+		],
+	];
 
 	/**
 	 * @var array
@@ -71,7 +89,7 @@ class Samarkand extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T180000Z',
 			'TZNAME' => 'UTC+06',
 			'TZOFFSETFROM' => '+0600',
 			'TZOFFSETTO' => '+0600',
@@ -79,23 +97,31 @@ class Samarkand extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19811001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19831001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19830930T180000Z',
 			'TZNAME' => 'UTC+05',
 			'TZOFFSETFROM' => '+0600',
 			'TZOFFSETTO' => '+0500',
 		],
 		6 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19810401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T190000Z',
+			'TZNAME' => 'UTC+06',
+			'TZOFFSETFROM' => '+0500',
+			'TZOFFSETTO' => '+0600',
+		],
+		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19840930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T200000Z',
 			'TZNAME' => 'UTC+05',
 			'TZOFFSETFROM' => '+0600',
 			'TZOFFSETTO' => '+0500',
 		],
-		7 => [
+		8 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19850331T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T210000Z',
 			'TZNAME' => 'UTC+06',
 			'TZOFFSETFROM' => '+0500',
 			'TZOFFSETTO' => '+0600',

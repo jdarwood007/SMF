@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,7 +18,10 @@ namespace SMF\Maintenance\Tools;
 use SMF\Config;
 use SMF\Cookie;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Db\Schema\Table;
+use SMF\EmailAddress;
 use SMF\IP;
 use SMF\Lang;
 use SMF\Logging;
@@ -26,9 +29,11 @@ use SMF\Maintenance\Maintenance;
 use SMF\Maintenance\Step;
 use SMF\Sapi;
 use SMF\Security;
+use SMF\Statistics;
 use SMF\TaskRunner;
 use SMF\Themes\default\MaintenanceTemplate;
 use SMF\Time;
+use SMF\Unicode\SpoofDetector;
 use SMF\Url;
 use SMF\User;
 use SMF\Utils;
@@ -69,6 +74,13 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	public string $script_file = 'install.php';
 
+	/**
+	 * @var string
+	 *
+	 * HTML element ID for the submission form in this tool's HTML templates.
+	 */
+	public string $form_id = 'install_form';
+
 	/*********************
 	 * Internal properties
 	 *********************/
@@ -103,6 +115,11 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	public function __construct()
 	{
+		// Are we doing debug?
+		if (isset($_GET['debug']) || isset($_POST['debug'])) {
+			$this->debug = true;
+		}
+
 		Maintenance::$languages = $this->detectLanguages(['General', 'Maintenance']);
 
 		if (empty(Maintenance::$languages)) {
@@ -129,7 +146,7 @@ class Install extends ToolsBase implements ToolsInterface
 		$this->getProgress();
 
 		// Template needs to know about this.
-		Maintenance::$context['started'] = $this->time_started;
+		Utils::$context['started'] = $this->time_started;
 	}
 
 	/**
@@ -241,30 +258,42 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	public function welcome(): bool
 	{
-		// Done the submission?
-		if (isset($_POST['contbutt'])) {
+		// Done the submission? From the command line contbutt is passed with every
+		// run, so there it cannot mean the checks below were seen and passed.
+		if (isset($_POST['contbutt']) && !Sapi::isCLI()) {
+			// Does the admin want debug info?
+			$this->debug = isset($_POST['debug']);
+
 			return true;
 		}
 
 		$this->logProgress(Lang::getTxt('log_starting_step', ['num' => $this->getStep()->getId(), 'step' => $this->getStep()->getName()]));
 
 		if (Maintenance::isInstalled()) {
-			Maintenance::$context['warning'] = Lang::getTxt('error_already_installed', file: 'Maintenance');
-			$this->logProgress(Maintenance::$context['warning']);
+			Utils::$context['warning'] = Lang::getTxt('error_already_installed', file: 'Maintenance');
+			$this->logProgress(Utils::$context['warning']);
 		}
 
-		Maintenance::$context['supported_databases'] = $this->supportedDatabases();
+		Utils::$context['supported_databases'] = $this->supportedDatabases();
 
 		// Needs to at least meet our miniumn version.
 		if ((version_compare(Maintenance::PHP_MIN_VERSION, PHP_VERSION, '>'))) {
-			Maintenance::$fatal_error = Lang::getTxt('error_php_too_low', ['min_version' => PHP_MIN_VERSION], file: 'Maintenance');
+			Maintenance::$fatal_error = Lang::getTxt('error_php_too_low', ['min_version' => Maintenance::PHP_MIN_VERSION], file: 'Maintenance');
+			$this->logProgress(Maintenance::$fatal_error);
+
+			return false;
+		}
+
+		// Only 64-bit builds are supported.
+		if (PHP_INT_SIZE < 8) {
+			Maintenance::$fatal_error = Lang::getTxt('error_php_32_bit', file: 'Maintenance');
 			$this->logProgress(Maintenance::$fatal_error);
 
 			return false;
 		}
 
 		// Make sure we have a supported database
-		if (empty(Maintenance::$context['supported_databases'])) {
+		if (empty(Utils::$context['supported_databases'])) {
 			Maintenance::$fatal_error = Lang::getTxt('error_db_missing', file: 'Maintenance');
 			$this->logProgress(Maintenance::$fatal_error);
 
@@ -278,13 +307,31 @@ class Install extends ToolsBase implements ToolsInterface
 		}
 
 		// Make sure they uploaded all the files.
-		if (!file_exists(Config::$boarddir . '/index.php')) {
-			Maintenance::$errors[] = Lang::getTxt('error_missing_files', file: 'Maintenance');
-			$this->logProgress(Lang::getTxt('error_missing_files', file: 'Maintenance'));
+		if (($missing_files = Maintenance::checkManifest(SMF_VERSION, true)) !== []) {
+			$error_message = Lang::getTxt(
+				'error_missing_files' . ($this->isDebug() ? '_debug' : ''),
+				[
+					'missing_files' => '<ol class="bbc_list" style="list-style-type: decimal;"><li>' . implode('</li><li>', $missing_files) . '</li></ol>',
+				],
+				file: 'Maintenance',
+			);
+
+			// Special message for developers.
+			if (
+				str_ends_with(SMF_VERSION, '-dev')
+				&& file_exists(Maintenance::getBaseDir() . '/other/update_manifest.php')
+			) {
+				// Not translated because it should never show up for anyone but devs.
+				$error_message .= '<br>Run ./other/update_manifest.php, then try again.';
+			}
+
+			Maintenance::$errors[] = $error_message;
+			$this->logProgress($error_message);
 		}
+
 		// Very simple check on the session.save_path for Windows.
 		// @todo Move this down later if they don't use database-driven sessions?
-		elseif (@\ini_get('session.save_path') == '/tmp' && Sapi::isOS(Sapi::OS_WINDOWS)) {
+		if (@\ini_get('session.save_path') == '/tmp' && Sapi::isOS(Sapi::OS_WINDOWS)) {
 			Maintenance::$errors[] = Lang::getTxt('error_session_save_path', file: 'Maintenance');
 			$this->logProgress(Lang::getTxt('error_session_save_path', file: 'Maintenance'));
 		}
@@ -316,12 +363,12 @@ class Install extends ToolsBase implements ToolsInterface
 		}
 
 		if (empty(Maintenance::$errors)) {
-			Maintenance::$context['continue'] = true;
+			Utils::$context['continue'] = true;
 		}
 
-		// Are we doing debug?
-		if (isset($_REQUEST['debug'])) {
-			$this->debug = true;
+		// There is no page to show on the command line, so carry on unless a check failed.
+		if (Sapi::isCLI()) {
+			return empty(Maintenance::$errors) && empty(Maintenance::$fatal_error);
 		}
 
 		return false;
@@ -371,8 +418,8 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	public function databaseSettings(): bool
 	{
-		Maintenance::$context['continue'] = true;
-		Maintenance::$context['databases'] = [];
+		Utils::$context['continue'] = true;
+		Utils::$context['databases'] = [];
 		$foundOne = false;
 
 		foreach ($this->supportedDatabases() as $db_type => $db) {
@@ -381,12 +428,12 @@ class Install extends ToolsBase implements ToolsInterface
 				continue;
 			}
 
-			Maintenance::$context['databases'][$db_type] = $db;
+			Utils::$context['databases'][$db_type] = $db;
 
 			// If we have not found a one, set some defaults.
 			if (!$foundOne) {
-				Maintenance::$context['db'] = [
-					'server' => $db->getDefaultHost(),
+				Utils::$context['db'] = [
+					'server' => $db->getDefaultHost() === '' ? 'localhost' : $db->getDefaultHost(),
 					'user' => $db->getDefaultUser(),
 					'name' => $db->getDefaultName(),
 					'pass' => $db->getDefaultPassword(),
@@ -400,13 +447,13 @@ class Install extends ToolsBase implements ToolsInterface
 		}
 
 		if (isset($_POST['db_user'])) {
-			Maintenance::$context['db']['user'] = $_POST['db_user'];
-			Maintenance::$context['db']['name'] = $_POST['db_name'];
-			Maintenance::$context['db']['server'] = $_POST['db_server'];
-			Maintenance::$context['db']['prefix'] = $_POST['db_prefix'];
+			Utils::$context['db']['user'] = $_POST['db_user'];
+			Utils::$context['db']['name'] = $_POST['db_name'];
+			Utils::$context['db']['server'] = $_POST['db_server'];
+			Utils::$context['db']['prefix'] = $_POST['db_prefix'];
 
 			if (!empty($_POST['db_port'])) {
-				Maintenance::$context['db']['port'] = (int) $_POST['db_port'];
+				Utils::$context['db']['port'] = (int) $_POST['db_port'];
 			}
 		}
 
@@ -423,15 +470,23 @@ class Install extends ToolsBase implements ToolsInterface
 		$db_type = preg_replace('~[^A-Za-z0-9]~', '', $_POST['db_type']);
 		$db_prefix = $_POST['db_prefix'];
 
-		if (!isset(Maintenance::$context['databases'][$db_type])) {
-			Maintenance::$fatal_error = Lang::getTxt('upgrade_unknown_error', file: 'Maintenance');
+		if (!isset(Utils::$context['databases'][$db_type])) {
+			Maintenance::$fatal_error = Lang::getTxt(
+				'error_db_type_unknown',
+				[
+					'db_type' => $db_type,
+					'supported' => Lang::sentenceList(array_keys(Utils::$context['databases'])),
+				],
+				file: 'Maintenance',
+			);
+
 			$this->logProgress(Maintenance::$fatal_error);
 
 			return false;
 		}
 
 		// Validate the prefix.
-		$db = Maintenance::$context['databases'][$db_type];
+		$db = Utils::$context['databases'][$db_type];
 
 		try {
 			$db->validatePrefix($db_prefix);
@@ -439,6 +494,14 @@ class Install extends ToolsBase implements ToolsInterface
 			Maintenance::$fatal_error = $e->getMessage();
 
 			$this->logProgress(Lang::getTxt('log_failed_with_error', ['error' => Maintenance::$fatal_error], file: 'Maintenance'));
+
+			return false;
+		}
+
+		// Database names can not have periods, just complicates things.
+		if (strpos(Utils::$context['db']['name'], '.') !== false) {
+			Maintenance::$fatal_error = Lang::getTxt('db_settings_database_invalid', file: 'Maintenance');
+			$this->logProgress(Maintenance::$fatal_error);
 
 			return false;
 		}
@@ -482,7 +545,7 @@ class Install extends ToolsBase implements ToolsInterface
 		// Attempt a connection.
 		Db::load([
 			'non_fatal' => true,
-			'dont_select_db' => !Maintenance::$context['databases'][$db_type]->alwaysHasDb(),
+			'dont_select_db' => !Utils::$context['databases'][$db_type]->alwaysHasDb(),
 		]);
 
 		// Still no connection?  Big fat error message :P.
@@ -510,8 +573,8 @@ class Install extends ToolsBase implements ToolsInterface
 		// @todo Old client, new server?
 		if (
 			version_compare(
-				preg_replace('~^\D*|\-.+?$~', '', Db::$db->get_version()),
-				Db::$db->getMinimumVersion(),
+				Utils::standardizeVersionString(Db::$db->get_version()),
+				Utils::standardizeVersionString(Db::$db->getMinimumVersion()),
 				'<',
 			)
 		) {
@@ -522,7 +585,7 @@ class Install extends ToolsBase implements ToolsInterface
 		}
 
 		// Let's try that database on for size... assuming we haven't already lost the opportunity.
-		if (Db::$db->name != '' && !Maintenance::$context['databases'][$db_type]->alwaysHasDb()) {
+		if (Db::$db->name != '' && !Utils::$context['databases'][$db_type]->alwaysHasDb()) {
 			Db::$db->query(
 				'CREATE DATABASE IF NOT EXISTS {identifier:name}',
 				[
@@ -534,13 +597,13 @@ class Install extends ToolsBase implements ToolsInterface
 			);
 
 			// Okay, let's try the prefix if it didn't work...
-			if (!Db::$db->select(Db::$db->name, Db::$db->connection) && Db::$db->name != '') {
+			if (!Db::$db->select(Db::$db->name, Db::$db->connection)) {
 				Db::$db->query(
 					'CREATE DATABASE IF NOT EXISTS {identifier:name}',
 					[
 						'security_override' => true,
 						'db_error_skip' => true,
-						'name' => Db::$db->name,
+						'name' => Db::$db->prefix . Db::$db->name,
 					],
 					Db::$db->connection,
 				);
@@ -586,12 +649,12 @@ class Install extends ToolsBase implements ToolsInterface
 		Db::load();
 
 		// Now, to put what we've learned together... and add a path.
-		Maintenance::$context['detected_url'] = 'http' . (Sapi::httpsOn() ? 's' : '') . '://' . $this->defaultHost() . substr(Maintenance::getSelf(), 0, strrpos(Maintenance::getSelf(), '/'));
+		Utils::$context['detected_url'] = 'http' . (Sapi::httpsOn() ? 's' : '') . '://' . $this->defaultHost() . (!str_contains(Maintenance::getSelf(), '/') ? '' : substr(Maintenance::getSelf(), 0, strrpos(Maintenance::getSelf(), '/')));
 
 		// Check if the database sessions will even work.
-		Maintenance::$context['test_dbsession'] = (\ini_get('session.auto_start') != 1);
+		Utils::$context['test_dbsession'] = (\ini_get('session.auto_start') != 1);
 
-		Maintenance::$context['continue'] = true;
+		Utils::$context['continue'] = true;
 
 		// Do we have a failure of database configuration?
 		try {
@@ -604,22 +667,22 @@ class Install extends ToolsBase implements ToolsInterface
 		}
 
 		// Setup the SSL checkbox...
-		Maintenance::$context['ssl_chkbx_protected'] = false;
-		Maintenance::$context['ssl_chkbx_checked'] = false;
+		Utils::$context['ssl_chkbx_protected'] = false;
+		Utils::$context['ssl_chkbx_checked'] = false;
 
 		// If redirect in effect, force SSL ON.
-		$url = new Url(Maintenance::$context['detected_url']);
+		$url = new Url(Utils::$context['detected_url']);
 
 		if ($url->redirectsToHttps()) {
-			Maintenance::$context['ssl_chkbx_protected'] = true;
-			Maintenance::$context['ssl_chkbx_checked'] = true;
+			Utils::$context['ssl_chkbx_protected'] = true;
+			Utils::$context['ssl_chkbx_checked'] = true;
 			$_POST['force_ssl'] = true;
 		}
 
 		// If no cert, make sure SSL stays OFF.
 		if (!$url->hasSSL()) {
-			Maintenance::$context['ssl_chkbx_protected'] = true;
-			Maintenance::$context['ssl_chkbx_checked'] = false;
+			Utils::$context['ssl_chkbx_protected'] = true;
+			Utils::$context['ssl_chkbx_checked'] = false;
 		}
 
 		// Submitting?
@@ -667,7 +730,7 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	public function databasePopulation(): bool
 	{
-		Maintenance::$context['continue'] = true;
+		Utils::$context['continue'] = true;
 
 		// Already done?
 		if (isset($_POST['pop_done'])) {
@@ -716,12 +779,22 @@ class Install extends ToolsBase implements ToolsInterface
 			}
 		}
 
-		Maintenance::$context['sql_results'] = [
+		Utils::$context['sql_results'] = [
 			'tables' => 0,
 			'inserts' => 0,
 			'table_dups' => 0,
 			'insert_dups' => 0,
 		];
+
+		// Some initialization may exist.
+		Db::$db->disableQueryCheck = true;
+
+		foreach (Table::getInitializers($this->schema_version) as $query) {
+			Db::$db->query($query, [
+				'security_override' => true,
+			]);
+		}
+		Db::$db->disableQueryCheck = false;
 
 		foreach ($install_tables as $table) {
 			$this->logProgress(Lang::getTxt('log_table_create', ['table' => Config::$db_prefix . $table->name], file: 'Maintenance'), true);
@@ -733,16 +806,16 @@ class Install extends ToolsBase implements ToolsInterface
 						throw new \Exception(Db::$db->error());
 					}
 
-					Maintenance::$context['sql_results']['tables']++;
+					Utils::$context['sql_results']['tables']++;
 					$this->logProgress(Lang::getTxt('log_done', file: 'Maintenance'));
 				} catch (\Throwable $e) {
-					Maintenance::$context['failures'][] = trim($e->getMessage());
+					Utils::$context['failures'][] = trim($e->getMessage());
 					$this->logProgress(Lang::getTxt('log_failed_with_error', ['error' => trim($e->getMessage())], file: 'Maintenance'));
 
 					continue;
 				}
 			} else {
-				Maintenance::$context['sql_results']['table_dups']++;
+				Utils::$context['sql_results']['table_dups']++;
 				$this->logProgress(Lang::getTxt('log_skipped', file: 'Maintenance'));
 			}
 
@@ -753,12 +826,12 @@ class Install extends ToolsBase implements ToolsInterface
 				try {
 					$num_inserts = $table->populate();
 
-					Maintenance::$context['sql_results']['inserts'] += $num_inserts;
-					Maintenance::$context['sql_results']['insert_dups'] += (\count($table->initial_data) - $num_inserts);
+					Utils::$context['sql_results']['inserts'] += $num_inserts;
+					Utils::$context['sql_results']['insert_dups'] += (\count($table->initial_data) - $num_inserts);
 
 					$this->logProgress(Lang::getTxt('log_done', file: 'Maintenance'));
 				} catch (\Throwable $e) {
-					Maintenance::$context['failures'][] = $table->name . ':' . $e->getMessage();
+					Utils::$context['failures'][] = $table->name . ':' . $e->getMessage();
 
 					$this->logProgress(Lang::getTxt('log_failed_with_error', ['error' => $e->getMessage()], file: 'Maintenance'));
 				}
@@ -769,13 +842,13 @@ class Install extends ToolsBase implements ToolsInterface
 		}
 
 		// Sort out the context for the SQL.
-		foreach (Maintenance::$context['sql_results'] as $key => $number) {
+		foreach (Utils::$context['sql_results'] as $key => $number) {
 			if ($number === 0) {
-				unset(Maintenance::$context['sql_results'][$key]);
+				unset(Utils::$context['sql_results'][$key]);
 			} else {
-				Maintenance::$context['sql_results'][$key] = Lang::getTxt('db_populate_' . $key, [$number], file: 'Maintenance');
+				Utils::$context['sql_results'][$key] = Lang::getTxt('db_populate_' . $key, [$number], file: 'Maintenance');
 
-				$this->logProgress(Maintenance::$context['sql_results'][$key]);
+				$this->logProgress(Utils::$context['sql_results'][$key]);
 			}
 		}
 
@@ -797,11 +870,11 @@ class Install extends ToolsBase implements ToolsInterface
 		foreach ($install_tables as $table) {
 			try {
 				if (!(Db::$db->optimize_table(Config::$db_prefix . $table->name) > -1)) {
-					Maintenance::$context['failures'][] = Db::$db->error();
+					Utils::$context['failures'][] = Db::$db->error();
 					$this->logProgress(Db::$db->error());
 				}
 			} catch (\Throwable $e) {
-				Maintenance::$context['failures'][] = $e->getMessage();
+				Utils::$context['failures'][] = $e->getMessage();
 				$this->logProgress($e->getMessage());
 			}
 		}
@@ -816,7 +889,7 @@ class Install extends ToolsBase implements ToolsInterface
 		// Was this a refresh?
 		if (\count($existing_tables) > 0) {
 			$this->page_title = Lang::getTxt('user_refresh_install', file: 'Maintenance');
-			Maintenance::$context['was_refresh'] = true;
+			Utils::$context['was_refresh'] = true;
 		}
 
 		return false;
@@ -829,7 +902,7 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	public function adminAccount(): bool
 	{
-		Maintenance::$context['continue'] = true;
+		Utils::$context['continue'] = true;
 
 		// Skipping?
 		if (!empty($_POST['skip'])) {
@@ -849,11 +922,11 @@ class Install extends ToolsBase implements ToolsInterface
 		// Reload $modSettings.
 		Config::reloadModSettings();
 
-		Maintenance::$context['username'] = htmlspecialchars($_POST['username'] ?? '');
-		Maintenance::$context['email'] = htmlspecialchars($_POST['email'] ?? '');
-		Maintenance::$context['server_email'] = htmlspecialchars($_POST['server_email'] ?? '');
+		Utils::$context['username'] = htmlspecialchars($_POST['username'] ?? '');
+		Utils::$context['email'] = htmlspecialchars($_POST['email'] ?? '');
+		Utils::$context['server_email'] = htmlspecialchars($_POST['server_email'] ?? (!empty(Config::$webmaster_email) && Config::$webmaster_email !== $settingsDefs['webmaster_email']['default'] ? Config::$webmaster_email : ''));
 
-		Maintenance::$context['require_db_confirm'] = empty(Config::$db_type);
+		Utils::$context['require_db_confirm'] = empty(Config::$db_type);
 
 		// Only allow skipping if we think they already have an account setup.
 		$request = Db::$db->query(
@@ -868,7 +941,7 @@ class Install extends ToolsBase implements ToolsInterface
 		);
 
 		if (Db::$db->num_rows($request) != 0) {
-			Maintenance::$context['skip'] = true;
+			Utils::$context['skip'] = true;
 
 			return false;
 		}
@@ -885,7 +958,7 @@ class Install extends ToolsBase implements ToolsInterface
 		$_POST['password3'] ??= '';
 
 		// Wrong password?
-		if (Maintenance::$context['require_db_confirm'] && $_POST['password3'] != Config::$db_passwd) {
+		if (Utils::$context['require_db_confirm'] && $_POST['password3'] != Config::$db_passwd) {
 			Maintenance::$fatal_error = Lang::getTxt('error_db_connect', file: 'Maintenance');
 			$this->logProgress(Maintenance::$fatal_error);
 
@@ -915,18 +988,13 @@ class Install extends ToolsBase implements ToolsInterface
 			return false;
 		}
 
-		// Update the webmaster's email?
-		if (!empty($_POST['server_email']) && (empty(Config::$webmaster_email) || Config::$webmaster_email == $settingsDefs['webmaster_email']['default'])) {
-			$this->updateSettingsFile(['webmaster_email' => (string) $_POST['server_email']]);
-		}
-
 		// Normalize Unicode characters.
 		$_POST['username'] = Utils::normalize($_POST['username']);
 
 		// Replace any kind of space or illegal character with a normal space, and then trim.
 		$_POST['username'] = Utils::htmlTrim(Utils::normalizeSpaces(Utils::sanitizeChars($_POST['username'], 1, ' '), true, true, ['no_breaks' => true, 'replace_tabs' => true, 'collapse_hspace' => true]));
 
-		$username_errors = User::validateUsername(0, $_POST['username'], true, false);
+		$username_errors = Security::validateUsername(0, $_POST['username'], true, false);
 
 		if (!empty($username_errors)) {
 			foreach ($username_errors as $error) {
@@ -954,28 +1022,10 @@ class Install extends ToolsBase implements ToolsInterface
 			return false;
 		}
 
-		$result = Db::$db->query(
-			'SELECT id_member, password_salt
-			FROM {db_prefix}members
-			WHERE member_name = {string:username} OR email_address = {string:email}
-			LIMIT 1',
-			[
-				'username' => $_POST['username'],
-				'email' => $_POST['email'],
-				'db_error_skip' => true,
-			],
-		);
+		// Is this email address valid?
+		$_POST['email'] = new EmailAddress($_POST['email']);
 
-		if (Db::$db->num_rows($result) != 0) {
-			Maintenance::$context += Db::$db->fetch_row($result);
-			Db::$db->free_result($result);
-
-			Maintenance::$context['account_existed'] = Lang::getTxt('error_user_settings_taken', file: 'Maintenance');
-
-			return false;
-		}
-
-		if (empty($_POST['email']) || !filter_var($_POST['email'], FILTER_VALIDATE_EMAIL) || \strlen($_POST['email']) > 255) {
+		if (!$_POST['email']->isValid() || \strlen((string) $_POST['email']) > 255) {
 			// One step back, this time fill out a proper admin email address.
 			Maintenance::$fatal_error = Lang::getTxt('error_valid_admin_email_needed', file: 'Maintenance');
 			$this->logProgress(Maintenance::$fatal_error);
@@ -983,24 +1033,52 @@ class Install extends ToolsBase implements ToolsInterface
 			return false;
 		}
 
-		if (empty($_POST['server_email']) || !filter_var($_POST['server_email'], FILTER_VALIDATE_EMAIL) || \strlen($_POST['server_email']) > 255) {
-			// One step back, this time fill out a proper admin email address.
+		// Is this email address taken?
+		$result = Db::$db->query(
+			'SELECT id_member, password_salt
+			FROM {db_prefix}members
+			WHERE member_name = {string:username} OR email_address_ci = {string:email}
+			LIMIT 1',
+			[
+				'username' => $_POST['username'],
+				'email' => $_POST['email']->casefolded(),
+				'db_error_skip' => true,
+			],
+		);
+
+		if (Db::$db->num_rows($result) != 0) {
+			Utils::$context += Db::$db->fetch_row($result);
+			Db::$db->free_result($result);
+
+			Utils::$context['account_existed'] = Lang::getTxt('error_user_settings_taken', file: 'Maintenance');
+
+			return false;
+		}
+
+		// Update the webmaster's email?
+		$_POST['server_email'] = new EmailAddress($_POST['server_email'] ?? '');
+
+		if ($_POST['server_email']->isValid() && \strlen((string) $_POST['server_email']) < 256) {
+			$this->updateSettingsFile(['webmaster_email' => (string) $_POST['server_email']]);
+		} else {
+			// One step back, this time fill out a proper webmaster email address.
 			Maintenance::$fatal_error = Lang::getTxt('error_valid_server_email_needed', file: 'Maintenance');
 			$this->logProgress(Maintenance::$fatal_error);
 
 			return false;
 		}
 
+		// Create the admin account.
 		if ($_POST['username'] != '') {
-			Maintenance::$context['password_salt'] = bin2hex(random_bytes(16));
+			Utils::$context['password_salt'] = bin2hex(random_bytes(16));
 
 			$ip = IP::getUserIP();
 
 			$_POST['password1'] = Security::hashPassword($_POST['password1']);
 
 			try {
-				Maintenance::$context['id_member'] = Db::$db->insert(
-					'',
+				Utils::$context['id_member'] = Db::$db->insert(
+					InsertType::Insert,
 					Db::$db->prefix . 'members',
 					[
 						'member_name' => 'string-25',
@@ -1025,17 +1103,19 @@ class Install extends ToolsBase implements ToolsInterface
 						'secret_question' => 'string',
 						'additional_groups' => 'string',
 						'ignore_boards' => 'string',
+						'spoofdetector_name' => 'string',
+						'email_address_ci' => 'string',
 					],
 					[
 						[
 							$_POST['username'],
 							$_POST['username'],
 							$_POST['password1'],
-							$_POST['email'],
+							(string) $_POST['email'],
 							1,
 							0,
 							time(),
-							Maintenance::$context['password_salt'],
+							Utils::$context['password_salt'],
 							'',
 							'',
 							'',
@@ -1050,13 +1130,15 @@ class Install extends ToolsBase implements ToolsInterface
 							'',
 							'',
 							'',
+							Utils::htmlspecialchars(SpoofDetector::getSkeletonString(html_entity_decode($_POST['username'], ENT_QUOTES))),
+							$_POST['email']->casefolded(),
 						],
 					],
 					['id_member'],
-					Db::INSERT_RETURN_MODE_SINGLE,
+					ReturnMode::SingleRow,
 				);
 
-				if ((int) Maintenance::$context['id_member'] > 0) {
+				if ((int) Utils::$context['id_member'] > 0) {
 					return true;
 				}
 
@@ -1085,7 +1167,7 @@ class Install extends ToolsBase implements ToolsInterface
 			$this->logProgress(Lang::getTxt('log_starting_step', ['num' => $this->getStep()->getId(), 'step' => $this->getStep()->getName()]));
 		}
 
-		Maintenance::$context['continue'] = false;
+		Utils::$context['continue'] = false;
 
 		// Rebuild the settings file.
 		$this->updateSettingsFile(['maintenance_tool_progress' => ''], false, true);
@@ -1098,14 +1180,22 @@ class Install extends ToolsBase implements ToolsInterface
 		// Reload $modSettings.
 		Config::reloadModSettings();
 
+		// Everything below needs a current user: Time and Logging both read
+		// User::$me to work out which time zone to record dates in.
+		if (isset(Utils::$context['id_member'])) {
+			User::setMe((int) Utils::$context['id_member']);
+		} else {
+			User::loadMe();
+		}
+
 		// Bring a warning over.
-		if (!empty(Maintenance::$context['account_existed'])) {
-			Maintenance::$warnings = Maintenance::$context['account_existed'];
+		if (!empty(Utils::$context['account_existed'])) {
+			Maintenance::$warnings = Utils::$context['account_existed'];
 		}
 
 		// As track stats is by default enabled let's add some activity.
 		Db::$db->insert(
-			'ignore',
+			InsertType::Ignore,
 			'{db_prefix}log_activity',
 			[
 				'date' => 'date',
@@ -1118,7 +1208,7 @@ class Install extends ToolsBase implements ToolsInterface
 					Time::strftime('%Y-%m-%d', time()),
 					1,
 					1,
-					!empty(Maintenance::$context['id_member']) ? 1 : 0,
+					!empty(Utils::$context['id_member']) ? 1 : 0,
 				],
 			],
 			['date'],
@@ -1141,48 +1231,51 @@ class Install extends ToolsBase implements ToolsInterface
 			Db::$db->free_result($request);
 		}
 
-		// Automatically log them in ;)
-		if (isset(Maintenance::$context['id_member'], Maintenance::$context['password_salt'])) {
-			Cookie::setLoginCookie(3153600 * 60, Maintenance::$context['id_member'], Cookie::encrypt($_POST['password1'], Maintenance::$context['password_salt']));
-		}
+		// Sign the new administrator in. (Not applicable on the command line.)
+		if (!Sapi::isCLI()) {
+			// Automatically log them in ;)
+			if (isset(Utils::$context['id_member'], Utils::$context['password_salt'])) {
+				Cookie::setLoginCookie(3153600 * 60, Utils::$context['id_member'], Cookie::encrypt($_POST['password1'], Utils::$context['password_salt']));
+			}
 
-		$result = Db::$db->query(
-			'SELECT value
-			FROM {db_prefix}settings
-			WHERE variable = {string:db_sessions}',
-			[
-				'db_sessions' => 'databaseSession_enable',
-				'db_error_skip' => true,
-			],
-		);
-
-		if (Db::$db->num_rows($result) != 0) {
-			list($db_sessions) = Db::$db->fetch_row($result);
-		}
-		Db::$db->free_result($result);
-
-		if (empty($db_sessions)) {
-			$_SESSION['admin_time'] = time();
-		} else {
-			$_SERVER['HTTP_USER_AGENT'] = substr($_SERVER['HTTP_USER_AGENT'], 0, 211);
-
-			Db::$db->insert(
-				'replace',
-				'{db_prefix}sessions',
+			$result = Db::$db->query(
+				'SELECT value
+				FROM {db_prefix}settings
+				WHERE variable = {string:db_sessions}',
 				[
-					'session_id' => 'string',
-					'last_update' => 'int',
-					'data' => 'string',
+					'db_sessions' => 'databaseSession_enable',
+					'db_error_skip' => true,
 				],
-				[
-					[
-						session_id(),
-						time(),
-						'USER_AGENT|s:' . \strlen($_SERVER['HTTP_USER_AGENT']) . ':"' . $_SERVER['HTTP_USER_AGENT'] . '";admin_time|i:' . time() . ';',
-					],
-				],
-				['session_id'],
 			);
+
+			if (Db::$db->num_rows($result) != 0) {
+				list($db_sessions) = Db::$db->fetch_row($result);
+			}
+			Db::$db->free_result($result);
+
+			if (empty($db_sessions)) {
+				$_SESSION['admin_time'] = time();
+			} else {
+				$_SERVER['HTTP_USER_AGENT'] = substr($_SERVER['HTTP_USER_AGENT'], 0, 211);
+
+				Db::$db->insert(
+					InsertType::Replace,
+					'{db_prefix}sessions',
+					[
+						'session_id' => 'string',
+						'last_update' => 'int',
+						'data' => 'string',
+					],
+					[
+						[
+							session_id(),
+							time(),
+							'USER_AGENT|s:' . \strlen($_SERVER['HTTP_USER_AGENT']) . ':"' . $_SERVER['HTTP_USER_AGENT'] . '";admin_time|i:' . time() . ';',
+						],
+					],
+					['session_id'],
+				);
+			}
 		}
 
 		Logging::updateStats('member');
@@ -1211,15 +1304,6 @@ class Install extends ToolsBase implements ToolsInterface
 		if (isset(Config::$modSettings['recycle_board'])) {
 			(new TaskRunner())->runScheduledTasks(['fetchSMfiles']); // Now go get those files!
 
-			// We've just installed!
-			$_SERVER['BAN_CHECK_IP'] = IP::getUserIPAlternative();
-
-			if (isset(Maintenance::$context['id_member'])) {
-				User::setMe((int) Maintenance::$context['id_member']);
-			} else {
-				User::load();
-			}
-
 			User::$me->ip = IP::getUserIP();
 
 			Logging::logAction('install', ['version' => SMF_FULL_VERSION], 'admin');
@@ -1231,8 +1315,8 @@ class Install extends ToolsBase implements ToolsInterface
 		]);
 
 		// Some final context for the template.
-		Maintenance::$context['dir_still_writable'] = is_writable(Config::$boarddir);
-		Maintenance::$context['can_delete_script'] = $this->canDeleteTool();
+		Utils::$context['dir_still_writable'] = is_writable(Config::$boarddir);
+		Utils::$context['can_delete_script'] = $this->canDeleteTool();
 
 		// Update hash's cost to an appropriate setting
 		$this->updateModSettings([
@@ -1242,7 +1326,7 @@ class Install extends ToolsBase implements ToolsInterface
 		$this->logProgress(Lang::getTxt('log_install_complete', file: 'Maintenance'));
 
 		if (!Sapi::isCLI() && $this->isDebug()) {
-			Maintenance::$context['log_contents'] = file_get_contents($this->log_file);
+			Utils::$context['log_contents'] = file_get_contents($this->log_file);
 		}
 
 		$this->finalizeLog();
@@ -1360,7 +1444,7 @@ class Install extends ToolsBase implements ToolsInterface
 		$data = isset($defined_vars['maintenance_tool_progress']) ? Utils::jsonDecode($defined_vars['maintenance_tool_progress'], true) : [];
 
 		$this->time_started = (int) ($data['started'] ?? time());
-		$this->debug = !empty($data['debug']);
+		$this->debug = $this->debug || !empty($data['debug']);
 	}
 
 	/**
@@ -1370,10 +1454,19 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	private function saveProgress(): bool
 	{
-		return $this->updateSettingsFile(['maintenance_tool_progress' => json_encode([
-			'started' => $this->time_started,
-			'debug' => $this->debug,
-		])]);
+		// Once we are done there is no progress left to track, and leaving a
+		// value here would tell SMF that an install is still in progress. That
+		// would stop background tasks from ever running on the new forum.
+		if (Maintenance::$overall_percent < 100) {
+			$data = json_encode([
+				'started' => $this->time_started,
+				'debug' => $this->debug,
+			]);
+		} else {
+			$data = '';
+		}
+
+		return $this->updateSettingsFile(['maintenance_tool_progress' => $data]);
 	}
 
 	/**
@@ -1383,7 +1476,19 @@ class Install extends ToolsBase implements ToolsInterface
 	 */
 	private function defaultHost(): string
 	{
-		return empty($_SERVER['HTTP_HOST']) ? $_SERVER['SERVER_NAME'] . (empty($_SERVER['SERVER_PORT']) || $_SERVER['SERVER_PORT'] == '80' ? '' : ':' . $_SERVER['SERVER_PORT']) : $_SERVER['HTTP_HOST'];
+		if (!empty($_SERVER['HTTP_HOST'])) {
+			return $_SERVER['HTTP_HOST'];
+		}
+
+		// On the command line there is no request to describe, so neither of
+		// these is set. This value only seeds the suggested board URL on the
+		// form, and a scripted install passes its own boardurl in, so a
+		// placeholder is enough -- but reading the keys unguarded was a warning
+		// on every CLI run.
+		$host = $_SERVER['SERVER_NAME'] ?? 'localhost';
+		$port = $_SERVER['SERVER_PORT'] ?? '';
+
+		return $host . (empty($port) || $port == '80' ? '' : ':' . $port);
 	}
 
 	/**
@@ -1430,42 +1535,17 @@ class Install extends ToolsBase implements ToolsInterface
 			&& empty(Config::$modSettings['allow_sm_stats'])
 			&& empty(Config::$modSettings['enable_sm_stats'])
 		) {
-			Maintenance::$context['allow_sm_stats'] = true;
+			Utils::$context['allow_sm_stats'] = true;
 
-			// Attempt to register the site etc.
-			$fp = @fsockopen('www.simplemachines.org', 443, $errno, $errstr);
+			$uid = Statistics::register();
 
-			if (!$fp) {
-				$fp = @fsockopen('www.simplemachines.org', 80, $errno, $errstr);
-			}
-
-			if (!$fp) {
-				return;
-			}
-
-			$out = 'GET /smf/stats/register_stats.php?site=' . base64_encode(Config::$boardurl) . ' HTTP/1.1' . "\r\n";
-			$out .= 'Host: www.simplemachines.org' . "\r\n";
-			$out .= 'Connection: Close' . "\r\n\r\n";
-			fwrite($fp, $out);
-
-			$return_data = '';
-
-			while (!feof($fp)) {
-				$return_data .= fgets($fp, 128);
-			}
-
-			fclose($fp);
-
-			// Get the unique site ID.
-			preg_match('~SITE-ID:\s(\w{10})~', $return_data, $ID);
-
-			if (!empty($ID[1])) {
-				$settings['sm_stats_key'] = $ID[1];
+			if (!empty($uid)) {
+				$settings['sm_stats_key'] = $uid;
 				$settings['enable_sm_stats'] = 1;
 			}
 		}
 		// Don't remove stat collection unless we unchecked the box for real, not from the loop.
-		elseif (empty($_POST['stats']) && empty(Maintenance::$context['allow_sm_stats'])) {
+		elseif (empty($_POST['stats']) && empty(Utils::$context['allow_sm_stats'])) {
 			$settings['enable_sm_stats'] = null;
 		}
 	}

@@ -5,21 +5,23 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Maintenance\Migration\v2_1;
 
-use SMF\Db\DatabaseApi as Db;
 use SMF\Db\Schema;
+use SMF\Maintenance\Migration\MigrationBase;
 
-class Ipv6MembersIP extends Ipv6Base
+class Ipv6MembersIP extends MigrationBase
 {
+	use IPv6Converter;
+
 	/*******************
 	 * Public properties
 	 *******************/
@@ -27,7 +29,7 @@ class Ipv6MembersIP extends Ipv6Base
 	/**
 	 *
 	 */
-	public string $name = 'Update members with ipv6 support (IP)';
+	public string $name = 'Updating members table with IPv6 support (part 1)';
 
 	/****************
 	 * Public methods
@@ -41,12 +43,7 @@ class Ipv6MembersIP extends Ipv6Base
 		$table = new Schema\v2_1\Members();
 		$existing_structure = $table->getCurrentStructure();
 
-		if (Db::$db->title === POSTGRE_TITLE) {
-			return $existing_structure['columns']['member_ip']['type'] !== 'inet';
-		}
-
-		return isset($existing_structure['columns']['member_ip_old'])
-			|| $existing_structure['columns']['member_ip']['type'] !== 'varbinary';
+		return $existing_structure['columns']['member_ip']['type'] !== 'inet';
 	}
 
 	/**
@@ -56,6 +53,9 @@ class Ipv6MembersIP extends Ipv6Base
 	{
 		$table = new Schema\v2_1\Members();
 
-		return $this->migrateData($table, 'member_ip');
+		$this->convertStringColumnToInet($table, $table->columns['member_ip']);
+		$this->handleTimeout();
+
+		return true;
 	}
 }

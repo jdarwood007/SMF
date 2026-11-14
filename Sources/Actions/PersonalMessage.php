@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -379,7 +379,7 @@ class PersonalMessage implements ActionInterface, Routable
 	public function drafts(): void
 	{
 		if (empty(User::$me->id)) {
-			ErrorHandler::fatalLang('not_a_user', false);
+			ErrorHandler::fatalLang('not_a_user', false, [], 404);
 		}
 
 		DraftPM::showInProfile(User::$me->id);
@@ -497,12 +497,18 @@ class PersonalMessage implements ActionInterface, Routable
 		}
 
 		// Are we labeling anything?
+		// Only ever our own copy: the other recipients of a PM keep their own
+		// labels on it, and these are our labels, not theirs.
 		if (!empty($to_label) && $this->folder === 'inbox') {
-			foreach (Received::loadByPm(array_keys($to_label)) as $received) {
-				if ($label_type[$received->id] === 'add') {
-					$received->addLabel($to_label[$received->id]);
-				} elseif ($label_type[$received->id] === 'rem') {
-					$received->removeLabel($to_label[$received->id]);
+			foreach (Received::loadByPm(array_keys($to_label)) as $pm => $recipients) {
+				if (!isset($recipients[User::$me->id])) {
+					continue;
+				}
+
+				if ($label_type[$pm] === 'add') {
+					$recipients[User::$me->id]->addLabel($to_label[$pm]);
+				} elseif ($label_type[$pm] === 'rem') {
+					$recipients[User::$me->id]->removeLabel($to_label[$pm]);
 				}
 			}
 		}
@@ -659,7 +665,7 @@ class PersonalMessage implements ActionInterface, Routable
 			// Loop through each admin, and add them to the right language pile...
 			while ($row = Db::$db->fetch_assoc($request)) {
 				// Need to send in the correct language!
-				$cur_language = empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $row['lngfile'];
+				$cur_language = empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $row['lngfile'];
 
 				if (!isset($messagesToSend[$cur_language])) {
 					// Make the body.
@@ -743,14 +749,13 @@ class PersonalMessage implements ActionInterface, Routable
 		// We want them to submit back to here.
 		Utils::$context['profile_custom_submit_url'] = Config::$scripturl . '?action=pm;sa=settings;save';
 
-		Profile::load(User::$me->id);
+		Profile::loadMember(User::$me->id);
 
 		Theme::loadTemplate('Profile');
 
 		// Since this is internally handled with the profile code because that's how
 		// it was done ages ago, we have to set everything up for handling this...
 		Utils::$context['page_title'] = Lang::getTxt('pm_settings', file: 'PersonalMessage');
-		User::$me->is_owner = true;
 		Utils::$context['id_member'] = User::$me->id;
 		Utils::$context['require_password'] = false;
 		Utils::$context['menu_item_selected'] = 'settings';

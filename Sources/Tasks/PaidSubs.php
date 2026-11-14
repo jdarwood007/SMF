@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -20,7 +20,6 @@ use SMF\Actions\Notify;
 use SMF\Alert;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
-use SMF\Lang;
 use SMF\Mail;
 use SMF\Theme;
 use SMF\Time;
@@ -105,7 +104,7 @@ class PaidSubs extends ScheduledTask
 				'END_DATE' => strip_tags(Time::create('@' . $row['end_time'])->format()),
 			];
 
-			$emaildata = Mail::loadEmailTemplate('paid_subscription_reminder', $replacements, empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $row['lngfile']);
+			$emaildata = Mail::loadEmailTemplate('paid_subscription_reminder', $replacements, empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $row['lngfile']);
 
 			// Check notification prefs.
 			$subs_notify = $notifyPrefs[$row['id_member']]['paidsubs_expiring'] ?? 0;
@@ -118,11 +117,11 @@ class PaidSubs extends ScheduledTask
 			if ($subs_notify & self::RECEIVE_NOTIFY_ALERT) {
 				$alert_rows[] = [
 					'alert_time' => time(),
-					'id_member' => $row['id_member'],
-					'id_member_started' => $row['id_member'],
+					'id_member' => (int) $row['id_member'],
+					'id_member_started' => (int) $row['id_member'],
 					'member_name' => $row['member_name'],
 					'content_type' => 'paidsubs',
-					'content_id' => $row['id_sublog'],
+					'content_id' => (int) $row['id_sublog'],
 					'content_action' => 'expiring',
 					'is_read' => 0,
 					'extra' => Utils::jsonEncode([

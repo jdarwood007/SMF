@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Rome
  */
-class Rome extends \SMF\Calendar\VTimeZone
+class Rome extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Rome extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Rome';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19161001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=30;UNTIL=19171001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=30;UNTIL=19170930T220000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -142,7 +160,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19440403T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T010000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -213,7 +231,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19660522T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19680526T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19680525T230000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -228,7 +246,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		26 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19670924T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=4SU;UNTIL=19690928T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=4SU;UNTIL=19690927T220000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -257,7 +275,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		30 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19710523T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19720528T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19720527T230000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -286,7 +304,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		34 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19730930T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19740929T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19740928T220000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -308,7 +326,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		37 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19750928T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19770925T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19770924T220000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -323,7 +341,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19770522T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19790527T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=4SU;UNTIL=19790526T230000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -345,7 +363,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		42 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19770831T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T000000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -353,7 +371,7 @@ class Rome extends \SMF\Calendar\VTimeZone
 		43 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19800227T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,8 @@ namespace SMF\Search\APIs;
 use SMF\Autolinker;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Msg;
@@ -26,6 +28,7 @@ use SMF\Sapi;
 use SMF\Search\SearchApi;
 use SMF\Search\SearchApiInterface;
 use SMF\SecurityToken;
+use SMF\Tasks\GenericTask;
 use SMF\Unicode\Utf8String;
 use SMF\Url;
 use SMF\User;
@@ -655,6 +658,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 			$word_data = [];
 
 			while (microtime(true) < TIME_START + 10) {
+				/** @var Msg $msg */
 				foreach (Msg::get(range($start_id, $start_id + self::BATCH_SIZE - 1)) as $msg) {
 					$last_id = $msg->id;
 
@@ -685,7 +689,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 		// If necessary, spawn a new background task to continue the job...
 		if (($last_id ?? 0) < Config::$modSettings['maxMsgID']) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -694,7 +698,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 				],
 				[
 					[
-						'SMF\\Tasks\\GenericTask',
+						GenericTask::class,
 						Utils::jsonEncode([
 							'callable' => __METHOD__,
 							'start_id' => ($last_id ?? 0) + 1,
@@ -926,7 +930,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 		foreach ($word_data as $word => &$msg_data) {
 			// Ensure this word is in our dictionary, and get its ID.
 			$id_word = Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}log_search_dictionary',
 				[
 					'word' => 'string-255',
@@ -941,7 +945,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 				[
 					'id_word',
 				],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			foreach ($msg_data as $msg => $wordnums) {
@@ -982,7 +986,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 		// New entries to create.
 		if (!empty($inserts)) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_search_parsed',
 				[
 					'id_word' => 'int',
@@ -1043,7 +1047,7 @@ class Parsed extends SearchApi implements SearchApiInterface
 		$string = mb_decode_numericentity($string, [0x010000, 0x10FFFF, 0, 0xFFFFFF], 'UTF-8');
 
 		// Separate emoji from regular words.
-		require_once Config::canonicalPath(Config::$sourcedir . '/Unicode/RegularExpressions.php');
+		require_once Sapi::canonicalPath(Config::$sourcedir . '/Unicode/RegularExpressions.php');
 		$prop_classes = utf8_regex_properties();
 
 		$string = preg_replace_callback(

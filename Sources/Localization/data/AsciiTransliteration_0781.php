@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 // Transliteration maps to replace non-ASCII characters with ASCII approximations.
@@ -48,7 +48,7 @@ $ascii_transliteration[781] = [
 	94 => 'yong',
 	96 => 'nao',
 	97 => 'keng',
-	98 => 'shan',
+	98 => 'jia',
 	99 => 'he',
 	100 => 'e',
 	101 => 'yi',
@@ -72,7 +72,7 @@ $ascii_transliteration[781] = [
 	120 => 'ta',
 	121 => 'nie',
 	122 => 'yuan',
-	123 => 'xu',
+	123 => 'hua',
 	124 => 'huo',
 	125 => 'tao',
 	126 => 'xi',
@@ -89,7 +89,7 @@ $ascii_transliteration[781] = [
 	137 => 'tan',
 	138 => 'yi',
 	140 => 'nou',
-	141 => 'xuan',
+	141 => 'juan',
 	142 => 'se',
 	143 => 'yao',
 	145 => 'long',

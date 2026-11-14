@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace SMF\Actions;
 
 use SMF\Config;
+use SMF\Cookie;
 use SMF\Lang;
 use SMF\SecurityToken;
 use SMF\Theme;
@@ -45,7 +46,18 @@ class Login extends Login2
 		// You are already logged in, go take a tour of the boards
 		if (!empty(User::$me->id)) {
 			// This came from a valid hashed return url.  Or something that knows our secrets...
-			if (!empty($_REQUEST['return_hash']) && !empty($_REQUEST['return_to']) && hash_hmac('sha1', Utils::htmlspecialcharsDecode($_REQUEST['return_to']), Config::getAuthSecret()) == $_REQUEST['return_hash']) {
+			if (
+				!empty($_REQUEST['return_hash'])
+				&& !empty($_REQUEST['return_to'])
+				&& hash_equals(
+					hash_hmac(
+						'sha1',
+						Utils::htmlspecialcharsDecode($_REQUEST['return_to']),
+						Config::getAuthSecret(),
+					),
+					$_REQUEST['return_hash'],
+				)
+			) {
 				Utils::redirectexit(Utils::htmlspecialcharsDecode($_REQUEST['return_to']));
 			} else {
 				Utils::redirectexit();
@@ -61,7 +73,7 @@ class Login extends Login2
 
 		// Get the template ready.... not really much else to do.
 		Utils::$context['page_title'] = Lang::getTxt('login', file: 'General');
-		Utils::$context['default_username'] = &$_REQUEST['u'];
+		Utils::$context['default_username'] = Utils::htmlspecialchars($_REQUEST['u'] ?? '');
 		Utils::$context['default_password'] = '';
 		Utils::$context['never_expire'] = false;
 
@@ -71,14 +83,37 @@ class Login extends Login2
 			'name' => Lang::getTxt('login', file: 'General'),
 		];
 
+		// Ensure the session data persists.
+		if (empty($_COOKIE)) {
+			Cookie::setLoginCookie(Cookie::LENGTH_DEFAULT, 0, '');
+		}
+
 		// Set the login URL - will be used when the login process is done (but careful not to send us to an attachment).
-		if (isset($_SESSION['old_url']) && !str_contains($_SESSION['old_url'], 'dlattach') && preg_match('~(board|topic)[=,]~', $_SESSION['old_url']) != 0) {
+		if (
+			isset($_SESSION['old_url'])
+			&& !str_contains($_SESSION['old_url'], 'dlattach')
+			&& preg_match('~(board|topic)[=,]~', $_SESSION['old_url'])
+		) {
 			$_SESSION['login_url'] = $_SESSION['old_url'];
 		}
 		// This came from a valid hashed return url.  Or something that knows our secrets...
-		elseif (!empty($_REQUEST['return_hash']) && !empty($_REQUEST['return_to']) && hash_hmac('sha1', Utils::htmlspecialcharsDecode($_REQUEST['return_to']), Config::getAuthSecret()) == $_REQUEST['return_hash']) {
+		elseif (
+			!empty($_REQUEST['return_hash'])
+			&& !empty($_REQUEST['return_to'])
+			&& hash_equals(
+				hash_hmac(
+					'sha1',
+					Utils::htmlspecialcharsDecode($_REQUEST['return_to']),
+					Config::getAuthSecret(),
+				),
+				$_REQUEST['return_hash'],
+			)
+		) {
 			$_SESSION['login_url'] = Utils::htmlspecialcharsDecode($_REQUEST['return_to']);
-		} elseif (isset($_SESSION['login_url']) && str_contains($_SESSION['login_url'], 'dlattach')) {
+		} elseif (
+			isset($_SESSION['login_url'])
+			&& str_contains($_SESSION['login_url'], 'dlattach')
+		) {
 			unset($_SESSION['login_url']);
 		}
 

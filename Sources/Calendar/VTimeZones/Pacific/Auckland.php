@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Pacific;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Pacific/Auckland
  */
-class Auckland extends \SMF\Calendar\VTimeZone
+class Auckland extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Auckland extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Pacific/Auckland';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'New_Zealand',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +82,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19281014T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19331008T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19331007T143000Z',
 			'TZNAME' => 'NZST',
 			'TZOFFSETFROM' => '+1130',
 			'TZOFFSETTO' => '+1200',
@@ -72,7 +90,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19290317T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19330319T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19330318T140000Z',
 			'TZNAME' => 'NZMT',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1130',
@@ -80,7 +98,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19340429T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19400428T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19400427T140000Z',
 			'TZNAME' => 'NZMT',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1130',
@@ -88,7 +106,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19340930T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19400929T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19400928T143000Z',
 			'TZNAME' => 'NZST',
 			'TZOFFSETFROM' => '+1130',
 			'TZOFFSETTO' => '+1200',
@@ -117,7 +135,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19751026T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19881030T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19881029T140000Z',
 			'TZNAME' => 'NZDT',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1300',
@@ -125,7 +143,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19760307T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19890305T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19890304T130000Z',
 			'TZNAME' => 'NZST',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',
@@ -140,7 +158,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19900318T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=20070318T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=20070317T130000Z',
 			'TZNAME' => 'NZST',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',
@@ -148,7 +166,7 @@ class Auckland extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19901007T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=20061001T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=20060930T140000Z',
 			'TZNAME' => 'NZDT',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1300',

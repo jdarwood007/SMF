@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,8 @@ declare(strict_types=1);
 namespace SMF\Permissions;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Group;
 use SMF\Lang;
 use SMF\Utils;
@@ -103,12 +105,12 @@ class PermissionProfile
 	{
 		if (empty($this->id)) {
 			$this->id = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}permission_profiles',
 				['profile_name' => 'string'],
 				[[$this->name]],
 				['id_profile'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			if (!empty($this->copied_from)) {
@@ -135,7 +137,7 @@ class PermissionProfile
 			// This will only ever be called if an expected profile was deleted.
 			if (Db::$db->affected_rows() == 0) {
 				Db::$db->insert(
-					'ignore',
+					InsertType::Ignore,
 					'{db_prefix}permission_profiles',
 					['id_profile' => 'int', 'profile_name' => 'string'],
 					[[$this->id, $this->name]],
@@ -252,7 +254,8 @@ class PermissionProfile
 		$request = Db::$db->query(
 			'SELECT p.id_profile, p.profile_name, b.id_board
 			FROM {db_prefix}permission_profiles AS p
-			LEFT JOIN {db_prefix}boards AS b ON (p.id_profile = b.id_profile)',
+			LEFT JOIN {db_prefix}boards AS b ON (p.id_profile = b.id_profile)
+			ORDER BY p.id_profile, b.id_board',
 			[],
 		);
 

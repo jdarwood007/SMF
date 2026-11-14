@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
@@ -124,7 +125,7 @@ function template_select_search_method()
 		<div class="windowbg">
 			<dl class="settings">';
 
-	if (!empty(Utils::$context['table_info']))
+	if (!empty(Utils::$context['table_info'])) {
 		echo '
 				<dt>
 					<strong>', Lang::getTxt('search_method_messages_table_space', file: 'Search'), '</strong>
@@ -138,6 +139,7 @@ function template_select_search_method()
 				<dd>
 					', Utils::$context['table_info']['index_length'], '
 				</dd>';
+	}
 	echo '
 			</dl>
 			', Utils::$context['double_index'] ? '<div class="noticebox">
@@ -152,8 +154,7 @@ function template_select_search_method()
 						</label>
 					</dt>';
 
-	foreach (Utils::$context['search_apis'] as $api)
-	{
+	foreach (Utils::$context['search_apis'] as $api) {
 		if ($api['has_template'] || $api['instance']->getStatus() === 'hidden') {
 			continue;
 		}
@@ -322,7 +323,7 @@ function template_create_index_progress()
 				</div>
 			</div>
 			<hr>
-			<input type="submit" name="b" value="', Lang::getTxt('search_create_index_continue', file: 'Search'), '" class="button">
+			<input type="submit" name="cont" value="', Lang::getTxt('search_create_index_continue', file: 'Search'), '" class="button">
 		</div>
 		<input type="hidden" name="step" value="', Utils::$context['step'], '">
 		<input type="hidden" name="start" value="', Utils::$context['start'], '">
@@ -330,23 +331,8 @@ function template_create_index_progress()
 		<input type="hidden" name="', Utils::$context['session_var'], '" value="', Utils::$context['session_id'], '">
 	</form>
 	<script>
-		var countdown = 10;
-		doAutoSubmit();
-
-		function doAutoSubmit()
-		{
-			if (countdown == 0)
-				document.forms.autoSubmit.submit();
-			else if (countdown == -1)
-				return;
-
-			document.forms.autoSubmit.b.value = "', Lang::getTxt('search_create_index_continue', file: 'Search'), ' (" + countdown + ")";
-			countdown--;
-
-			setTimeout(doAutoSubmit, 1000);
-		}
+		doAutoSubmit(10, ', Utils::escapeJavaScript(Lang::getTxt('search_create_index_continue', file: 'Search')), ');
 	</script>';
-
 }
 
 /**

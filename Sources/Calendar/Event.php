@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,9 +19,12 @@ use SMF\Actions\Calendar;
 use SMF\ArrayAccessHelper;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
+use SMF\Tasks\EventNew_Notify;
 use SMF\Theme;
 use SMF\Time;
 use SMF\TimeInterval;
@@ -95,7 +98,7 @@ class Event implements \ArrayAccess
 	public int $type = self::TYPE_EVENT;
 
 	/**
-	 * @var \SMF\Time
+	 * @var Time
 	 *
 	 * A Time object representing the start of the event's first occurrence.
 	 */
@@ -419,7 +422,7 @@ class Event implements \ArrayAccess
 			// Preparing default data to show in the calendar posting form.
 			case -1:
 				$this->id = $id;
-				$props['start'] = $props['start'] ?? new Time('now ' . User::getTimezone());
+				$props['start'] = $props['start'] ?? new Time('now ' . User::$me->timezone);
 				$props['duration'] = $props['duration'] ?? new TimeInterval('PT1H');
 				$props['member'] = $props['member'] ?? User::$me->id;
 				$props['name'] = $props['name'] ?? User::$me->name;
@@ -722,12 +725,12 @@ class Event implements \ArrayAccess
 			}
 
 			$this->id = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}calendar',
 				$columns,
 				[$params],
 				['id_event'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			self::$loaded[$this->id] = $this;
@@ -808,10 +811,10 @@ class Event implements \ArrayAccess
 		$filecontents = [];
 		$filecontents[] = 'BEGIN:VEVENT';
 
-		$filecontents[] = 'SUMMARY:' . $this->title;
+		$filecontents[] = 'SUMMARY:' . $this->stripControlChars($this->title);
 
 		if (!empty($this->location)) {
-			$filecontents[] = 'LOCATION:' . str_replace(',', '\\,', $this->location);
+			$filecontents[] = 'LOCATION:' . $this->stripControlChars($this->location, [',' => '\\,', ';' => '\;', '\\\\' => '\\', "\r" => '', "\n" => '']);
 		}
 
 		if (!empty($this->topic)) {
@@ -899,7 +902,7 @@ class Event implements \ArrayAccess
 	 * Returns a generator that yields all occurrences of the event between
 	 * $this->view_start and $this->view_end.
 	 *
-	 * @return Generator<EventOccurrence> Iterating over result gives
+	 * @return \Generator<EventOccurrence> Iterating over result gives
 	 *    EventOccurrence instances.
 	 */
 	public function getAllVisibleOccurrences(): \Generator
@@ -1198,7 +1201,7 @@ class Event implements \ArrayAccess
 						break;
 					}
 				}
-				$this->duration = TimeInterval::createFromDateInterval($this->start->diff($value));
+				$this->duration = $this->start->diff($value);
 				break;
 
 			case 'end_datetime':
@@ -1681,7 +1684,7 @@ class Event implements \ArrayAccess
 	 * @param string $high_date The high end of the range, inclusive, in YYYY-MM-DD format.
 	 * @param bool $use_permissions Whether to use permissions. Default: true.
 	 * @param array $query_customizations Customizations to the SQL query.
-	 * @return Generator<Event> Iterating over result gives Event instances.
+	 * @return \Generator<Event> Iterating over result gives Event instances.
 	 */
 	public static function get(string $low_date, string $high_date, bool $use_permissions = true, array $query_customizations = []): \Generator
 	{
@@ -1750,7 +1753,7 @@ class Event implements \ArrayAccess
 	 * @param string $high_date The high end of the range, inclusive, in YYYY-MM-DD format.
 	 * @param bool $use_permissions Whether to use permissions. Default: true.
 	 * @param array $query_customizations Customizations to the SQL query.
-	 * @return Generator<EventOccurrence> Iterating over result gives
+	 * @return \Generator<EventOccurrence> Iterating over result gives
 	 *    EventOccurrence instances.
 	 */
 	public static function getOccurrencesInRange(string $low_date, string $high_date, bool $use_permissions = true, array $query_customizations = []): \Generator
@@ -1793,7 +1796,7 @@ class Event implements \ArrayAccess
 		// If this isn't tied to a topic, we need to notify people about it.
 		if (empty($event->topic)) {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -1802,7 +1805,7 @@ class Event implements \ArrayAccess
 				],
 				[
 					[
-						'SMF\\Tasks\\EventNew_Notify',
+						EventNew_Notify::class,
 						Utils::jsonEncode([
 							'event_title' => $event->title,
 							'event_id' => $event->id,
@@ -1968,7 +1971,7 @@ class Event implements \ArrayAccess
 					$props['start'] = new Time($matches[1] . ($matches[2] === 'Z' ? ' UTC' : ''));
 					$props['allday'] = false;
 				} elseif (preg_match('/:(\d+)/', $line, $matches)) {
-					$props['start'] = new Time($matches[1] . ' ' . User::getTimezone());
+					$props['start'] = new Time($matches[1] . ' ' . User::$me->timezone);
 					$props['allday'] = true;
 				}
 			}
@@ -1979,10 +1982,10 @@ class Event implements \ArrayAccess
 				} elseif (preg_match('/:(\d+T\d+)(Z?)/', $line, $matches)) {
 					$end = new Time($matches[1] . ($matches[2] === 'Z' ? ' UTC' : ''));
 				} elseif (preg_match('/:(\d+)/', $line, $matches)) {
-					$end = new Time($matches[1] . ' ' . User::getTimezone());
+					$end = new Time($matches[1] . ' ' . User::$me->timezone);
 				}
 
-				$props['duration'] = TimeInterval::createFromDateInterval($props['start']->diff($end));
+				$props['duration'] = $props['start']->diff($end);
 			}
 
 			if (str_starts_with($line, 'DURATION')) {
@@ -2098,7 +2101,7 @@ class Event implements \ArrayAccess
 		if ($eventOptions['allday']) {
 			$eventOptions['end']->modify('+1 day');
 		}
-		$eventOptions['duration'] = TimeInterval::createFromDateInterval($eventOptions['start']->diff($eventOptions['end']));
+		$eventOptions['duration'] = $eventOptions['start']->diff($eventOptions['end']);
 		unset($eventOptions['end']);
 
 		// Unset all null values and all scalar date/time parameters.
@@ -2486,6 +2489,17 @@ class Event implements \ArrayAccess
 		return new EventOccurrence($this->id, $props);
 	}
 
+	/**
+	 * Removes Excess tags
+	 * @param string $raw
+	 * @param array $tags
+	 * @return string
+	 */
+	protected function stripControlChars(string $raw, array $tags = ["\r" => '', "\n" => '']): string
+	{
+		return strtr($raw, $tags);
+	}
+
 	/*************************
 	 * Internal static methods
 	 *************************/
@@ -2532,7 +2546,7 @@ class Event implements \ArrayAccess
 			$row['allday'] = !isset($row['start_time']) || !isset($row['timezone']) || !\in_array($row['timezone'], timezone_identifiers_list(\DateTimeZone::ALL_WITH_BC));
 
 			// Replace start time and date scalars with a Time object.
-			$row['start'] = new Time($row['start_date'] . (!$row['allday'] ? ' ' . $row['start_time'] . ' ' . $row['timezone'] : ' ' . User::getTimezone()));
+			$row['start'] = new Time($row['start_date'] . (!$row['allday'] ? ' ' . $row['start_time'] . ' ' . $row['timezone'] : ' ' . User::$me->timezone));
 			unset($row['start_date'], $row['start_time'], $row['timezone']);
 
 			// Replace duration string with a TimeInterval object.
@@ -2583,7 +2597,7 @@ class Event implements \ArrayAccess
 		$input['allday'] = !empty($input['allday']);
 
 		if (!isset($input['timezone']) || ($tz = @timezone_open($input['timezone'])) === false) {
-			$tz = timezone_open(User::getTimezone());
+			$tz = timezone_open(User::$me->timezone);
 		}
 
 		$input['timezone'] = $tz->getName();

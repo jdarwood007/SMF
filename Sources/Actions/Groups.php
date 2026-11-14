@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF\Actions;
@@ -30,6 +30,7 @@ use SMF\SecurityToken;
 use SMF\Slug;
 use SMF\Theme;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -226,7 +227,7 @@ class Groups implements ActionInterface, Routable
 		// Load up the group details.
 		$groups = Group::load($_REQUEST['group']);
 
-		/** @var \SMF\Group $group */
+		/** @var Group $group */
 		if ($groups == [] || !($group = $groups[$_REQUEST['group']]) || empty($group->id)) {
 			ErrorHandler::fatalLang('membergroup_does_not_exist', false);
 		}
@@ -260,7 +261,7 @@ class Groups implements ActionInterface, Routable
 		// Sort out the sorting!
 		$sort_methods = [
 			'name' => 'real_name',
-			'email' => 'email_address',
+			'email' => 'email_address_ci',
 			'active' => 'last_login',
 			'registered' => 'date_registered',
 			'posts' => 'posts',
@@ -299,7 +300,7 @@ class Groups implements ActionInterface, Routable
 		Utils::$context['members'] = [];
 
 		if ($group->loadMembers() !== []) {
-			foreach (User::load($group->members, User::LOAD_BY_ID, 'normal') as $member) {
+			foreach (User::load($group->members, User::LOAD_BY_ID, UserDataset::Normal) as $member) {
 				Utils::$context['members'][] = $member->format();
 			}
 		}
@@ -404,7 +405,7 @@ class Groups implements ActionInterface, Routable
 	 *
 	 * @param array &$members The IDs of the members.
 	 * @param int $membergroup The ID of the group.
-	 * @param int $limit How many members to show (null for no limit).
+	 * @param ?int $limit How many members to show (null for no limit).
 	 * @return bool True if there are more members to display, false otherwise.
 	 */
 	public static function listMembergroupMembers_Href(&$members, $membergroup, $limit = null): bool
@@ -414,7 +415,8 @@ class Groups implements ActionInterface, Routable
 		$request = Db::$db->query(
 			'SELECT id_member, real_name
 			FROM {db_prefix}members
-			WHERE id_group = {int:id_group} OR FIND_IN_SET({int:id_group}, additional_groups) != 0' . ($limit === null ? '' : '
+			WHERE id_group = {int:id_group} OR FIND_IN_SET({int:id_group}, additional_groups) != 0
+			ORDER BY id_member' . ($limit === null ? '' : '
 			LIMIT ' . ($limit + 1)),
 			[
 				'id_group' => $membergroup,

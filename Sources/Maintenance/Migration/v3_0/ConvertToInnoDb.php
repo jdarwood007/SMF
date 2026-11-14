@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -54,7 +54,7 @@ class ConvertToInnoDb extends MigrationBase
 			$result = true;
 
 			if ($structure['engine'] !== 'InnoDB') {
-				$result = Db::$db->query(
+				$result = $this->query(
 					'ALTER TABLE {identifier:table}
 					ENGINE {literal:InnoDB}
 					ROW_FORMAT=DYNAMIC',
@@ -63,7 +63,7 @@ class ConvertToInnoDb extends MigrationBase
 					],
 				);
 			} elseif ($structure['row_format'] !== 'Dynamic') {
-				$result = Db::$db->query(
+				$result = $this->query(
 					'ALTER TABLE {identifier:table}
 					ROW_FORMAT=DYNAMIC',
 					[
@@ -80,7 +80,7 @@ class ConvertToInnoDb extends MigrationBase
 		// Try to ensure all future tables use dynamic row format.
 		$can_set_global_default = false;
 
-		$request = Db::$db->query('SHOW GRANTS');
+		$request = $this->query('SHOW GRANTS');
 
 		while ($row = Db::$db->fetch_row($request)) {
 			if (
@@ -95,7 +95,7 @@ class ConvertToInnoDb extends MigrationBase
 		Db::$db->free_result($request);
 
 		if ($can_set_global_default) {
-			$result = Db::$db->query(
+			$result = $this->query(
 				'SET GLOBAL innodb_default_row_format=DYNAMIC',
 				[
 					'db_error_skip' => true,

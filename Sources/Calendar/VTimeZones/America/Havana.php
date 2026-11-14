@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Havana
  */
-class Havana extends \SMF\Calendar\VTimeZone
+class Havana extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Havana extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Havana';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Cuba',
+		],
+	];
 
 	/**
 	 * @var array
@@ -64,7 +82,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19400602T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYDAY=1SU;UNTIL=19420607T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYDAY=1SU;UNTIL=19420607T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -72,7 +90,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19400901T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19420906T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19420906T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -80,7 +98,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19450603T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYDAY=1SU;UNTIL=19460602T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYDAY=1SU;UNTIL=19460602T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -88,7 +106,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19450902T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19460901T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19460901T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -131,7 +149,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19670910T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=2SU;UNTIL=19680908T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=2SU;UNTIL=19680908T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -146,7 +164,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19690427T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19770424T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19770424T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -154,7 +172,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19691026T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19711031T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19711031T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -162,7 +180,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19721008T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=8;UNTIL=19741008T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=8;UNTIL=19741008T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -170,7 +188,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19751026T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19771030T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19771030T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -185,7 +203,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19781008T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19901014T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19901014T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -193,7 +211,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19790318T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19800316T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19800316T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -201,7 +219,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810510T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=SU;BYMONTHDAY=5,6,7,8,9,10,11;UNTIL=19850505T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYDAY=SU;BYMONTHDAY=5,6,7,8,9,10,11;UNTIL=19850505T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -209,7 +227,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19860316T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=14,15,16,17,18,19,20;UNTIL=19890319T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=14,15,16,17,18,19,20;UNTIL=19890319T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -217,7 +235,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		23 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19900401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19970406T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19970406T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -225,7 +243,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19911013T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19951008T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=2SU;UNTIL=19951008T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -247,7 +265,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		27 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19980329T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19990328T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19990328T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -255,7 +273,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		28 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19981025T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20031026T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20031026T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -263,7 +281,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		29 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20000402T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20030406T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20030406T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -278,7 +296,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		31 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20061029T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101031T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101031T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -300,7 +318,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		34 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20090308T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20100314T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20100314T050000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',
@@ -329,7 +347,7 @@ class Havana extends \SMF\Calendar\VTimeZone
 		38 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20121104T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=20251102T040000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0500',
@@ -337,6 +355,22 @@ class Havana extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20130310T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU;UNTIL=20260308T050000Z',
+			'TZNAME' => 'CDT',
+			'TZOFFSETFROM' => '-0500',
+			'TZOFFSETTO' => '-0400',
+		],
+		40 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '20271107T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+			'TZNAME' => 'CST',
+			'TZOFFSETFROM' => '-0400',
+			'TZOFFSETTO' => '-0500',
+		],
+		41 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '20280312T000000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0500',

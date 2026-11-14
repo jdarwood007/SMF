@@ -5,21 +5,23 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Maintenance\Migration\v2_1;
 
-use SMF\Db\DatabaseApi as Db;
+use SMF\Db\Schema;
 use SMF\Maintenance\Migration\MigrationBase;
 
 class Ipv6LogErrors extends MigrationBase
 {
+	use IPv6Converter;
+
 	/*******************
 	 * Public properties
 	 *******************/
@@ -27,7 +29,7 @@ class Ipv6LogErrors extends MigrationBase
 	/**
 	 *
 	 */
-	public string $name = 'Update log_errors ip with ipv6 support';
+	public string $name = 'Updating log_errors table with IPv6 support';
 
 	/****************
 	 * Public methods
@@ -36,26 +38,12 @@ class Ipv6LogErrors extends MigrationBase
 	/**
 	 *
 	 */
-	public function __construct()
-	{
-		if (Db::$db->title !== POSTGRE_TITLE) {
-			$this->name .= ' without converting';
-		}
-	}
-
-	/**
-	 *
-	 */
 	public function isCandidate(): bool
 	{
-		$table = new \SMF\Db\Schema\v2_1\LogErrors();
+		$table = new Schema\v2_1\LogErrors();
 		$existing_structure = $table->getCurrentStructure();
 
-		if (Db::$db->title === POSTGRE_TITLE) {
-			return $existing_structure['columns']['ip']['type'] !== 'inet';
-		}
-
-		return $existing_structure['columns']['ip']['type'] !== 'varbinary';
+		return $existing_structure['columns']['ip']['type'] !== 'inet';
 	}
 
 	/**
@@ -63,35 +51,14 @@ class Ipv6LogErrors extends MigrationBase
 	 */
 	public function execute(): bool
 	{
-		$table = new \SMF\Db\Schema\v2_1\LogErrors();
-		$existing_structure = $table->getCurrentStructure();
+		$table = new Schema\v2_1\LogErrors();
 
-		if (Db::$db->title === POSTGRE_TITLE) {
-			$this->query(
-				'ALTER TABLE {db_prefix}log_errors
-					ALTER ip DROP not null,
-					ALTER ip DROP default,
-					ALTER ip TYPE inet USING migrate_inet(ip)',
-			);
-		} else {
-			foreach ($table->columns as $column) {
-				if ($column->name === 'ip' && $existing_structure['columns'][$column->name]['type'] !== 'varbinary') {
-					$table->dropColumn($column);
-					$table->addColumn($column);
-					continue;
-				}
-			}
-		}
+		$this->convertStringColumnToInet($table, $table->columns['ip']);
 
-		foreach ($table->indexes as $idx) {
-			if (
-				$idx->name === 'idx_ip'
-				&& !isset($existing_structure['indexes'][$column->name])
-			) {
-				$table->addIndex($idx);
-				continue;
-			}
-		}
+		// Fix indices.
+		$table->normalize();
+
+		$this->handleTimeout();
 
 		return true;
 	}

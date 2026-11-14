@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -23,13 +23,16 @@ use SMF\ActionTrait;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Mail;
 use SMF\Menu;
+use SMF\PackageManager\PackageManager;
 use SMF\Parser;
 use SMF\Routable;
+use SMF\Sapi;
 use SMF\SecurityToken;
 use SMF\Theme;
 use SMF\Url;
@@ -126,7 +129,7 @@ class ACP implements ActionInterface, Routable
 				],
 				'packages' => [
 					'label' => 'package',
-					'function' => 'SMF\\PackageManager\\PackageManager::call',
+					'function' => PackageManager::class . '::call',
 					'permission' => ['admin_forum'],
 					'icon' => 'packages',
 					'subsections' => [
@@ -780,7 +783,7 @@ class ACP implements ActionInterface, Routable
 
 		// Now - finally - call the right place!
 		if (isset($menu->include_data['file'])) {
-			require_once Config::canonicalPath(Config::$sourcedir . '/' . $menu->include_data['file']);
+			require_once Sapi::canonicalPath(Config::$sourcedir . '/' . $menu->include_data['file']);
 		}
 
 		// Get the right callable.
@@ -1524,10 +1527,8 @@ class ACP implements ActionInterface, Routable
 		);
 
 		$ignore_sources = [
-			Config::$sourcedir . '/minify/*',
-			Config::$sourcedir . '/ReCaptcha/*',
+			Config::$vendordir . '/*',
 			Config::$sourcedir . '/Tasks/*',
-			Config::$sourcedir . '/ZxcvbnPhp/*',
 			Config::$sourcedir . '/Unicode/*',
 		];
 
@@ -1689,7 +1690,7 @@ class ACP implements ActionInterface, Routable
 
 		// Update the themes table.
 		Db::$db->insert(
-			'replace',
+			InsertType::Replace,
 			'{db_prefix}themes',
 			[
 				'id_member' => 'int',
@@ -1752,7 +1753,7 @@ class ACP implements ActionInterface, Routable
 			$replacements['USERNAME'] = $row['real_name'];
 
 			// Load the data from the template.
-			$emaildata = Mail::loadEmailTemplate($template, $replacements, empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $row['lngfile']);
+			$emaildata = Mail::loadEmailTemplate($template, $replacements, empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $row['lngfile']);
 
 			// Then send the actual email.
 			Mail::send($row['email_address'], $emaildata['subject'], $emaildata['body'], null, $template, $emaildata['is_html'], 1);
@@ -1774,7 +1775,7 @@ class ACP implements ActionInterface, Routable
 				$replacements['USERNAME'] = $recipient['name'];
 
 				// Load the template again.
-				$emaildata = Mail::loadEmailTemplate($template, $replacements, empty($recipient['lang']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $recipient['lang']);
+				$emaildata = Mail::loadEmailTemplate($template, $replacements, empty($recipient['lang']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $recipient['lang']);
 
 				// Send off the email.
 				Mail::send($recipient['email'], $emaildata['subject'], $emaildata['body'], null, $template, $emaildata['is_html'], 1);
@@ -1888,7 +1889,7 @@ class ACP implements ActionInterface, Routable
 				]);
 
 				if (file_exists($include)) {
-					require_once Config::canonicalPath($include);
+					require_once Sapi::canonicalPath($include);
 				}
 			}
 		}

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,10 +17,12 @@ namespace SMF\Localization;
 
 use SMF\Config;
 use SMF\Lang;
+use SMF\Sapi;
 use SMF\Time;
 use SMF\User;
 use SMF\Utils;
 
+use function SMF\Unicode\country_currencies;
 use function SMF\Unicode\currencies;
 
 /**
@@ -39,28 +41,139 @@ class MessageFormatter
 	 * Note that not all currencies have long-form symbols. For currencies that
 	 * do not have long-form symbols, the raw currency code is used instead.
 	 */
-	public const CURRENCY_SYMBOLS = [
+	public const CURRENCY_SYMBOLS_LONG = [
 		'AUD' => 'A$',
 		'BRL' => 'R$',
 		'CAD' => 'CA$',
-		'CNY' => 'CN¥',
-		'EUR' => '€',
-		'GBP' => '£',
+		'CNY' => "CN\u{A5}",
+		'DEFAULT' => '¤',
+		'EUR' => "\u{20AC}",
+		'GBP' => "\u{A3}",
 		'HKD' => 'HK$',
-		'ILS' => '₪',
-		'INR' => '₹',
-		'JPY' => '¥',
-		'KRW' => '₩',
+		'ILS' => "\u{20AA}",
+		'INR' => "\u{20B9}",
+		'JPY' => "\u{A5}",
+		'KRW' => "\u{20A9}",
 		'MXN' => 'MX$',
 		'NZD' => 'NZ$',
-		'PHP' => '₱',
+		'PHP' => "\u{20B1}",
 		'TWD' => 'NT$',
 		'USD' => 'US$',
-		'VND' => '₫',
-		'XAF' => 'FCFA',
+		'VND' => "\u{20AB}",
+		'XAF' => "FCFA\u{A0}",
 		'XCD' => 'EC$',
-		'XOF' => "F\u{202F}CFA",
-		'XPF' => 'CFPF',
+		'XCG' => "Cg.\u{A0}",
+		'XOF' => "F\u{202F}CFA\u{A0}",
+		'XPF' => "CFPF\u{A0}",
+	];
+
+	/**
+	 * Short-form (and often ambiguous) symbols for certain currencies.
+	 *
+	 * Note that not all currencies have short-form symbols. For currencies that
+	 * do not have short-form symbols, the raw currency code is used instead.
+	 */
+	public const CURRENCY_SYMBOLS_SHORT = [
+		'AFN' => "\u{60B}",
+		'AMD' => "\u{58F}",
+		'AOA' => "Kz\u{A0}",
+		'ARS' => '$',
+		'AUD' => '$',
+		'AZN' => "\u{20BC}",
+		'BAM' => "KM\u{A0}",
+		'BBD' => '$',
+		'BDT' => "\u{9F3}",
+		'BMD' => '$',
+		'BND' => '$',
+		'BOB' => "Bs\u{A0}",
+		'BRL' => 'R$',
+		'BSD' => '$',
+		'BWP' => "P\u{A0}",
+		'BZD' => '$',
+		'CAD' => '$',
+		'CLP' => '$',
+		'CNY' => "\u{A5}",
+		'COP' => '$',
+		'CRC' => "\u{20A1}",
+		'CUP' => '$',
+		'CZK' => "K\u{10D}\u{A0}",
+		'DEFAULT' => '¤',
+		'DKK' => "kr\u{A0}",
+		'DOP' => '$',
+		'EGP' => "E\u{A3}",
+		'EUR' => "\u{20AC}",
+		'FJD' => '$',
+		'FKP' => "\u{A3}",
+		'GBP' => "\u{A3}",
+		'GEL' => "\u{20BE}",
+		'GHS' => "GH\u{20B5}",
+		'GIP' => "\u{A3}",
+		'GNF' => "FG\u{A0}",
+		'GTQ' => "Q\u{A0}",
+		'GYD' => '$',
+		'HKD' => '$',
+		'HNL' => "L\u{A0}",
+		'HUF' => "Ft\u{A0}",
+		'IDR' => "Rp\u{A0}",
+		'ILS' => "\u{20AA}",
+		'INR' => "\u{20B9}",
+		'ISK' => "kr\u{A0}",
+		'JMD' => '$',
+		'JPY' => "\u{A5}",
+		'KGS' => "\u{20C0}",
+		'KHR' => "\u{17DB}",
+		'KMF' => "CF\u{A0}",
+		'KPW' => "\u{20A9}",
+		'KRW' => "\u{20A9}",
+		'KYD' => '$',
+		'KZT' => "\u{20B8}",
+		'LAK' => "\u{20AD}",
+		'LBP' => "L\u{A3}",
+		'LKR' => "Rs\u{A0}",
+		'LRD' => '$',
+		'MGA' => "Ar\u{A0}",
+		'MMK' => "K\u{A0}",
+		'MNT' => "\u{20AE}",
+		'MUR' => "Rs\u{A0}",
+		'MXN' => '$',
+		'MYR' => "RM\u{A0}",
+		'NAD' => '$',
+		'NGN' => "\u{20A6}",
+		'NIO' => 'C$',
+		'NOK' => "kr\u{A0}",
+		'NPR' => "Rs\u{A0}",
+		'NZD' => '$',
+		'PHP' => "\u{20B1}",
+		'PKR' => "Rs\u{A0}",
+		'PLN' => "z\u{142}\u{A0}",
+		'PYG' => "\u{20B2}",
+		'RON' => "lei\u{A0}",
+		'RUB' => "\u{20BD}",
+		'RWF' => "RF\u{A0}",
+		'SBD' => '$',
+		'SEK' => "kr\u{A0}",
+		'SGD' => '$',
+		'SHP' => "\u{A3}",
+		'SRD' => '$',
+		'SSP' => "\u{A3}",
+		'STN' => "Db\u{A0}",
+		'SYP' => "\u{A3}",
+		'THB' => "\u{E3F}",
+		'TOP' => 'T$',
+		'TRY' => "\u{20BA}",
+		'TTD' => '$',
+		'TWD' => '$',
+		'UAH' => "\u{20B4}",
+		'USD' => '$',
+		'UYU' => '$',
+		'VND' => "\u{20AB}",
+		'XAF' => "FCFA\u{A0}",
+		'XCD' => '$',
+		'XCG' => "Cg.\u{A0}",
+		'XOF' => "F\u{202F}CFA\u{A0}",
+		'XPF' => "CFPF\u{A0}",
+		'ZAR' => "R\u{A0}",
+		'ZMW' => "ZK\u{A0}",
 	];
 
 	/**************************
@@ -86,6 +199,16 @@ class MessageFormatter
 	 */
 	private static $message_formatters = [];
 
+	/**
+	 * @var bool
+	 *
+	 * Whether to use the intl extension's \MessageFormatter class.
+	 *
+	 * This only exists for internal purposes and should be regarded as an
+	 * implementation detail.
+	 */
+	private static $use_intl;
+
 	/***********************
 	 * Public static methods
 	 ***********************/
@@ -103,6 +226,23 @@ class MessageFormatter
 			return $message;
 		}
 
+		self::$use_intl ??= class_exists('\MessageFormatter');
+
+		// Workaround for cases where ICU loses precision on some manipulations
+		// of very large numbers.
+		if (self::$use_intl && preg_match_all('/^{\s*([^\s,]+)\s*,\s*number(?:,[^,}]+)?}$/', $message, $matches, PREG_SET_ORDER)) {
+			foreach ($matches as $match) {
+				if (
+					is_numeric($args[$match[1]] ?? null)
+					&& ($args[$match[1]] >= (2 ** 53) || $args[$match[1]] < -(2 ** 53))
+				) {
+					self::$use_intl = false;
+					$message = str_replace($match[0], self::formatMessage($match[0], [$match[1] => $args[$match[1]]]), $message);
+					self::$use_intl = true;
+				}
+			}
+		}
+
 		// Avoid issues with MessageFormat syntax characters in $args.
 		// These placeholders are Unicode characters in the Private Use block.
 		$placeholders = [
@@ -112,6 +252,10 @@ class MessageFormatter
 		];
 
 		foreach ($args as $arg => $value) {
+			if ($value instanceof \Stringable) {
+				$value = $args[$arg] = (string) $value;
+			}
+
 			if (!\is_string($value)) {
 				continue;
 			}
@@ -120,14 +264,16 @@ class MessageFormatter
 		}
 
 		// Use the intl extension's MessageFormatter class if available.
-		if (class_exists('\MessageFormatter')) {
-			if (!isset(self::$message_formatters[Lang::getTxt('lang_locale', file: 'General')][$message])) {
-				self::$message_formatters[Lang::getTxt('lang_locale', file: 'General')][$message] = new \MessageFormatter(Lang::getTxt('lang_locale', file: 'General'), $message);
+		if (self::$use_intl) {
+			if (!isset(self::$message_formatters[Lang::getLocale()][$message])) {
+				self::$message_formatters[Lang::getLocale()][$message] = new \MessageFormatter(Lang::getLocale(), $message);
 			}
 
-			$fmt = self::$message_formatters[Lang::getTxt('lang_locale', file: 'General')][$message]->format(array_filter($args, 'is_scalar'));
+			$fmt = self::$message_formatters[Lang::getLocale()][$message]->format(array_filter($args, 'is_scalar'));
 
-			return $fmt == false ? '' : strtr($fmt, array_flip($placeholders));
+			if ($fmt !== false) {
+				return strtr($fmt, array_flip($placeholders));
+			}
 		}
 
 		// Parse $message and build the finalized string.
@@ -162,6 +308,11 @@ class MessageFormatter
 				// @todo Implement 'spellout' properly.
 				case 'spellout':
 				case 'number':
+					if (!is_numeric($args[$arg_name] ?? null)) {
+						$final .= $part;
+						break;
+					}
+
 					if (str_starts_with($rest, '::')) {
 						$final .= self::applyNumberSkeleton($args[$arg_name] ?? 0, ltrim(substr($rest, 2)));
 					} else {
@@ -182,9 +333,9 @@ class MessageFormatter
 								}
 								// Try to guess the currency based on country.
 								else {
-									require_once Config::canonicalPath(Config::$sourcedir . '/Unicode/Currencies.php');
+									require_once Sapi::canonicalPath(Config::$sourcedir . '/Unicode/Currencies.php');
 
-									$country_currencies = \function_exists('country_currencies') ? country_currencies() : [];
+									$country_currencies = country_currencies();
 
 									// If the admin wants to prioritize a certain country, use that.
 									if (!empty(Config::$modSettings['timezone_priority_countries'])) {
@@ -192,7 +343,7 @@ class MessageFormatter
 									}
 									// Guess based on the locale.
 									else {
-										[$lang, $cc] = explode('_', Lang::getTxt('lang_locale', file: 'General'));
+										[$lang, $cc] = explode('_', Lang::getLocale());
 
 										if (!isset($country_currencies[$cc])) {
 											switch ($lang) {
@@ -240,14 +391,24 @@ class MessageFormatter
 					break;
 
 				case 'ordinal':
+					if (!isset($args[$arg_name])) {
+						$final .= $part;
+						break;
+					}
+
 					$final .= self::formatMessage(Lang::getTxt('ordinal', file: 'General'), [$args[$arg_name]]);
 					break;
 
 				case 'date':
+					if (!isset($args[$arg_name])) {
+						$final .= $part;
+						break;
+					}
+
 					if ($args[$arg_name] instanceof \DateTimeInterface) {
 						$args[$arg_name] = Time::createFromInterface($args[$arg_name]);
 					} elseif (is_numeric($args[$arg_name])) {
-						$args[$arg_name] = new Time('@' . $args[$arg_name], User::getTimezone());
+						$args[$arg_name] = new Time('@' . $args[$arg_name], User::$me->timezone);
 					} elseif (\is_string($args[$arg_name])) {
 						$args[$arg_name] = date_create($args[$arg_name]);
 
@@ -285,10 +446,15 @@ class MessageFormatter
 					break;
 
 				case 'time':
+					if (!isset($args[$arg_name])) {
+						$final .= $part;
+						break;
+					}
+
 					if ($args[$arg_name] instanceof \DateTimeInterface) {
 						$args[$arg_name] = Time::createFromInterface($args[$arg_name]);
 					} elseif (is_numeric($args[$arg_name])) {
-						$args[$arg_name] = new Time('@' . $args[$arg_name], User::getTimezone());
+						$args[$arg_name] = new Time('@' . $args[$arg_name], User::$me->timezone);
 					} elseif (\is_string($args[$arg_name])) {
 						$args[$arg_name] = date_create($args[$arg_name]);
 
@@ -321,6 +487,11 @@ class MessageFormatter
 					break;
 
 				case 'duration':
+					if (!is_numeric($args[$arg_name] ?? null)) {
+						$final .= $part;
+						break;
+					}
+
 					// Input is a number of seconds.
 					$args[$arg_name] = (int) $args[$arg_name];
 
@@ -337,6 +508,11 @@ class MessageFormatter
 					break;
 
 				case 'plural':
+					if (!is_numeric($args[$arg_name] ?? null)) {
+						$final .= $part;
+						break;
+					}
+
 					if (str_starts_with($rest, 'offset:')) {
 						preg_match('/^offset:(\d+)/', $rest, $offset_matches);
 						$offset = $offset_matches[1];
@@ -367,6 +543,11 @@ class MessageFormatter
 					break;
 
 				case 'selectordinal':
+					if (!is_numeric($args[$arg_name] ?? null)) {
+						$final .= $part;
+						break;
+					}
+
 					if (str_starts_with($rest, 'offset:')) {
 						preg_match('/^offset:(\d+)/', $rest, $offset_matches);
 						$offset = $offset_matches[1];
@@ -397,6 +578,11 @@ class MessageFormatter
 					break;
 
 				case 'select':
+					if (!isset($args[$arg_name])) {
+						$final .= $part;
+						break;
+					}
+
 					preg_match_all('/\b(?P<rule>\w+)\b\s*(?P<sel>{(?' . '>[^{}]|(?2))*})/', $rest, $cases, PREG_SET_ORDER);
 
 					foreach ($cases as $case) {
@@ -411,7 +597,7 @@ class MessageFormatter
 					break;
 
 				default:
-					if (\is_scalar($args[$arg_name]) || $args[$arg_name] instanceof \Stringable) {
+					if (isset($args[$arg_name]) && (\is_scalar($args[$arg_name]) || $args[$arg_name] instanceof \Stringable)) {
 						$final .= (string) $args[$arg_name];
 					} else {
 						$final .= $part;
@@ -505,12 +691,12 @@ class MessageFormatter
 
 		// Ensure we have our pluralization rules.
 		if (empty(self::$plural_rules)) {
-			require_once Config::canonicalPath(Config::$sourcedir . '/Unicode/Plurals.php');
+			require_once Sapi::canonicalPath(Config::$sourcedir . '/Unicode/Plurals.php');
 			self::$plural_rules = \SMF\Unicode\plurals();
 		}
 
 		// Evaluate the pluralization rules to find a match.
-		$lang = substr(Lang::getTxt('lang_locale', file: 'General'), 0, strpos(Lang::getTxt('lang_locale', file: 'General'), '_'));
+		$lang = substr(Lang::getLocale(), 0, strpos(Lang::getLocale(), '_'));
 
 		foreach (self::$plural_rules[$lang][$type] as $category => $rule) {
 			if ($rule($n, $i, $v, $w, $f, $t, $c)) {
@@ -545,26 +731,6 @@ class MessageFormatter
 	protected static function applyNumberSkeleton(int|float|string $number, string $skeleton): string
 	{
 		// For simplicity, standardize alternative notations to a single form.
-		$skeleton = strtr($skeleton, [
-			'%x100' => 'percent scale/100',
-			',_' => 'group-off',
-			',?' => 'group-min2',
-			',!' => 'group-on-aligned',
-			'+!' => 'sign-always',
-			'+_' => 'sign-never',
-			'+?' => 'sign-except-zero',
-			'+-' => 'sign-negative',
-			'()' => 'sign-accounting',
-			'()!' => 'sign-accounting-always',
-			'()?' => 'sign-accounting-except-zero',
-			'()-' => 'sign-accounting-negative',
-			'KK' => 'compact-long',
-			'K' => 'compact-short',
-			'precision-integer' => '.',
-			'precision-unlimited' => '.*',
-			'sign-auto' => '',
-		]);
-
 		$skeleton = preg_replace_callback_array(
 			[
 				'/(?<=\s|^)(EE?)((?:\+[!?])?)(0+)(?=\s|$)/' => function ($matches) {
@@ -587,6 +753,24 @@ class MessageFormatter
 					return $long_form;
 				},
 				'/(?<=\s|^)0+(?=\s|$)/' => fn($matches) => 'integer-width/*' . $matches[0],
+				'/(?<=\s|^)(KK?)(?=\s|$)/' => fn($matches) => 'compact-' . ($matches[1] === 'KK' ? 'long' : 'short'),
+				'/(?<=\s|^)%x(\d+)(?=\s|$)/' => fn($matches) => 'percent scale/' . $matches[1],
+				'/(?<=\s|^)(?>\(\)[!?\-]?|\+[!?\-_]|,[!?_])(?=\s|$)/' => fn($matches) => match ($matches[0]) {
+					',_' => 'group-off',
+					',?' => 'group-min2',
+					',!' => 'group-on-aligned',
+					'+!' => 'sign-always',
+					'+_' => 'sign-never',
+					'+?' => 'sign-except-zero',
+					'+-' => 'sign-negative',
+					'()' => 'sign-accounting',
+					'()!' => 'sign-accounting-always',
+					'()?' => 'sign-accounting-except-zero',
+					'()-' => 'sign-accounting-negative',
+				},
+				'/(?<=\s|^)precision-integer(?=\s|$)/' => fn($matches) => '.',
+				'/(?<=\s|^)precision-unlimited(?=\s|$)/' => fn($matches) => '.*',
+				'/(?<=\s|^)sign-auto(?=\s|$)/' => fn($matches) => '',
 			],
 			$skeleton,
 		);
@@ -606,9 +790,12 @@ class MessageFormatter
 			// Tokens that affect how to manipulate the number.
 			'rounding-mode-ceiling',
 			'rounding-mode-floor',
-			'rounding-mode-down',
 			'rounding-mode-up',
+			'rounding-mode-down',
 			'rounding-mode-half-even',
+			'rounding-mode-half-odd',
+			'rounding-mode-half-ceiling',
+			'rounding-mode-half-floor',
 			'rounding-mode-half-down',
 			'rounding-mode-half-up',
 			'rounding-mode-unnecessary',
@@ -616,6 +803,8 @@ class MessageFormatter
 			'sign-always',
 			'sign-never',
 			'sign-except-zero',
+			'precision-currency-standard',
+			'precision-currency-cash',
 
 			// Tokens that manipulate the number.
 			'scale',
@@ -633,22 +822,20 @@ class MessageFormatter
 			'group-thousands',
 			'decimal-auto',
 			'decimal-always',
-			'percent',
-			'permille',
-			'currency',
-
-			// Unsupported.
-			'precision-currency-standard',
-			'precision-currency-cash',
-			'base-unit',
-			'measure-unit',
-			'unit',
-			'per-measure-unit',
 			'unit-width-narrow',
 			'unit-width-short',
 			'unit-width-full-name',
 			'unit-width-iso-code',
 			'unit-width-hidden',
+			'percent',
+			'permille',
+			'currency',
+
+			// Unsupported.
+			'base-unit',
+			'measure-unit',
+			'unit',
+			'per-measure-unit',
 			'latin',
 			'numbering-system',
 			'sign-negative',
@@ -661,9 +848,10 @@ class MessageFormatter
 		usort($tokens, fn($a, $b) => array_search(str_starts_with($a[0], '.') || str_starts_with($a[0], '@') ? substr($a[0], 0, 1) : $a[0], $preferred_order) <=> array_search(str_starts_with($b[0], '.') || str_starts_with($b[0], '@') ? substr($b[0], 0, 1) : $b[0], $preferred_order));
 
 		// A few variables that will affect how we manipulate and format numbers below.
-		$round = fn(int|float $number, int $precision = 0) => round($number, $precision, PHP_ROUND_HALF_EVEN);
+		$round = fn(int|float|string $number, int $precision = 0) => round($number + 0, $precision, \RoundingMode::HalfEven);
 		$group = 'thousands';
 		$flags = '0';
+		$currency_symbols = self::CURRENCY_SYMBOLS_LONG;
 
 		// Work through the tokens.
 		foreach ($tokens as $token) {
@@ -672,8 +860,15 @@ class MessageFormatter
 
 			// Float precision format.
 			if (str_starts_with($stem, '.')) {
-				$significant_integers = \strlen(\strval(\intval($number + 0)));
-				$significant_decimals = (int) strpos(strrev(\strval($number)), '.');
+				// Special handling if $number is in scientific notation.
+				if (strpos(var_export($number, true), 'E') !== false) {
+					list($significand, $magnitude) = explode('E', var_export($number, true));
+					$significant_integers = max(1, (int) $magnitude);
+					$significant_decimals = (\strlen($significand) - 2) + max(-$magnitude, 0);
+				} else {
+					$significant_integers = (int) strpos(self::strval($number), '.');
+					$significant_decimals = (int) strpos(strrev(self::strval($number)), '.');
+				}
 
 				preg_match('/\.(0*)(#*)(\*?)/', $stem, $matches);
 
@@ -717,14 +912,21 @@ class MessageFormatter
 
 				$number = \sprintf("%{$flags}.{$precision}F", $round($number, $precision));
 
-				if (!empty($options) && \in_array('w', $options) && $number == (int) $number) {
-					$number = \strval(\intval($number));
+				if (\in_array('w', $options ?? [])) {
+					$number = preg_replace('/\.0*$/', '', $number);
 				}
 			}
 			// Significant digits format.
 			elseif (str_starts_with($stem, '@')) {
-				$significant_integers = \strlen(\strval(\intval($number + 0)));
-				$significant_decimals = (int) strpos(strrev(\strval($number)), '.');
+				// Special handling if $number is in scientific notation.
+				if (strpos(var_export($number, true), 'E') !== false) {
+					list($significand, $magnitude) = explode('E', var_export($number, true));
+					$significant_integers = max(1, (int) $magnitude);
+					$significant_decimals = (\strlen($significand) - 2) + max(-$magnitude, 0);
+				} else {
+					$significant_integers = (int) strpos(self::strval($number), '.');
+					$significant_decimals = (int) strpos(strrev(self::strval($number)), '.');
+				}
 
 				preg_match('/(@+)(#*)(\*?)/', $stem, $matches);
 
@@ -737,7 +939,7 @@ class MessageFormatter
 					if ($precision >= 0) {
 						$number = \sprintf("%{$flags}.{$precision}F", $round($number, $precision));
 					} else {
-						$number = (string) $round($number, $precision);
+						$number = self::strval($round($number, $precision));
 					}
 				} else {
 					$precision = min(max($significant_decimals, \strlen($matches[1]) - $significant_integers), \strlen($matches[1]) - $significant_integers);
@@ -745,50 +947,93 @@ class MessageFormatter
 					$number = \sprintf("%{$flags}.{$precision}F", $round($number, $precision));
 				}
 
-				if (!empty($options) && \in_array('w', $options) && $number == (int) $number) {
-					$number = \strval(\intval($number));
+				if (\in_array('w', $options ?? [])) {
+					$number = preg_replace('/\.0*$/', '', $number);
 				}
 			} else {
 				switch ($stem) {
 					case 'rounding-mode-ceiling':
-						$round = fn(int|float $number, int $precision = 0) => ceil($number * (10 ** $precision)) / (10 ** $precision);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::PositiveInfinity,
+						);
 						break;
 
 					case 'rounding-mode-floor':
-						$round = fn(int|float $number, int $precision = 0) => floor($number * (10 ** $precision)) / (10 ** $precision);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::NegativeInfinity,
+						);
 						break;
 
 					case 'rounding-mode-up':
-						$round = fn(int|float $number, int $precision = 0) => ($number >= 0 ? ceil($number * (10 ** $precision)) : floor($number * (10 ** $precision))) / (10 ** $precision);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::AwayFromZero,
+						);
 						break;
 
 					case 'rounding-mode-down':
-						$round = fn(int|float $number, int $precision = 0) => ($number < 0 ? ceil($number * (10 ** $precision)) : floor($number * (10 ** $precision))) / (10 ** $precision);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::TowardsZero,
+						);
 						break;
 
 					case 'rounding-mode-half-even':
-						$round = fn(int|float $number, int $precision = 0) => round($number, $precision, PHP_ROUND_HALF_EVEN);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::HalfEven,
+						);
 						break;
 
 					case 'rounding-mode-half-odd':
-						$round = fn(int|float $number, int $precision = 0) => round($number, $precision, PHP_ROUND_HALF_ODD);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::HalfOdd,
+						);
 						break;
 
 					case 'rounding-mode-half-ceiling':
-						$round = fn(int|float $number, int $precision = 0) => round($number, $precision, $number >= 0 ? PHP_ROUND_HALF_UP : PHP_ROUND_HALF_DOWN);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							$number >= 0 ? \RoundingMode::HalfAwayFromZero : \RoundingMode::HalfTowardsZero,
+						);
 						break;
 
 					case 'rounding-mode-half-floor':
-						$rounding_mode = $number < 0 ? PHP_ROUND_HALF_UP : PHP_ROUND_HALF_DOWN;
-						$round = fn(int|float $number, int $precision = 0) => round($number, $precision, $number < 0 ? PHP_ROUND_HALF_UP : PHP_ROUND_HALF_DOWN);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							$number < 0 ? \RoundingMode::HalfAwayFromZero : \RoundingMode::HalfTowardsZero,
+						);
 						break;
 
 					case 'rounding-mode-half-down':
-						$round = fn(int|float $number, int $precision = 0) => round($number, $precision, PHP_ROUND_HALF_DOWN);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::HalfTowardsZero,
+						);
 						break;
 
 					case 'rounding-mode-half-up':
-						$round = fn(int|float $number, int $precision = 0) => round($number, $precision, PHP_ROUND_HALF_UP);
+						$round = fn(int|float|string $number, int $precision = 0) => round(
+							$number + 0,
+							$precision,
+							\RoundingMode::HalfAwayFromZero,
+						);
+						break;
+
+					case 'rounding-mode-unnecessary':
+						$round = fn(int|float|string $number, int $precision = 0) => (float) $number;
 						break;
 
 					case 'scale':
@@ -798,14 +1043,21 @@ class MessageFormatter
 						break;
 
 					case 'precision-increment':
-						$number /= $options[0];
-						$number = $round($number);
-						$number *= $options[0];
+						// Do we need to do any complicated rounding?
+						if (!empty($options[0] + 0) && trim($options[0], '0.') !== '1') {
+							$number = $round($number / $options[0]) * $options[0];
+						}
 
-						if (\is_float($number)) {
-							$precision = \is_float($options[0] + 0) ? \strlen($options[0]) - \strlen(\strval(\intval($options[0] + 0))) - 1 : 0;
+						$precision = str_contains($options[0], '.') ? strpos(strrev($options[0]), '.') : -(\strlen($options[0]) - 1);
 
-							$number = \sprintf("%0.{$precision}F", $number);
+						$number = self::strval($number);
+
+						if (!ctype_digit($number)) {
+							$number = \sprintf($precision <= 0 ? '%d' : '%.' . min($precision, strpos(strrev($number), '.')) . 'F', $round($number, $precision)) . str_repeat('0', max(0, $precision - strpos(strrev($number), '.')));
+						} elseif ($precision > 0) {
+							$number .= '.' . str_repeat('0', $precision);
+						} else {
+							$number = substr($number, 0, -(\strlen($options[0]))) . $round(substr($number, -(\strlen($options[0]))), $precision);
 						}
 
 						break;
@@ -836,7 +1088,7 @@ class MessageFormatter
 						break;
 
 					case 'currency':
-						require_once Config::canonicalPath(Config::$sourcedir . '/Unicode/Currencies.php');
+						require_once Sapi::canonicalPath(Config::$sourcedir . '/Unicode/Currencies.php');
 
 						$currencies = currencies();
 
@@ -846,13 +1098,102 @@ class MessageFormatter
 
 						$currency = $currencies[$options[0]];
 
-						if ($currency['digits'] === 0) {
-							$number = \strval(\intval($number));
-						} else {
-							$number = \sprintf('%0.' . $currency['digits'] . 'F', $number);
+						$number = self::strval($round($number, $currency['digits']));
+
+						if (str_contains($skeleton, 'precision-currency-standard')) {
+							$number = self::applyNumberSkeleton(
+								$number,
+								'precision-increment/' . \sprintf('%0.' . $currency['digits'] . 'F', $currency['rounding'] * (10 ** -$currency['digits'])),
+							);
+						} elseif (str_contains($skeleton, 'precision-currency-cash')) {
+							$cash_digits = $currency['cashDigits'] ?? $currency['digits'];
+							$cash_rounding = $currency['cashRounding'] ?? $currency['rounding'];
+
+							$number = self::applyNumberSkeleton(
+								$number,
+								'precision-increment/' . \sprintf(
+									'%0.' . $cash_digits . 'F',
+									$cash_rounding * (10 ** -$cash_digits),
+								),
+							);
 						}
 
-						$post_processing[] = fn($number) => (\in_array(substr($number, 0, 1), ['-', '+']) ? substr($number, 0, 1) : '') . strtr(Lang::getTxt('currency_format', file: 'General'), ['{0}' => \in_array(substr($number, 0, 1), ['-', '+']) ? substr($number, 1) : $number, '¤' => self::CURRENCY_SYMBOLS[$options[0]] ?? ($options[0] === 'DEFAULT' ? '¤' : $options[0] . "\u{A0}")]);
+						$post_processing[] = function ($number) use ($currency_symbols, $options) {
+							// If this currency has no defined symbol, use the raw currency code.
+							$symbol = $currency_symbols[$options[0]] ?? $options[0] . "\u{A0}";
+
+							// Get this language's currency format.
+							$currency_format = Lang::getTxt('currency_format', file: 'General');
+
+							// Gather info about the format.
+							$symbol_after = (bool) preg_match('/\{0\}\s*¤/u', $currency_format, $matches);
+
+							$space_between = (bool) preg_match('/\s+¤|¤\s+/u', $currency_format, $matches);
+
+							// Do we need to force a space separator in there?
+							if ($space_between) {
+								$symbol = match ($symbol_after) {
+									false => match (str_ends_with($symbol, "\u{A0}")) {
+										false => $symbol . "\u{A0}",
+										true => $symbol,
+									},
+									true => match (str_starts_with($symbol, "\u{A0}")) {
+										false => "\u{A0}" . $symbol,
+										true => $symbol,
+									},
+								};
+							}
+
+							// Do we need to swap where the space separator occurs?
+							if ($symbol_after) {
+								$symbol = preg_replace('/(.*?)(\s+)$/', '$2$1', $symbol);
+							}
+
+							// Now that we've pushed any space separators into the symbols,
+							// remove the space separators from the format string.
+							$currency_format = preg_replace('/\s*¤\s*/', '¤', $currency_format);
+
+							// Deal with postive and negative signs.
+							if (!$symbol_after && \in_array(substr($number, 0, 1), ['-', '+'])) {
+								$sign = substr($number, 0, 1);
+								$number = substr($number, 1);
+							} else {
+								$sign = '';
+							}
+
+							// Do the job.
+							return $sign . strtr($currency_format, ['{0}' => $number, '¤' => $symbol]);
+						};
+
+						break;
+
+					case 'precision-currency-standard':
+					case 'precision-currency-cash':
+						// These tokens are only meant to be used in conjuction
+						// with currency/XXX. If they occur alone, treat them
+						// like '.00'. Otherwise, they are handled elsewhere.
+						if (\count($tokens) === 1) {
+							$number = \sprintf("%{$flags}.2F", $round($number, 2));
+						}
+
+						break;
+
+					case 'unit-width-narrow':
+						$currency_symbols = self::CURRENCY_SYMBOLS_SHORT;
+						break;
+
+					case 'unit-width-short':
+					case 'unit-width-full-name':
+					case 'unit-width-iso-code':
+						$currency_symbols = self::CURRENCY_SYMBOLS_LONG;
+						break;
+
+					case 'unit-width-hidden':
+						require_once Sapi::canonicalPath(Config::$sourcedir . '/Unicode/Currencies.php');
+
+						foreach (currencies() as $currency_code => $currency_info) {
+							$currency_symbols[$currency_code] = '';
+						}
 
 						break;
 
@@ -911,11 +1252,8 @@ class MessageFormatter
 		}
 
 		// Ensure $number is a string.
-		if (\is_float($number)) {
-			$precision = (int) strpos(strrev(\strval($number)), '.');
-			$number = \sprintf("%{$flags}.{$precision}F", $number);
-		} elseif (\is_int($number)) {
-			$number = \sprintf("%{$flags}d", $number);
+		if (!\is_string($number)) {
+			$number = self::strval($number, $flags);
 		}
 
 		// Apply the relevant grouping to the number.
@@ -957,5 +1295,92 @@ class MessageFormatter
 		}
 
 		return $number;
+	}
+
+	/**
+	 * A wrapper for strval() with special handling to address the specific
+	 * needs of this class.
+	 *
+	 * @param mixed $input The value to be converted to a string.
+	 * @param string $flags Optional sprintf() flags.
+	 * @return string The new string.
+	 */
+	protected static function strval(mixed $input, string $flags = ''): string
+	{
+		// Convert floats to strings.
+		// Use var_export() for highest possible fidelity.
+		if (\is_float($input)) {
+			$input = var_export($input, true);
+		}
+
+		// For non-strings, just use normal strval().
+		if (!\is_string($input)) {
+			return $flags === '' ? @\strval($input) : \sprintf("%{$flags}s", @\strval($input));
+		}
+
+		// Non-numeric strings and integer strings need no further work.
+		if (!is_numeric($input) || ctype_digit($input)) {
+			return $input;
+		}
+
+		// A simple float.
+		if (stripos($input, 'E') === false) {
+			if (\strlen($input) < 18) {
+				return $input;
+			}
+
+			// Before returning, check whether sprintf() formats it with
+			// scientific notation.
+			$temp = \sprintf('%.17H', $input);
+
+			if (strpos($temp, 'E') === false) {
+				return \sprintf("%{$flags}.17H", $input);
+			}
+
+			$input = $temp;
+		}
+
+		// Scientific notation takes more work.
+		list($significand, $magnitude) = explode('E', strtoupper($input));
+
+		$magnitude = (int) $magnitude;
+
+		// In case the decimal point is in a weird place.
+		switch (strpos($significand, '.')) {
+			// Decimal point is in the expected place.
+			case 1:
+				break;
+
+			// Decimal point is missing.
+			case false:
+				$magnitude += \strlen($significand) - 1;
+				$significand = substr($significand, 0, 1) . '.' . substr($significand, 1);
+				break;
+
+			// Decimal point is in an unexpected place.
+			default:
+				$magnitude += strpos($significand, '.') - 1;
+				$significand = str_replace('.', '', $significand);
+				$significand = substr($significand, 0, 1) . '.' . substr($significand, 1);
+				break;
+		}
+
+		// Shorten overly long significands.
+		if (\strlen($significand) > 18) {
+			// Do the rounding manually to avoid floating point errors.
+			$significand = substr($significand, 0, 17) . substr((string) round((int) substr($significand, 17, 2), -1), 0, 1);
+		}
+
+		// Negative exponents.
+		if ($magnitude < 0) {
+			return \sprintf("%{$flags}d", 0) . '.' . str_repeat('0', abs($magnitude) - 1) . str_replace('.', '', $significand);
+		}
+
+		// Postive exponents.
+		@list($significant_integers, $significant_decimals) = explode('.', $significand);
+
+		$significant_decimals = str_pad($significant_decimals ?? '', $magnitude, '0');
+
+		return \sprintf("%{$flags}d", $significant_integers) . substr($significant_decimals, 0, $magnitude) . rtrim('.' . substr($significant_decimals, $magnitude), '.0');
 	}
 }

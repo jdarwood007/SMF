@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,9 +17,12 @@ namespace SMF\Maintenance;
 
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Db\Schema\Table;
 use SMF\Lang;
 use SMF\Sapi;
+use SMF\Tasks\Utf8EntityDecode;
+use SMF\Utils;
 
 /**
  * Used for converting MySQL databases to the utf8mb4 character set.
@@ -498,7 +501,7 @@ class Utf8ConverterStep extends Step
 		// Which character set have they been using for interacting with the browser?
 		if (isset(Config::$modSettings['global_character_set'])) {
 			$this->lang_charset = Config::$modSettings['global_character_set'];
-		} elseif (version_compare(strtolower(str_replace(' ', '.', Config::$modSettings['smfVersion'])), '3.0.dev.1', '>=')) {
+		} elseif (version_compare(Utils::standardizeVersionString(Config::$modSettings['smfVersion']), '3.0.dev.0', '>=')) {
 			$this->lang_charset = 'UTF-8';
 		} else {
 			// Figure it out the hard way.
@@ -620,10 +623,10 @@ class Utf8ConverterStep extends Step
 		Maintenance::$total_substeps = \count($substeps);
 
 		// Template things.
-		Maintenance::$context['table_count'] = Maintenance::$total_substeps;
-		Maintenance::$context['cur_table_num'] = Maintenance::getCurrentSubStep();
-		Maintenance::$context['cur_table_name'] = str_replace(Config::$db_prefix, '', $substeps[Maintenance::getCurrentSubStep()]->test_args[0]);
-		Maintenance::$context['continue'] = true;
+		Utils::$context['table_count'] = Maintenance::$total_substeps;
+		Utils::$context['cur_table_num'] = Maintenance::getCurrentSubStep();
+		Utils::$context['cur_table_name'] = str_replace(Config::$db_prefix, '', $substeps[Maintenance::getCurrentSubStep()]->test_args[0]);
+		Utils::$context['continue'] = true;
 
 		// We are set up for conversion.
 		if (!Sapi::isCLI() && !Maintenance::isJson()) {
@@ -743,7 +746,7 @@ class Utf8ConverterStep extends Step
 			if (Maintenance::isJson()) {
 				Maintenance::jsonResponse([
 					'name' => $substep->name,
-					'next' => $substeps[Maintenance::getCurrentSubStep()]->name,
+					'next' => isset($substeps[Maintenance::getCurrentSubStep()]) ? $substeps[Maintenance::getCurrentSubStep()]->name : '',
 					'completed' => true,
 					'substep' => Maintenance::getCurrentSubStep(),
 					'start' => Maintenance::getCurrentStart(),
@@ -802,7 +805,7 @@ class Utf8ConverterStep extends Step
 					&& (Config::$modSettings['search_index'] ?? null) === 'fulltext'
 				) {
 					Config::updateModSettings(['search_index' => '']);
-					Maintenance::$context['dropping_index'] = true;
+					Utils::$context['dropping_index'] = true;
 				}
 			}
 		}
@@ -887,7 +890,7 @@ class Utf8ConverterStep extends Step
 
 		// Create a background task to convert entities to characters.
 		Db::$db->insert(
-			'insert',
+			InsertType::Insert,
 			'{db_prefix}background_tasks',
 			[
 				'task_class' => 'string-255',
@@ -896,7 +899,7 @@ class Utf8ConverterStep extends Step
 			],
 			[
 				[
-					'\\SMF\\Tasks\\Utf8EntityDecode',
+					Utf8EntityDecode::class,
 					json_encode([
 						'table' => $table_name,
 						'offset' => 0,
@@ -964,8 +967,8 @@ class Utf8ConverterStep extends Step
 			// Build a huge REPLACE statement.
 			$replace = '{identifier:column}';
 
-			if (isset($translation_tables[$from_charset])) {
-				foreach ($translation_tables[$from_charset] as $from => $to) {
+			if (isset(self::TRANSLATION_TABLES[$from_charset])) {
+				foreach (self::TRANSLATION_TABLES[$from_charset] as $from => $to) {
 					$replace = 'REPLACE(' . $replace . ', ' . $from . ', ' . $to . ')';
 				}
 			} else {

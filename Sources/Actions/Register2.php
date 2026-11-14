@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,9 @@ namespace SMF\Actions;
 use SMF\Config;
 use SMF\Cookie;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
+use SMF\EmailAddress;
 use SMF\ErrorHandler;
 use SMF\Group;
 use SMF\IntegrationHook;
@@ -51,6 +54,8 @@ class Register2 extends Register
 	 * @var array
 	 *
 	 * Registration fields that take strings.
+	 *
+	 * Mods can add to this using the integrate_extra_register_vars hook.
 	 */
 	public array $possible_strings = [
 		'birthdate',
@@ -69,6 +74,8 @@ class Register2 extends Register
 	 * @var array
 	 *
 	 * Registration fields that take integers.
+	 *
+	 * Mods can add to this using the integrate_extra_register_vars hook.
 	 */
 	public array $possible_ints = [
 		'id_theme',
@@ -78,15 +85,17 @@ class Register2 extends Register
 	 * @var array
 	 *
 	 * Registration fields that take floats.
+	 *
+	 * Mods can add to this using the integrate_extra_register_vars hook.
 	 */
-	public array $possible_floats = [
-		'time_offset',
-	];
+	public array $possible_floats = [];
 
 	/**
 	 * @var array
 	 *
 	 * Registration fields that take booleans.
+	 *
+	 * Mods can add to this using the integrate_extra_register_vars hook.
 	 */
 	public array $possible_bools = [
 		'show_online',
@@ -146,7 +155,7 @@ class Register2 extends Register
 
 		// Check whether the visual verification code was entered correctly.
 		if (!empty(Config::$modSettings['reg_verification'])) {
-			$verifier = new Verifier(['id' => 'register']);
+			$verifier = new Verifier(['id' => 'register'], true);
 
 			if (!empty($verifier->errors)) {
 				foreach ($verifier->errors as $error) {
@@ -206,8 +215,13 @@ class Register2 extends Register
 				Db::$db->free_result($request);
 			}
 
+			// What gets stored is the entity encoded form of the name, which is
+			// wider than what was typed wherever a character needs an entity,
+			// and real_name holds 255 characters.
+			$encoded_name = Utils::htmlspecialchars($_POST['real_name'], ENT_QUOTES);
+
 			// Only set it if you can and if we are sure it is good
-			if ($can_edit_display_name && Utils::htmlTrim($_POST['real_name']) != '' && !User::isReservedName($_POST['real_name']) && Utils::entityStrlen($_POST['real_name']) < 60) {
+			if ($can_edit_display_name && Utils::htmlTrim($_POST['real_name']) != '' && !Security::isReservedName($_POST['real_name']) && Utils::entityStrlen($_POST['real_name']) < 60 && mb_strlen($encoded_name) <= 255) {
 				$this->possible_strings[] = 'real_name';
 			}
 		}
@@ -253,6 +267,9 @@ class Register2 extends Register
 			'extra_register_vars' => [],
 			'theme_vars' => [],
 		];
+
+		// Allow mods to add special handling for any extra registration vars.
+		IntegrationHook::call('integrate_extra_register_vars', [&$this->possible_strings, &$this->possible_ints, &$this->possible_floats, &$this->possible_bools]);
 
 		// Include the additional options that might have been filled in.
 		foreach ($this->possible_strings as $var) {
@@ -333,7 +350,7 @@ class Register2 extends Register
 
 				// Any masks to apply?
 				if ($row['field_type'] == 'text' && !empty($row['mask']) && $row['mask'] != 'none') {
-					if ($row['mask'] == 'email' && (!filter_var($value, FILTER_VALIDATE_EMAIL) || \strlen($value) > 255)) {
+					if ($row['mask'] == 'email' && (!EmailAddress::create($value)->isValid() || \strlen($value) > 255)) {
 						$custom_field_errors[] = ['custom_field_invalid_email', [$row['field_name']]];
 					} elseif ($row['mask'] == 'number' && preg_match('~[^\d]~', $value)) {
 						$custom_field_errors[] = ['custom_field_not_number', [$row['field_name']]];
@@ -394,7 +411,7 @@ class Register2 extends Register
 
 		// We'll do custom fields after as then we get to use the helper function!
 		if (!empty($_POST['customfield'])) {
-			Profile::load($member_id);
+			Profile::loadMember($member_id);
 			Profile::$member->loadCustomFields('register');
 			Profile::$member->save();
 		}
@@ -470,15 +487,17 @@ class Register2 extends Register
 		// Convert character encoding for non-utf8mb4 database
 		$reg_options['username'] = Utils::htmlspecialchars($reg_options['username']);
 
-		// @todo Separate the sprintf?
-		if (empty($reg_options['email']) || !filter_var($reg_options['email'], FILTER_VALIDATE_EMAIL) || \strlen($reg_options['email']) > 255) {
-			$reg_errors[] = ['lang', 'profile_error_bad_email'];
-		}
-
-		$username_validation_errors = User::validateUsername(0, $reg_options['username'], true, !empty($reg_options['check_reserved_name']));
+		$username_validation_errors = Security::validateUsername(0, $reg_options['username'], true, !empty($reg_options['check_reserved_name']));
 
 		if (!empty($username_validation_errors)) {
 			$reg_errors = array_merge($reg_errors, $username_validation_errors);
+		}
+
+		// Check whether the email address appears to be valid.
+		$reg_options['email'] = new EmailAddress($reg_options['email'] ?? '');
+
+		if (!$reg_options['email']->isValid() || \strlen((string) $reg_options['email']) > 255) {
+			$reg_errors[] = ['lang', 'profile_error_bad_email'];
 		}
 
 		// Generate a validation code if it's supposed to be emailed.
@@ -504,8 +523,15 @@ class Register2 extends Register
 		}
 
 		// Now perform hard password validation as required.
-		if (!empty($reg_options['check_password_strength']) && $reg_options['password'] != '') {
-			$password_error = Security::validatePassword($reg_options['password'], $reg_options['username'], [$reg_options['email']]);
+		if (
+			!empty($reg_options['check_password_strength'])
+			&& $reg_options['password'] != ''
+		) {
+			$password_error = Security::validatePassword(
+				$reg_options['password'],
+				$reg_options['username'],
+				[(string) $reg_options['email']],
+			);
 
 			// Password isn't legal?
 			if ($password_error != null) {
@@ -523,28 +549,42 @@ class Register2 extends Register
 			}
 		}
 
-		// You may not be allowed to register this email.
-		if (!empty($reg_options['check_email_ban'])) {
-			User::isBannedEmail($reg_options['email'], 'cannot_register', Lang::getTxt('ban_register_prohibited', file: 'Login'));
-		}
-
 		// Check if the email address is in use.
 		$request = Db::$db->query(
 			'SELECT id_member
 			FROM {db_prefix}members
-			WHERE email_address = {string:email_address}
-				OR email_address = {string:username}
+			WHERE email_address_ci = {string:email}
+				OR email_address_ci = {string:username}
 			LIMIT 1',
 			[
-				'email_address' => $reg_options['email'],
+				'email' => $reg_options['email']->casefolded(),
 				'username' => $reg_options['username'],
 			],
 		);
 
 		if (Db::$db->num_rows($request) != 0) {
-			$reg_errors[] = ['lang', 'email_in_use', false, [Utils::htmlspecialchars($reg_options['email'])]];
+			$reg_errors[] = [
+				'lang',
+				'email_in_use',
+				false,
+				[Utils::htmlspecialchars((string) $reg_options['email'])],
+			];
 		}
+
 		Db::$db->free_result($request);
+
+		// Are they banned from registering?
+		$temp = new User();
+		$temp->username = $reg_options['username'];
+		$temp->email = empty($reg_options['check_email_ban']) ? '' : (string) $reg_options['email'];
+		$temp->ip = $reg_options['interface'] == 'admin' ? '127.0.0.1' : User::$me->ip;
+		$temp->ip2 = $reg_options['interface'] == 'admin' ? '127.0.0.1' : IP::getUserIPAlternative();
+
+		$bans = Security::checkBans($temp);
+
+		if (!empty($bans['cannot_register'])) {
+			ErrorHandler::fatal(Lang::getTxt('ban_register_prohibited', file: 'Login'), false, 403);
+		}
 
 		// Perhaps someone else wants to check this user.
 		IntegrationHook::call('integrate_register_check', [&$reg_options, &$reg_errors]);
@@ -556,7 +596,7 @@ class Register2 extends Register
 				1 = The text/index.
 				2 = Whether to log.
 				3 = sprintf data if necessary. */
-			$message = Lang::getTxt($error[1], (array) ($error[3] ?? []), file: 'Errors');
+			$message = ($error[0] ?? 'lang') === 'done' ? $error[1] : Lang::getTxt($error[1], (array) ($error[3] ?? []), file: 'Errors');
 
 			// What to do, what to do, what to do.
 			if ($return_errors) {
@@ -602,7 +642,7 @@ class Register2 extends Register
 		// Some of these might be overwritten. (the lower ones that are in the arrays below.)
 		$reg_options['register_vars'] = [
 			'member_name' => $reg_options['username'],
-			'email_address' => $reg_options['email'],
+			'email_address' => (string) $reg_options['email'],
 			'passwd' => Security::hashPassword($reg_options['password']),
 			'password_salt' => bin2hex(random_bytes(16)),
 			'posts' => 0,
@@ -628,7 +668,7 @@ class Register2 extends Register
 			'additional_groups' => '',
 			'ignore_boards' => '',
 			'smiley_set' => '',
-			'timezone' => empty(Config::$modSettings['default_timezone']) || !\array_key_exists(Config::$modSettings['default_timezone'], TimeZone::list()) ? 'UTC' : Config::$modSettings['default_timezone'],
+			'timezone' => empty(Config::$modSettings['default_timezone']) || !\array_key_exists(Config::$modSettings['default_timezone'], TimeZone::list(flat: true)) ? 'UTC' : Config::$modSettings['default_timezone'],
 		];
 
 		// Setup the activation status on this new account so it is correct - firstly is it an under age account?
@@ -660,7 +700,7 @@ class Register2 extends Register
 		if (
 			!empty($reg_options['extra_register_vars'])
 			&& !empty($reg_options['extra_register_vars']['timezone'])
-			&& !\array_key_exists($reg_options['extra_register_vars']['timezone'], TimeZone::list())
+			&& !\array_key_exists($reg_options['extra_register_vars']['timezone'], TimeZone::list(flat: true))
 		) {
 			unset($reg_options['extra_register_vars']['timezone']);
 		}
@@ -688,7 +728,8 @@ class Register2 extends Register
 			'id_theme', 'is_activated', 'id_msg_last_visit', 'id_post_group', 'total_time_logged_in', 'warning',
 		];
 		$known_floats = [
-			'time_offset',
+			// This is empty in a default SMF install, but mods can add to it
+			// using the integrate_register hook.
 		];
 		$known_inets = [
 			'member_ip', 'member_ip2',
@@ -698,6 +739,8 @@ class Register2 extends Register
 		IntegrationHook::call('integrate_register', [&$reg_options, &$theme_vars, &$known_ints, &$known_floats]);
 
 		$reg_options['register_vars']['spoofdetector_name'] = Utils::htmlspecialchars(SpoofDetector::getSkeletonString(html_entity_decode($reg_options['register_vars']['real_name'] ?? $reg_options['register_vars']['member_name'], ENT_QUOTES)));
+
+		$reg_options['register_vars']['email_address_ci'] = $reg_options['email']->casefolded();
 
 		$column_names = [];
 		$values = [];
@@ -721,12 +764,12 @@ class Register2 extends Register
 
 		// Register them into the database.
 		$member_id = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}members',
 			$column_names,
 			[$values],
 			['id_member'],
-			Db::INSERT_RETURN_MODE_SINGLE,
+			ReturnMode::SingleRow,
 		);
 
 		// Call an optional function as notification of registration.
@@ -748,7 +791,7 @@ class Register2 extends Register
 			}
 
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}themes',
 				['id_member' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
 				$inserts,
@@ -787,7 +830,7 @@ class Register2 extends Register
 
 				$emaildata = Mail::loadEmailTemplate($email_message, $replacements);
 
-				Mail::send($reg_options['email'], $emaildata['subject'], $emaildata['body'], null, $email_message . $member_id, $emaildata['is_html'], 0);
+				Mail::send((string) $reg_options['email'], $emaildata['subject'], $emaildata['body'], null, $email_message . $member_id, $emaildata['is_html'], 0);
 			}
 
 			// All admins are finished here.
@@ -806,7 +849,7 @@ class Register2 extends Register
 
 				$emaildata = Mail::loadEmailTemplate('register_immediate', $replacements);
 
-				Mail::send($reg_options['email'], $emaildata['subject'], $emaildata['body'], null, 'register', $emaildata['is_html'], 0);
+				Mail::send((string) $reg_options['email'], $emaildata['subject'], $emaildata['body'], null, 'register', $emaildata['is_html'], 0);
 			}
 
 			// Send admin their notification.
@@ -835,7 +878,7 @@ class Register2 extends Register
 
 			$emaildata = Mail::loadEmailTemplate('register_' . ($reg_options['require'] == 'activation' ? 'activate' : 'coppa'), $replacements);
 
-			Mail::send($reg_options['email'], $emaildata['subject'], $emaildata['body'], null, 'reg_' . $reg_options['require'] . $member_id, $emaildata['is_html'], 0);
+			Mail::send((string) $reg_options['email'], $emaildata['subject'], $emaildata['body'], null, 'reg_' . $reg_options['require'] . $member_id, $emaildata['is_html'], 0);
 		}
 		// Must be awaiting approval.
 		else {
@@ -848,7 +891,7 @@ class Register2 extends Register
 
 			$emaildata = Mail::loadEmailTemplate('register_pending', $replacements);
 
-			Mail::send($reg_options['email'], $emaildata['subject'], $emaildata['body'], null, 'reg_pending', $emaildata['is_html'], 0);
+			Mail::send((string) $reg_options['email'], $emaildata['subject'], $emaildata['body'], null, 'reg_pending', $emaildata['is_html'], 0);
 
 			// Admin gets informed here...
 			Mail::adminNotify('approval', $member_id, $reg_options['username']);

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,11 +16,10 @@ declare(strict_types=1);
 namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
+use SMF\Actions\MessageIndex;
 use SMF\Actions\TopicRemove;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Cache\CacheApi;
-use SMF\Category;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\Draft;
@@ -37,6 +36,7 @@ use SMF\TaskRunner;
 use SMF\Theme;
 use SMF\Topic;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -45,7 +45,6 @@ use SMF\Utils;
 class Maintenance implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -79,7 +78,6 @@ class Maintenance implements ActionInterface
 	public static array $subactions = [
 		'routine' => [
 			'function' => 'routine',
-			'template' => 'maintain_routine',
 			'activities' => [
 				'version' => 'version',
 				'repair' => 'repair',
@@ -91,11 +89,11 @@ class Maintenance implements ActionInterface
 		],
 		'database' => [
 			'function' => 'database',
-			'template' => 'maintain_database',
 			'activities' => [
 				'optimize' => 'optimize',
 				'convertentities' => 'entitiesToUnicode',
 				'convertmsgbody' => 'changeMsgBodyLength',
+				'admininfofiles' => 'repairAdminInfoFiles',
 			],
 		],
 		'members' => [
@@ -155,7 +153,7 @@ class Maintenance implements ActionInterface
 		// Set a few things.
 		Utils::$context['page_title'] = Lang::getTxt('maintain_title', file: 'Admin');
 		Utils::$context['sub_action'] = $this->subaction;
-		Utils::$context['sub_template'] = !empty(self::$subactions[$this->subaction]['template']) ? self::$subactions[$this->subaction]['template'] : '';
+		Utils::$context['sub_template'] = self::$subactions[$this->subaction]['template'] ?? 'maintain_options';
 
 		$call = \is_string(self::$subactions[$this->subaction]['function']) && method_exists($this, self::$subactions[$this->subaction]['function']) ? [$this, self::$subactions[$this->subaction]['function']] : Utils::getCallable(self::$subactions[$this->subaction]['function']);
 
@@ -181,6 +179,13 @@ class Maintenance implements ActionInterface
 	 */
 	public function routine(): void
 	{
+		$this->setOptions('?action=admin;area=maintain');
+
+		Utils::$context['options']['cleancache'] = [
+			'title' => Lang::getTxt('maintain_cache', file: 'ManageMaintenance'),
+			'info' => Lang::getTxt('maintain_cache_info', file: 'ManageMaintenance'),
+		];
+
 		if (isset($_GET['done']) && \in_array($_GET['done'], ['recount', 'rebuild_settings'])) {
 			Utils::$context['maintenance_finished'] = Lang::getTxt('maintain_' . $_GET['done'], file: 'ManageMaintenance');
 		}
@@ -191,24 +196,36 @@ class Maintenance implements ActionInterface
 	 */
 	public function database(): void
 	{
-		// Show some conversion options?
-		Utils::$context['convert_entities'] = true;
+		$this->setOptions('?action=admin;area=maintain;sa=database');
 
-		if (Config::$db_type == 'mysql') {
-			$colData = Db::$db->list_columns('{db_prefix}messages', true);
+		Utils::$context['options']['convertentities'] = [
+			'title' => Lang::getTxt('entity_convert_title', file: 'ManageMaintenance'),
+			'info' => Lang::getTxt('entity_convert_introduction', file: 'ManageMaintenance'),
+		];
 
-			foreach ($colData as $column) {
-				if ($column['name'] == 'body') {
-					$body_type = $column['type'];
-				}
-			}
+		// Offer to lengthen the body column of the messages table. MySQL only, and
+		// only while it is still TEXT: converting back the other way was removed in
+		// #8787, and changeMsgBodyLength() returns without doing anything once the
+		// column is already MEDIUMTEXT.
+		$body_type = Config::$db_type == 'mysql' ? array_column(Db::$db->list_columns('{db_prefix}messages', true), 'type', 'name')['body'] : null;
 
-			Utils::$context['convert_to'] = $body_type == 'text' ? 'mediumtext' : null;
+		if ($body_type == 'text') {
+			Utils::$context['options']['convertmsgbody'] = [
+				'title' => Lang::getTxt('mediumtext_title', file: 'ManageMaintenance'),
+				'info' => Lang::getTxt('mediumtext_introduction', file: 'ManageMaintenance'),
+			];
+		} else {
+			unset(Utils::$context['options']['convertmsgbody']);
 		}
 
 		if (isset($_GET['done']) && $_GET['done'] == 'convertentities') {
 			Utils::$context['maintenance_finished'] = Lang::getTxt('entity_convert_title', file: 'ManageMaintenance');
 		}
+
+		Utils::$context['options']['admininfofiles'] = [
+			'title' => Lang::getTxt('admininfofiles_title', file: 'ManageMaintenance'),
+			'info' => Lang::getTxt('admininfofiles_introduction', file: 'ManageMaintenance'),
+		];
 	}
 
 	/**
@@ -235,37 +252,10 @@ class Maintenance implements ActionInterface
 	public function topics(): void
 	{
 		// Let's load up the boards in case they are useful.
-		Utils::$context['categories'] = [];
-
-		$result = Db::$db->query(
-			'SELECT b.id_board, b.name, b.child_level, c.name AS cat_name, c.id_cat
-			FROM {db_prefix}boards AS b
-				LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)
-			WHERE {query_see_board}
-				AND redirect = {string:blank_redirect}',
-			[
-				'blank_redirect' => '',
-			],
-			identifier: 'order_by_board_order',
-		);
-
-		while ($row = Db::$db->fetch_assoc($result)) {
-			if (!isset(Utils::$context['categories'][$row['id_cat']])) {
-				Utils::$context['categories'][$row['id_cat']] = [
-					'name' => $row['cat_name'],
-					'boards' => [],
-				];
-			}
-
-			Utils::$context['categories'][$row['id_cat']]['boards'][$row['id_board']] = [
-				'id' => $row['id_board'],
-				'name' => $row['name'],
-				'child_level' => $row['child_level'],
-			];
-		}
-		Db::$db->free_result($result);
-
-		Category::sort(Utils::$context['categories']);
+		Utils::$context['categories'] = MessageIndex::getBoardList([
+			'use_permissions' => true,
+			'not_redirection' => true,
+		]);
 
 		if (isset($_GET['done']) && $_GET['done'] == 'purgeold') {
 			Utils::$context['maintenance_finished'] = Lang::getTxt('maintain_old', file: 'ManageMaintenance');
@@ -276,6 +266,8 @@ class Maintenance implements ActionInterface
 
 	/**
 	 * Oh noes! I'd document this but that would give it away.
+	 *
+	 * @internal
 	 */
 	public function destroy(): void
 	{
@@ -686,6 +678,8 @@ class Maintenance implements ActionInterface
 
 		// Get all members with wrong number of personal messages.
 		if ($_REQUEST['step'] <= 5) {
+			$members = [];
+
 			$request = Db::$db->query(
 				'SELECT mem.id_member, COUNT(pmr.id_pm) AS real_num,
 					MAX(mem.instant_messages) AS instant_messages
@@ -699,8 +693,16 @@ class Maintenance implements ActionInterface
 			);
 
 			while ($row = Db::$db->fetch_assoc($request)) {
-				User::updateMemberData($row['id_member'], ['instant_messages' => $row['real_num']]);
+				// Get an instance of User for this member.
+				$member = current(User::load((int) $row['id_member'], dataset: UserDataset::None));
+
+				// Set the correct value.
+				$member->instant_messages = (int) $row['real_num'];
+
+				// Keep track of this member.
+				$members[$member->id] = $member;
 			}
+
 			Db::$db->free_result($request);
 
 			$request = Db::$db->query(
@@ -717,9 +719,20 @@ class Maintenance implements ActionInterface
 			);
 
 			while ($row = Db::$db->fetch_assoc($request)) {
-				User::updateMemberData($row['id_member'], ['unread_messages' => $row['real_num']]);
+				// If this member is already loaded, User::load() will just return the same instance as before.
+				$member = current(User::load((int) $row['id_member'], dataset: UserDataset::None));
+
+				// Set the correct value.
+				$member->unread_messages = (int) $row['real_num'];
+
+				// Keep track of this member.
+				$members[$member->id] = $member;
 			}
+
 			Db::$db->free_result($request);
+
+			// Save the repaired data for the affected members.
+			User::saveBatch($members);
 
 			if (microtime(true) - TIME_START > 3) {
 				Utils::$context['continue_get_data'] = '?action=admin;area=maintain;sa=routine;activity=recount;step=6;start=0;' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'];
@@ -1306,6 +1319,46 @@ class Maintenance implements ActionInterface
 	}
 
 	/**
+	 * Rebuilds Admin information files to the original entries provided.
+	 * This uses information from our Database schema to re-add any entries.
+	 * Any modifications or changes to the original entries will be lost.
+	 */
+	public function repairAdminInfoFiles(): void
+	{
+		// @@ TODO We should have our schema defined somewhere?
+		$table = new \SMF\Db\Schema\v3_0\AdminInfoFiles();
+		$initial_data = $table->initial_data;
+
+		Db::$db->insert(
+			'replace',
+			'{db_prefix}' . $table->name,
+			[
+				'id_file' => 'int',
+				'filename' => 'string',
+				'path' => 'string',
+				'parameters' => 'string',
+				'data' => 'string',
+				'filetype' => 'string',
+			],
+			$initial_data,
+			['id_file'],
+		);
+
+		// Find our task and fire it off so we get some data.
+		$request = Db::$db->query(
+			'SELECT id_task
+			FROM {db_prefix}scheduled_tasks
+			WHERE task = {literal:fetchSMfiles}',
+		);
+		$task = Db::$db->fetch_assoc($request);
+		Db::$db->free_result($request);
+
+		if ($task != null && isset($task['id_task'])) {
+			(new TaskRunner())->runScheduledTasks([$task['id_task']]);
+		}
+	}
+
+	/**
 	 * Re-attribute posts.
 	 */
 	public function reattribute(): void
@@ -1313,14 +1366,13 @@ class Maintenance implements ActionInterface
 		User::$me->checkSession();
 
 		// Find the member.
-		$members = User::find($_POST['to']);
+		$members = User::find($_POST['to'], ids_only: true);
 
 		if (empty($members)) {
 			ErrorHandler::fatalLang('reattribute_cannot_find_member');
 		}
 
-		$memID = array_shift($members);
-		$memID = $memID['id'];
+		$memID = reset($members);
 
 		$email = $_POST['type'] == 'email' ? $_POST['from_email'] : '';
 		$membername = $_POST['type'] == 'name' ? $_POST['from_name'] : '';
@@ -1448,9 +1500,12 @@ class Maintenance implements ActionInterface
 				'SELECT COUNT(DISTINCT m.id_member)
 				FROM {db_prefix}messages AS m
 				JOIN {db_prefix}boards AS b on m.id_board = b.id_board
-				WHERE m.id_member != 0
-					AND b.count_posts = 0',
+				WHERE m.id_member != {int:zero}
+					AND b.posts_count = {int:one}
+					AND m.approved = {int:one}',
 				[
+					'zero' => 0,
+					'one' => 1,
 				],
 			);
 
@@ -1467,7 +1522,8 @@ class Maintenance implements ActionInterface
 			FROM {db_prefix}messages AS m
 				INNER JOIN {db_prefix}boards AS b ON m.id_board = b.id_board
 			WHERE m.id_member != {int:zero}
-				AND b.count_posts = {int:zero}
+				AND b.posts_count = {int:one}
+				AND m.approved = {int:one}
 				' . (!empty(Config::$modSettings['recycle_enable']) ? ' AND b.id_board != {int:recycle}' : '') . '
 			GROUP BY m.id_member
 			LIMIT {int:start}, {int:number}',
@@ -1476,6 +1532,7 @@ class Maintenance implements ActionInterface
 				'number' => $increment,
 				'recycle' => Config::$modSettings['recycle_board'],
 				'zero' => 0,
+				'one' => 1,
 			],
 		);
 		$total_rows = Db::$db->num_rows($request);
@@ -1485,11 +1542,8 @@ class Maintenance implements ActionInterface
 			Db::$db->query(
 				'UPDATE {db_prefix}members
 				SET posts = {int:posts}
-				WHERE id_member = {int:row}',
-				[
-					'row' => $row['id_member'],
-					'posts' => $row['posts'],
-				],
+				WHERE id_member = {int:id_member}',
+				$row,
 			);
 		}
 		Db::$db->free_result($request);
@@ -1510,27 +1564,29 @@ class Maintenance implements ActionInterface
 
 		// final steps ... made more difficult since we don't yet support sub-selects on joins
 		// place all members who have posts in the message table in a temp table
+		Db::$db->query('DROP TABLE IF EXISTS {db_prefix}tmp_maint_recountposts');
+
 		$createTemporary = Db::$db->query(
-			'CREATE TEMPORARY TABLE {db_prefix}tmp_maint_recountposts (
-				id_member mediumint(8) unsigned NOT NULL default {string:string_zero},
-				PRIMARY KEY (id_member)
-			)
+			'CREATE TEMPORARY TABLE {db_prefix}tmp_maint_recountposts AS
 			SELECT m.id_member
 			FROM {db_prefix}messages AS m
 				INNER JOIN {db_prefix}boards AS b ON m.id_board = b.id_board
 			WHERE m.id_member != {int:zero}
-				AND b.count_posts = {int:zero}
+				AND b.posts_count = {int:one}
+				AND m.approved = {int:one}
 				' . (!empty(Config::$modSettings['recycle_enable']) ? ' AND b.id_board != {int:recycle}' : '') . '
 			GROUP BY m.id_member',
 			[
 				'zero' => 0,
-				'string_zero' => '0',
+				'one' => 1,
 				'db_error_skip' => true,
 				'recycle' => !empty(Config::$modSettings['recycle_board']) ? Config::$modSettings['recycle_board'] : 0,
 			],
 		) !== false;
 
 		if ($createTemporary) {
+			Db::$db->add_index('{db_prefix}tmp_maint_recountposts', ['type' => 'primary', 'columns' => ['id_member']]);
+
 			// outer join the members table on the temporary table finding the members that have a post count but no posts in the message table
 			$request = Db::$db->query(
 				'SELECT mem.id_member, mem.posts
@@ -1549,9 +1605,9 @@ class Maintenance implements ActionInterface
 				Db::$db->query(
 					'UPDATE {db_prefix}members
 					SET posts = {int:zero}
-					WHERE id_member = {int:row}',
+					WHERE id_member = {int:id_member}',
 					[
-						'row' => $row['id_member'],
+						'id_member' => $row['id_member'],
 						'zero' => 0,
 					],
 				);
@@ -2103,14 +2159,14 @@ class Maintenance implements ActionInterface
 			$request = Db::$db->query(
 				'SELECT COUNT(*)
 				FROM {db_prefix}messages AS m
-					INNER JOIN {db_prefix}boards AS b ON (b.id_board = m.id_board AND b.count_posts = {int:count_posts})
+					INNER JOIN {db_prefix}boards AS b ON (b.id_board = m.id_board AND b.posts_count = {int:posts_count})
 				WHERE m.id_member = {int:guest_id}
 					AND m.approved = {int:is_approved}' . (!empty($recycle_board) ? '
 					AND m.id_board != {int:recycled_board}' : '') . (empty($email) ? '' : '
 					AND m.poster_email = {string:email_address}') . (empty($membername) ? '' : '
 					AND m.poster_name = {string:member_name}'),
 				[
-					'count_posts' => 0,
+					'posts_count' => 1,
 					'guest_id' => 0,
 					'email_address' => $email,
 					'member_name' => $membername,
@@ -2121,7 +2177,9 @@ class Maintenance implements ActionInterface
 			list($messageCount) = Db::$db->fetch_row($request);
 			Db::$db->free_result($request);
 
-			User::updateMemberData($memID, ['posts' => 'posts + ' . $messageCount]);
+			$member = current(User::load($memID, dataset: UserDataset::Minimal));
+			$member->posts += $messageCount;
+			$member->save();
 		}
 
 		$query_parts = [];
@@ -2201,6 +2259,26 @@ class Maintenance implements ActionInterface
 	 ******************/
 
 	/**
+	 * Builds the list of tasks the current sub-action offers, for template_maintain_options().
+	 *
+	 * Each task is keyed by its activity name, so the template can find its label and
+	 * description as maintain_<activity> and maintain_<activity>_info. A task whose strings
+	 * are not named that way supplies its own 'title' and 'info' afterwards.
+	 *
+	 * @param string $post_url Query string the form submits to.
+	 */
+	protected function setOptions(string $post_url): void
+	{
+		Utils::$context['template_layers'][] = 'maintain';
+		Utils::$context['post_url'] = Config::$scripturl . $post_url;
+
+		Utils::$context['options'] = array_fill_keys(
+			array_keys(self::$subactions[$this->subaction]['activities']),
+			[],
+		);
+	}
+
+	/**
 	 * Constructor. Protected to force instantiation via self::load().
 	 */
 	protected function __construct()
@@ -2215,5 +2293,158 @@ class Maintenance implements ActionInterface
 		if (isset($_REQUEST['activity'], self::$subactions[$this->subaction]['activities'][$_REQUEST['activity']])) {
 			$this->activity = $_REQUEST['activity'];
 		}
+	}
+
+	/**
+	 * Parses modSettings to create integration hook array
+	 *
+	 * @return array An array of information about the integration hooks
+	 */
+	protected function getIntegrationHooks(): array
+	{
+		static $integration_hooks;
+
+		if (!isset($integration_hooks)) {
+			$integration_hooks = [];
+
+			foreach (Config::$modSettings as $key => $value) {
+				if (!empty($value) && substr($key, 0, 10) === 'integrate_') {
+					$integration_hooks[$key] = explode(',', $value);
+				}
+			}
+		}
+
+		return $integration_hooks;
+	}
+
+	/*************************
+	 * Internal static methods
+	 *************************/
+
+	/**
+	 * Gets all of the files in a directory and its children directories
+	 *
+	 * @param string $dirname The path to the directory
+	 * @return array An array containing information about the files found in the specified directory and its children
+	 */
+	protected static function getFileRecursive(string $dirname): array
+	{
+		return iterator_to_array(
+			new \RecursiveIteratorIterator(
+				new \RecursiveCallbackFilterIterator(
+					new \RecursiveDirectoryIterator($dirname, \FilesystemIterator::UNIX_PATHS),
+					function ($fileInfo, $currentFile, $iterator) {
+						// Allow recursion
+						if ($iterator->hasChildren()) {
+							return true;
+						}
+
+						return $fileInfo->getExtension() == 'php';
+					},
+				),
+			),
+		);
+	}
+
+	/**
+	 * Parses each hook data and returns an array.
+	 *
+	 * @param string $hook
+	 * @param string $rawData A string as it was saved to the DB.
+	 * @return array everything found in the string itself
+	 */
+	protected static function parseIntegrationHook(string $hook, string $rawData): array
+	{
+		// A single string can hold tons of info!
+		$hookData = [
+			'object' => false,
+			'enabled' => true,
+			'absPath' => '',
+			'hookFile' => '',
+			'pureFunc' => '',
+			'method' => '',
+			'class' => '',
+			'call' => '',
+			'rawData' => $rawData,
+		];
+
+		// Meh...
+		if (empty($rawData)) {
+			return $hookData;
+		}
+
+		$modFunc = $rawData;
+
+		// Any files?
+		if (str_ends_with($hook, '_include')) {
+			$modFunc = $modFunc . '|';
+		}
+
+		if (str_contains($modFunc, '|')) {
+			list($hookData['hookFile'], $modFunc) = explode('|', $modFunc);
+			$hookData['absPath'] = strtr(strtr(trim($hookData['hookFile']), ['$boarddir' => Config::$boarddir, '$sourcedir' => Config::$sourcedir, '$themedir' => Theme::$current->settings['theme_dir'] ?? '']), '\\', '/');
+		}
+
+		// Hook is an instance.
+		if (str_contains($modFunc, '#')) {
+			$modFunc = str_replace('#', '', $modFunc);
+			$hookData['object'] = true;
+		}
+
+		// Hook is "disabled"
+		// May need to inspect $rawData here for includes...
+		if ((str_contains($modFunc, '!')) || (empty($modFunc) && (str_contains($rawData, '!')))) {
+			$modFunc = str_replace('!', '', $modFunc);
+			$hookData['enabled'] = false;
+		}
+
+		// Handling methods?
+		if (str_contains($modFunc, '::')) {
+			list($hookData['class'], $hookData['method']) = explode('::', $modFunc);
+			$hookData['pureFunc'] = $hookData['method'];
+			$hookData['call'] = $modFunc;
+		} else {
+			$hookData['call'] = $hookData['pureFunc'] = $modFunc;
+		}
+
+		return $hookData;
+	}
+
+	protected static function getDefinedFunctionsInFile(string $file): array
+	{
+		static $patterns = [
+			// Remove multiline comments so regex does not
+			// match fake functions/classes inside them.
+			'~//[^\h]+|/\*.*?\*/~s',
+
+			// Also must remove those pesky heredocs.
+			'/<<<[\'"]?(\w+)[\'"]?[\r\n]+[\s\S]*?[\r\n]+\1;/',
+		];
+
+		$source = file_get_contents($file);
+
+		if (!str_contains($source, 'function')) {
+			return [];
+		}
+
+		$source = preg_replace($patterns, '', $source);
+		$functions = [];
+		$namespace = '';
+		$class = '';
+
+		// token_get_all() is too slow so use a nice little regex instead.
+		preg_match_all('/\b(?:namespace\s+((?P>label)(?:\\\(?P>label))*+)\s*;|(?:class\s+((?P>label))(?:[\s,]|\\\\|(?P>label))*+|function\s+((?P>label))\s*\([^)]*\)\s*(?::[^{]+)?){)(?(DEFINE)(?<label>[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*+))/i', $source, $matches, PREG_SET_ORDER);
+
+		foreach ($matches as $match) {
+			if (!empty($match[1])) {
+				$namespace = $match[1] . '\\';
+			} elseif (!empty($match[2])) {
+				$class = $namespace . $match[2] . '::';
+			} elseif (!empty($match[3])) {
+				$functions[$class . $match[3]] = $file;
+			}
+		}
+
+		return $functions;
 	}
 }

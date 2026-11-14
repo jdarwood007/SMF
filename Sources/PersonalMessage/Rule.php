@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,8 @@ namespace SMF\PersonalMessage;
 use SMF\ArrayAccessHelper;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\ErrorHandler;
 use SMF\Group;
 use SMF\Lang;
@@ -169,7 +171,7 @@ class Rule implements \ArrayAccess
 
 		if (empty($this->id)) {
 			$this->id = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}pm_rules',
 				[
 					'id_member' => 'int',
@@ -190,7 +192,7 @@ class Rule implements \ArrayAccess
 					],
 				],
 				['id_rule'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			self::$loaded[$this->id] = $this;
@@ -397,7 +399,7 @@ class Rule implements \ArrayAccess
 				}
 
 				Db::$db->insert(
-					'ignore',
+					InsertType::Ignore,
 					'{db_prefix}pm_labeled_messages',
 					['id_pm' => 'int', 'id_label' => 'int'],
 					$inserts,

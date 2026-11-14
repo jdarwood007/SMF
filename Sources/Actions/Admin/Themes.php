@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,10 +17,10 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
@@ -55,7 +55,6 @@ use SMF\Utils;
 class Themes implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -175,8 +174,17 @@ class Themes implements ActionInterface
 				'knownThemes' => implode(',', $_POST['options']['known_themes']),
 			]);
 
-			if ((int) $_POST['theme_reset'] == 0 || \in_array($_POST['theme_reset'], $_POST['options']['known_themes'])) {
-				User::updateMemberData(null, ['id_theme' => (int) $_POST['theme_reset']]);
+			if (
+				(int) $_POST['theme_reset'] == 0
+				|| \in_array($_POST['theme_reset'], $_POST['options']['known_themes'])
+			) {
+				Db::$db->query(
+					'UPDATE {db_prefix}members
+					SET id_theme = {int:theme}',
+					[
+						'theme' => (int) $_POST['theme_reset'],
+					],
+				);
 			}
 
 			Utils::redirectexit('action=admin;area=theme;' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'] . ';sa=admin');
@@ -246,7 +254,7 @@ class Themes implements ActionInterface
 
 			if (!empty($setValues)) {
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}themes',
 					['id_theme' => 'int', 'id_member' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
 					$setValues,
@@ -417,7 +425,7 @@ class Themes implements ActionInterface
 				}
 
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}themes',
 					['id_member' => 'int', 'id_theme' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
 					$setValues,
@@ -602,7 +610,51 @@ class Themes implements ActionInterface
 		Utils::$context['sub_template'] = 'set_options';
 		Utils::$context['page_title'] = Lang::getTxt('theme_settings', file: 'Admin');
 
-		Utils::$context['options'] = Utils::$context['theme_options'];
+		// Check for variants or dark mode
+		if (!empty(Theme::$current->settings['theme_variants']) || !empty(Theme::$current->settings['has_dark_mode'])) {
+			Utils::$context['options'] = [];
+
+			// Theme Variants
+			if (!empty(Theme::$current->settings['theme_variants'])) {
+				$available_variants = [];
+
+				foreach (Theme::$current->settings['theme_variants'] as $variant) {
+					$available_variants[$variant] = Lang::getTxt('variant_' . $variant, file: 'Themes') ?: $variant;
+				}
+
+				Utils::$context['options'][] = Lang::getTxt('theme_opt_variant', file: 'Profile');
+				Utils::$context['options'][] = [
+					'id' => 'theme_variant',
+					'label' => Lang::getTxt('theme_pick_variant', file: 'Themes'),
+					'options' => $available_variants,
+					'default' => isset(Theme::$current->settings['default_variant']) && !empty(Theme::$current->settings['default_variant']) ? Theme::$current->settings['default_variant'] : Theme::$current->settings['theme_variants'][0],
+					'enabled' => !empty(Theme::$current->settings['theme_variants']),
+				];
+			}
+
+			// Theme Color Mode
+			if (!empty(Theme::$current->settings['has_dark_mode'])) {
+				$available_modes = [];
+
+				foreach (Theme::$current->settings['theme_colormodes'] as $mode) {
+					$available_modes[$mode] = Lang::getTxt('colormode_' . $mode, file: 'Themes') ?: $mode;
+				}
+
+				Utils::$context['options'][] = Lang::getTxt('theme_opt_colormode', file: 'Profile');
+				Utils::$context['options'][] = [
+					'id' => 'theme_colormode',
+					'label' => Lang::getTxt('theme_pick_colormode', file: 'Themes'),
+					'options' => $available_modes,
+					'default' => isset(Theme::$current->settings['default_colormode']) && !empty(Theme::$current->settings['default_colormode']) ? Theme::$current->settings['default_colormode'] : Theme::$current->settings['theme_colormodes'][0],
+					'enabled' => !empty(Theme::$current->settings['has_dark_mode']),
+				];
+			}
+
+			Utils::$context['options'] = array_merge(Utils::$context['options'], Utils::$context['theme_options']);
+		} else {
+			Utils::$context['options'] = Utils::$context['theme_options'];
+		}
+
 		Utils::$context['theme_settings'] = Theme::$current->settings;
 
 		if (empty($_REQUEST['who'])) {
@@ -779,7 +831,7 @@ class Themes implements ActionInterface
 			// If we're actually inserting something..
 			if (!empty($inserts)) {
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}themes',
 					['id_member' => 'int', 'id_theme' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
 					$inserts,
@@ -832,6 +884,10 @@ class Themes implements ActionInterface
 		// Do we support variants?
 		if (!empty(Theme::$current->settings['theme_variants'])) {
 			Utils::$context['theme_variants'] = [];
+
+			// Theme::loadVariant() offers a variant named 'default' alongside
+			// whatever the theme declares, so it belongs in this list too.
+			Theme::$current->settings['theme_variants'] = array_unique(array_merge(['default'], Theme::$current->settings['theme_variants']));
 
 			foreach (Theme::$current->settings['theme_variants'] as $variant) {
 				// Have any text, old chap?
@@ -1218,25 +1274,42 @@ class Themes implements ActionInterface
 		Utils::$context['theme_id'] = $theme['id'];
 
 		if (isset($_REQUEST['template']) && preg_match('~[\./\\\\:\0]~', $_REQUEST['template']) == 0) {
+			User::$me->checkSession('get');
+
 			if (file_exists(Theme::$current->settings['default_theme_dir'] . '/' . $_REQUEST['template'] . '.template.php')) {
 				$filename = Theme::$current->settings['default_theme_dir'] . '/' . $_REQUEST['template'] . '.template.php';
 			} else {
 				ErrorHandler::fatalLang('no_access', false);
 			}
 
-			$fp = fopen($theme['theme_dir'] . '/' . $_REQUEST['template'] . '.template.php', 'w');
+			$destination = $theme['theme_dir'] . '/' . $_REQUEST['template'] . '.template.php';
+
+			// Opening the destination for writing empties it, so it cannot be the file being copied.
+			if (realpath($destination) === realpath($filename)) {
+				ErrorHandler::fatalLang('no_access', false);
+			}
+
+			$fp = fopen($destination, 'w');
 			fwrite($fp, file_get_contents($filename));
 			fclose($fp);
 
 			Utils::redirectexit('action=admin;area=theme;th=' . Utils::$context['theme_id'] . ';' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'] . ';sa=copy');
 		} elseif (isset($_REQUEST['lang_file']) && preg_match('~^[^\./\\\\:\0]\.[^\./\\\\:\0]$~', $_REQUEST['lang_file']) != 0) {
+			User::$me->checkSession('get');
+
 			if (file_exists(Theme::$current->settings['default_theme_dir'] . '/languages/' . $_REQUEST['template'] . '.php')) {
 				$filename = Theme::$current->settings['default_theme_dir'] . '/languages/' . $_REQUEST['template'] . '.php';
 			} else {
 				ErrorHandler::fatalLang('no_access', false);
 			}
 
-			$fp = fopen($theme['theme_dir'] . '/languages/' . $_REQUEST['lang_file'] . '.php', 'w');
+			$destination = $theme['theme_dir'] . '/languages/' . $_REQUEST['lang_file'] . '.php';
+
+			if (realpath($destination) === realpath($filename)) {
+				ErrorHandler::fatalLang('no_access', false);
+			}
+
+			$fp = fopen($destination, 'w');
 			fwrite($fp, file_get_contents($filename));
 			fclose($fp);
 
@@ -1314,9 +1387,8 @@ class Themes implements ActionInterface
 
 				foreach (new \DirectoryIterator($langDir->getPathname()) as $fileInfo) {
 					if ($fileInfo->getExtension() == 'php'  && isset(Utils::$context['available_language_files'][$langDir->getFilename() . '/' . $fileInfo->getFilename()])) {
-						$entry = Utils::$context['available_language_files'][$langDir->getFilename() . '/' . $fileInfo->getFilename()];
 						Utils::$context['available_language_files'][$langDir->getFilename() . '/' . $fileInfo->getFilename()]['already_exists'] = true;
-						Utils::$context['available_language_files'][$langDir->getFilename() . '/' . $fileInfo->getFilename()]['can_copy'] = is_writable($theme['theme_dir'] . '/languages/' . $entry);
+						Utils::$context['available_language_files'][$langDir->getFilename() . '/' . $fileInfo->getFilename()]['can_copy'] = is_writable($fileInfo->getPathname());
 					}
 				}
 			}
@@ -1478,6 +1550,7 @@ class Themes implements ActionInterface
 
 		// Create subdirectory for language files
 		mkdir(Utils::$context['to_install']['theme_dir'] . '/languages', 0777);
+		mkdir(Utils::$context['to_install']['theme_dir'] . '/languages/en_US', 0777);
 
 		// Copy over the default non-theme files.
 		$to_copy = [
@@ -1984,7 +2057,7 @@ class Themes implements ActionInterface
 				}
 				// Nope, sorry, couldn't find any theme already installed.
 				else {
-					ErrorHandler::fatalLang('package_get_error_theme_no_based_on_found', false, Utils::$context['to_install']['based_on']);
+					ErrorHandler::fatalLang('package_get_error_theme_no_based_on_found', false, [Utils::$context['to_install']['based_on']]);
 				}
 			}
 
@@ -2015,7 +2088,7 @@ class Themes implements ActionInterface
 
 		if (!empty($inserts)) {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}themes',
 				['id_theme' => 'int', 'variable' => 'string-255', 'value' => 'string-65534'],
 				$inserts,
@@ -2181,9 +2254,9 @@ class Themes implements ActionInterface
 				$size = filesize($path . '/' . $entry);
 
 				if ($size > 2048 || $size == 1024) {
-					$size = Lang::getTxt('size_kilobytes', [Lang::numberFormat($size / 1024)], file: 'General');
+					$size = Lang::getTxt('size_kilobyte', [round($size / 1024, 2)], file: 'General');
 				} else {
-					$size = Lang::getTxt('size_bytes', [Lang::numberFormat($size)], file: 'General');
+					$size = Lang::getTxt('size_byte', [$size], file: 'General');
 				}
 
 				$list2[] = [

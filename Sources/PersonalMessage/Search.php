@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -319,7 +319,7 @@ class Search
 		User::load(Utils::$context['posters']);
 
 		// Sort out the page index.
-		$start = (int) ($_GET['start'] ?? 0);
+		$start = $this->start;
 		Utils::$context['page_index'] = new PageIndex(
 			Config::$scripturl . '?action=pm;sa=search2;params=' . $this->compressed_params,
 			$start,
@@ -329,7 +329,7 @@ class Search
 		);
 
 		// If the supplied start value was invalid, redirect to the correct one.
-		if ($_GET['start'] != $start) {
+		if ($this->start != $start) {
 			Utils::redirectexit(Utils::$context['page_index']->base_url . ';start=' . $start);
 		}
 
@@ -478,11 +478,7 @@ class Search
 
 		foreach ($possible_users as $k => $v) {
 			$where_params['name_' . $k] = $v;
-			$where_clause[] = '{raw:real_name} LIKE {string:name_' . $k . '}';
-
-			if (!isset($where_params['real_name'])) {
-				$where_params['real_name'] = Db::$db->case_sensitive ? 'LOWER(real_name)' : 'real_name';
-			}
+			$where_clause[] = '{column_ci:real_name} LIKE {string:name_' . $k . '}';
 		}
 
 		// Who matches those criteria?
@@ -497,26 +493,27 @@ class Search
 		// Simply do nothing if there're too many members matching the criteria.
 		if (Db::$db->num_rows($request) > $this->max_members_to_search) {
 			$this->user_query = '';
-		} elseif (Db::$db->num_rows($request) == 0) {
-			$this->user_query = 'AND pm.id_member_from = 0 AND ({raw:pm_from_name} LIKE {raw:guest_user_name_implode})';
-
-			$this->searchq_parameters['guest_user_name_implode'] = '\'' . implode('\' OR ' . (Db::$db->case_sensitive ? 'LOWER(pm.from_name)' : 'pm.from_name') . ' LIKE \'', $possible_users) . '\'';
-
-			$this->searchq_parameters['pm_from_name'] = Db::$db->case_sensitive ? 'LOWER(pm.from_name)' : 'pm.from_name';
 		} else {
-			$memberlist = [];
+			$clauses = [];
 
-			while ($row = Db::$db->fetch_assoc($request)) {
-				$memberlist[] = $row['id_member'];
+			foreach ($possible_users as $k => $v) {
+				$this->searchq_parameters['name_' . $k] = $v;
+				$clauses[] = '{column_ci:pm.from_name} LIKE {string:name_' . $k . '}';
 			}
 
-			$this->user_query = 'AND (pm.id_member_from IN ({array_int:member_list}) OR (pm.id_member_from = 0 AND ({raw:pm_from_name} LIKE {raw:guest_user_name_implode})))';
+			if (Db::$db->num_rows($request) == 0) {
+				$this->user_query = 'AND pm.id_member_from = 0 AND (' . implode(' OR ', $clauses) . ')';
+			} else {
+				$memberlist = [];
 
-			$this->searchq_parameters['guest_user_name_implode'] = '\'' . implode('\' OR ' . (Db::$db->case_sensitive ? 'LOWER(pm.from_name)' : 'pm.from_name') . ' LIKE \'', $possible_users) . '\'';
+				while ($row = Db::$db->fetch_assoc($request)) {
+					$memberlist[] = $row['id_member'];
+				}
 
-			$this->searchq_parameters['member_list'] = $memberlist;
+				$this->searchq_parameters['member_list'] = $memberlist;
 
-			$this->searchq_parameters['pm_from_name'] = Db::$db->case_sensitive ? 'LOWER(pm.from_name)' : 'pm.from_name';
+				$this->user_query = 'AND (pm.id_member_from IN ({array_int:member_list}) OR (pm.id_member_from = 0 AND (' . implode(' OR ', $clauses) . ')))';
+			}
 		}
 		Db::$db->free_result($request);
 	}

@@ -21,6 +21,7 @@ attachments/
 !/attachments/.htaccess
 !/attachments/index.php
 /upgrade.php
+/install.php
 Themes/default/css/minified*.css
 Themes/default/scripts/minified*.js
 Themes/default/scripts/minified_deferred*.js
@@ -28,9 +29,6 @@ Themes/default/scripts/autolinker.js
 custom_avatar/
 !custom_avatar/index.php
 !custom_avatar/blank.png
-Sources/Unicode/*.php
-!Sources/Unicode/index.php
-!Sources/Unicode/Utf8String.php
 logs
 
 # Compiled source #
@@ -72,6 +70,21 @@ Thumbs.db
 *.lnk
 ._*
 
+# Local dev environment #
+##########################
+/.env
+/compose.override.yaml
+/compose.override.yml
+# One saved Settings.php per engine, so use-engine.sh can switch between two
+# installs without reinstalling. Generated secrets and a machine-specific
+# board URL: local to whoever ran the installer.
+/.dev/settings/
+/.dev/rerun/
+/.dev/interrupt/
+# Schema readings and reports from compare-upgrade.sh. They describe one
+# machine's databases at one moment, and are rewritten on every run.
+/.dev/compare/
+
 # Test / Private files #
 ########################
 /nbproject/private/
@@ -81,9 +94,13 @@ Thumbs.db
 /test.php
 Themes/default/scripts/minified.js
 Themes/default/css/minified.css
-upgrade-helper.php
 .vscode/
 .php-cs-fixer.cache
 vendor/
 .phplint-cache
 .phplint.cache
+composer.phar
+
+# PHPUnit
+.phpunit.cache/
+.phpunit.result.cache

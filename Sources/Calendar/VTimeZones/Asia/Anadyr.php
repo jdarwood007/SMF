@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Anadyr
  */
-class Anadyr extends \SMF\Calendar\VTimeZone
+class Anadyr extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,30 @@ class Anadyr extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Anadyr';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Anadyr',
+		],
+		1 => [
+			'ts' => '2010-03-27T14:00:00+0000',
+			'metazone' => 'Magadan',
+		],
+		2 => [
+			'ts' => '2011-03-26T15:00:00+0000',
+			'metazone' => 'Kamchatka',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +83,7 @@ class Anadyr extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T110000Z',
 			'TZNAME' => 'UTC+14',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1400',
@@ -65,43 +91,91 @@ class Anadyr extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19811001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19831001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19830930T100000Z',
 			'TZNAME' => 'UTC+13',
 			'TZOFFSETFROM' => '+1400',
 			'TZOFFSETTO' => '+1300',
 		],
 		4 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19810401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T110000Z',
+			'TZNAME' => 'UTC+13',
+			'TZOFFSETFROM' => '+1300',
+			'TZOFFSETTO' => '+1300',
+		],
+		5 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19840930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'DTSTART' => '19811001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19830930T110000Z',
 			'TZNAME' => 'UTC+12',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',
 		],
-		5 => [
+		6 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19850331T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T020000',
+			'DTSTART' => '19810401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T120000Z',
 			'TZNAME' => 'UTC+13',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1300',
 		],
-		6 => [
+		7 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19840930T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T130000Z',
+			'TZNAME' => 'UTC+12',
+			'TZOFFSETFROM' => '+1300',
+			'TZOFFSETTO' => '+1200',
+		],
+		8 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T140000Z',
+			'TZNAME' => 'UTC+13',
+			'TZOFFSETFROM' => '+1200',
+			'TZOFFSETTO' => '+1300',
+		],
+		9 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T140000Z',
+			'TZNAME' => 'UTC+12',
+			'TZOFFSETFROM' => '+1200',
+			'TZOFFSETTO' => '+1200',
+		],
+		10 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19840930T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T140000Z',
+			'TZNAME' => 'UTC+11',
+			'TZOFFSETFROM' => '+1200',
+			'TZOFFSETTO' => '+1100',
+		],
+		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19920119T020000',
 			'TZNAME' => 'UTC+12',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1200',
 		],
-		7 => [
+		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19961027T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101030T130000Z',
 			'TZNAME' => 'UTC+12',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',
 		],
-		8 => [
+		13 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19961027T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101030T140000Z',
+			'TZNAME' => 'UTC+11',
+			'TZOFFSETFROM' => '+1200',
+			'TZOFFSETTO' => '+1100',
+		],
+		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20110327T020000',
 			'TZNAME' => 'UTC+12',

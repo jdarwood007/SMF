@@ -13,17 +13,15 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Graphics\Gif;
-
-use SMF\Config;
 
 class File
 {
@@ -148,13 +146,13 @@ class File
 		// Now, we want the header...
 		$out .= "\x00\x00\x00\x0D";
 		$tmp = 'IHDR' . pack('N', (int) $this->header->m_nWidth) . pack('N', (int) $this->header->m_nHeight) . "\x08\x03\x00\x00\x00";
-		$out .= $tmp . pack('N', smf_crc32($tmp));
+		$out .= $tmp . pack('N', crc32($tmp));
 
 		// The palette, assuming we have one to speak of...
 		if ($colors > 0) {
 			$out .= pack('N', (int) $colors * 3);
 			$tmp = 'PLTE' . $pal;
-			$out .= $tmp . pack('N', smf_crc32($tmp));
+			$out .= $tmp . pack('N', crc32($tmp));
 		}
 
 		// Do we have any transparency we want to make available?
@@ -167,22 +165,17 @@ class File
 				$tmp .= $i == $this->image->m_nTrans ? "\x00" : "\xFF";
 			}
 
-			$out .= $tmp . pack('N', smf_crc32($tmp));
+			$out .= $tmp . pack('N', crc32($tmp));
 		}
 
 		// Here's the data itself!
 		$out .= pack('N', \strlen($bmp));
 		$tmp = 'IDAT' . $bmp;
-		$out .= $tmp . pack('N', smf_crc32($tmp));
+		$out .= $tmp . pack('N', crc32($tmp));
 
 		// EOF marker...
 		$out .= "\x00\x00\x00\x00" . 'IEND' . "\xAE\x42\x60\x82";
 
 		return $out;
 	}
-}
-
-// 64-bit only functions?
-if (!\function_exists('smf_crc32')) {
-	require_once Config::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
 }

@@ -1,29 +1,22 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
 use SMF\Lang;
 use SMF\Theme;
 use SMF\Time;
-use SMF\Utils;
 use SMF\User;
-
-/**
- * The top part of the outer layer of the boardindex
- */
-function template_boardindex_outer_above()
-{
-	template_newsfader();
-}
+use SMF\Utils;
 
 /**
  * This shows the newsfader
@@ -31,14 +24,14 @@ function template_boardindex_outer_above()
 function template_newsfader()
 {
 	// Show the news fader?  (assuming there are things to show...)
-	if (!empty(Theme::$current->settings['show_newsfader']) && !empty(Utils::$context['news_lines']))
-	{
+	if (!empty(Theme::$current->settings['show_newsfader']) && !empty(Utils::$context['news_lines'])) {
 		echo '
 		<ul id="smf_slider" class="roundframe">';
 
-		foreach (Utils::$context['news_lines'] as $news)
+		foreach (Utils::$context['news_lines'] as $news) {
 			echo '
 			<li>', $news, '</li>';
+		}
 
 		echo '
 		</ul>
@@ -56,7 +49,7 @@ function template_newsfader()
 /**
  * This actually displays the board index
  */
-function template_main()
+function template_boardindex()
 {
 	echo '
 	<div id="boardindex_table" class="boardindex_table">';
@@ -65,65 +58,31 @@ function template_main()
 	id, href, link, name, is_collapsed (is it collapsed?), can_collapse (is it okay if it is?),
 	new (is it new?), collapse_href (href to collapse/expand), collapse_image (up/down image),
 	and boards. (see below.) */
-	foreach (Utils::$context['categories'] as $category)
-	{
+	foreach (Utils::$context['categories'] as $category) {
 		// If there's no parent boards we can see, avoid showing an empty category (unless its collapsed)
-		if (empty($category['boards']) && !$category['is_collapsed'])
+		if (empty($category['boards']) && !$category['is_collapsed']) {
 			continue;
+		}
 
 		echo '
 		<div class="main_container">
 			<div class="cat_bar ', $category['is_collapsed'] ? 'collapsed' : '', '" id="category_', $category['id'], '">
-				<h3 class="catbg">';
+				<h3 class="catbg">
+					', $category['link'], '
+				</h3>';
 
 		// If this category even can collapse, show a link to collapse it.
-		if ($category['can_collapse'])
+		if ($category['can_collapse']) {
 			echo '
-					<span id="category_', $category['id'], '_upshrink" class="', $category['is_collapsed'] ? 'toggle_down' : 'toggle_up', ' floatright" data-collapsed="', (int) $category['is_collapsed'], '" title="', Lang::getTxt(!$category['is_collapsed'] ? 'hide_category' : 'show_category', file: 'General'), '" style="display: none;"></span>';
+				<span id="category_', $category['id'], '_upshrink" class="', $category['is_collapsed'] ? 'toggle_down' : 'toggle_up', '" data-collapsed="', (int) $category['is_collapsed'], '" title="', Lang::getTxt(!$category['is_collapsed'] ? 'hide_category' : 'show_category', file: 'General'), '" style="display: none;"></span>';
+		}
 
-		echo '
-					', $category['link'], '
-				</h3>', !empty($category['description']) ? '
+		echo !empty($category['description']) ? '
 				<div class="desc">' . $category['description'] . '</div>' : '', '
 			</div>
 			<div id="category_', $category['id'], '_boards" ', (!empty($category['css_class']) ? ('class="' . $category['css_class'] . '"') : ''), $category['is_collapsed'] ? ' style="display: none;"' : '', '>';
 
-		/* Each board in each category's boards has:
-		new (is it new?), id, name, description, moderators (see below), link_moderators (just a list.),
-		children (see below.), link_children (easier to use.), children_new (are they new?),
-		topics (# of), posts (# of), link, href, and last_post. (see below.) */
-		foreach ($category['boards'] as $board)
-		{
-			echo '
-				<div id="board_', $board['id'], '" class="up_contain ', (!empty($board['css_class']) ? $board['css_class'] : ''), '">
-					<div class="board_icon">
-						', function_exists('template_bi_' . $board['type'] . '_icon') ? call_user_func('template_bi_' . $board['type'] . '_icon', $board) : template_bi_board_icon($board), '
-					</div>
-					<div class="info">
-						', function_exists('template_bi_' . $board['type'] . '_info') ? call_user_func('template_bi_' . $board['type'] . '_info', $board) : template_bi_board_info($board), '
-					</div><!-- .info -->';
-
-			// Show some basic information about the number of posts, etc.
-			echo '
-					<div class="board_stats">
-						', function_exists('template_bi_' . $board['type'] . '_stats') ? call_user_func('template_bi_' . $board['type'] . '_stats', $board) : template_bi_board_stats($board), '
-					</div>';
-
-			// Show the last post if there is one.
-			echo'
-					<div class="lastpost">
-						', function_exists('template_bi_' . $board['type'] . '_lastpost') ? call_user_func('template_bi_' . $board['type'] . '_lastpost', $board) : template_bi_board_lastpost($board), '
-					</div>';
-
-			// Won't somebody think of the children!
-			if (function_exists('template_bi_' . $board['type'] . '_children'))
-				call_user_func('template_bi_' . $board['type'] . '_children', $board);
-			else
-				template_bi_board_children($board);
-
-			echo '
-				</div><!-- #board_[id] -->';
-		}
+		template_bi_board_list($category['boards']);
 
 		echo '
 			</div><!-- #category_[id]_boards -->
@@ -134,11 +93,62 @@ function template_main()
 	</div><!-- #boardindex_table -->';
 
 	// Show the mark all as read button?
-	if (User::$me->is_logged && !empty(Utils::$context['categories']))
+	if (!User::$me->is_guest && !empty(Utils::$context['categories'])) {
 		echo '
 	<div class="mark_read">
 		', template_button_strip(Utils::$context['mark_read_button'], 'right'), '
 	</div>';
+	}
+}
+
+/**
+ * Outputs a list of boards, each one drawn by the template_bi_* helpers below.
+ *
+ * The board index calls this once per category, and the message index calls it
+ * for the child boards of the board being viewed. Both used to carry their own
+ * copy of this loop.
+ *
+ * Each board has: new (is it new?), id, name, description, moderators (see
+ * below), link_moderators (just a list.), children (see below.), link_children
+ * (easier to use.), children_new (are they new?), topics (# of), posts (# of),
+ * link, href, and last_post. (see below.)
+ *
+ * @param array $boards The boards to draw, in the order they go in.
+ */
+function template_bi_board_list(array $boards): void
+{
+	foreach ($boards as $board) {
+		echo '
+				<div id="board_', $board['id'], '" class="up_contain ', (!empty($board['css_class']) ? $board['css_class'] : ''), '">
+					<div class="board_icon">
+						', function_exists('template_bi_' . $board['type'] . '_icon') ? call_user_func('template_bi_' . $board['type'] . '_icon', $board) : template_bi_board_icon($board), '
+					</div>
+					<div class="info">
+						', function_exists('template_bi_' . $board['type'] . '_info') ? call_user_func('template_bi_' . $board['type'] . '_info', $board) : template_bi_board_info($board), '
+					</div><!-- .info -->';
+
+		// Show some basic information about the number of posts, etc.
+		echo '
+					<div class="board_stats">
+						', function_exists('template_bi_' . $board['type'] . '_stats') ? call_user_func('template_bi_' . $board['type'] . '_stats', $board) : template_bi_board_stats($board), '
+					</div>';
+
+		// Show the last post if there is one.
+		echo '
+					<div class="lastpost">
+						', function_exists('template_bi_' . $board['type'] . '_lastpost') ? call_user_func('template_bi_' . $board['type'] . '_lastpost', $board) : template_bi_board_lastpost($board), '
+					</div>';
+
+		// Won't somebody think of the children!
+		if (function_exists('template_bi_' . $board['type'] . '_children')) {
+			call_user_func('template_bi_' . $board['type'] . '_children', $board);
+		} else {
+			template_bi_board_children($board);
+		}
+
+		echo '
+				</div><!-- #board_[id] -->';
+	}
 }
 
 /**
@@ -176,17 +186,19 @@ function template_bi_board_info($board)
 		</a>';
 
 	// Has it outstanding posts for approval?
-	if ($board['can_approve_posts'] && ($board['unapproved_posts'] || $board['unapproved_topics']))
+	if ($board['can_approve_posts'] && ($board['unapproved_posts'] || $board['unapproved_topics'])) {
 		echo '
-		<a href="', Config::$scripturl, '?action=moderate;area=postmod;sa=', ($board['unapproved_topics'] > 0 ? 'topics' : 'posts'), ';brd=', $board['id'], ';', Utils::$context['session_var'], '=', Utils::$context['session_id'], '" title="', Lang::getTxt('unapproved_posts', $board, file: 'General'), '" class="moderation_link amt">!</a>';
+		<a href="', Config::$scripturl, '?action=moderate;area=postmod;sa=', ($board['unapproved_topics'] > 0 ? 'topics' : 'posts'), ';brd=', $board['id'], ';', Utils::$context['session_var'], '=', Utils::$context['session_id'], '" title="', Lang::getTxt('unapproved_posts', ['unapproved_topics' => $board['unapproved_topics'], 'unapproved_posts' => $board['unapproved_posts']], file: 'General'), '" class="moderation_link amt">!</a>';
+	}
 
 	echo '
 		<div class="board_description">', $board['description'], '</div>';
 
 	// Show the "Moderators: ". Each has name, href, link, and id. (but we're gonna use link_moderators.)
-	if (!empty($board['link_moderators']))
+	if (!empty($board['link_moderators'])) {
 		echo '
 		<p class="moderators">', Lang::getTxt('moderators_list', ['num' => count($board['link_moderators']), 'list' => Lang::sentenceList($board['link_moderators'])], file: 'General'), '</p>';
+	}
 }
 
 /**
@@ -223,9 +235,10 @@ function template_bi_redirect_stats($board)
  */
 function template_bi_board_lastpost($board)
 {
-	if (!empty($board['last_post']['id']))
+	if (!empty($board['last_post']['id'])) {
 		echo '
 			<p>', $board['last_post']['last_post_message'], '</p>';
+	}
 }
 
 /**
@@ -236,22 +249,23 @@ function template_bi_board_lastpost($board)
 function template_bi_board_children($board)
 {
 	// Show the "Child Boards: ". (there's a link_children but we're going to bold the new ones...)
-	if (!empty($board['children']))
-	{
+	if (!empty($board['children'])) {
 		// Sort the links into an array with new boards bold so it can be imploded.
-		$children = array();
+		$children = [];
+
 		/* Each child in each board's children has:
 			id, name, description, new (is it new?), topics (#), posts (#), href, link, and last_post. */
-		foreach ($board['children'] as $child)
-		{
-			if (!$child['is_redirect'])
+		foreach ($board['children'] as $child) {
+			if (!$child['is_redirect']) {
 				$child['link'] = '' . ($child['new'] ? '<a href="' . Config::$scripturl . '?action=unread;board=' . $child['id'] . '" title="' . Lang::getTxt('new_posts_stats', ['posts' => $child['posts'], 'topics' => $child['topics']], file: 'General') . '" class="new_posts">' . Lang::getTxt('new', file: 'General') . '</a> ' : '') . '<a href="' . $child['href'] . '" ' . ($child['new'] ? 'class="board_new_posts" ' : '') . 'title="' . Lang::getTxt($child['new'] ? 'new_posts_stats' : 'old_posts_stats', ['posts' => $child['posts'], 'topics' => $child['topics']], file: 'General') . '">' . $child['name'] . '</a>';
-			else
-				$child['link'] = '<a href="' . $child['href'] . '" title="' . Lang::getTxt('number_of_redirects', [$child['posts']], file: 'General') . ' - ' . $child['short_description'] . '">' . $child['name'] . '</a>';
+			} else {
+			$child['link'] = '<a href="' . $child['href'] . '" title="' . Lang::getTxt('number_of_redirects', [$child['posts']], file: 'General') . ' - ' . $child['short_description'] . '">' . $child['name'] . '</a>';
+			}
 
 			// Has it posts awaiting approval?
-			if ($child['can_approve_posts'] && ($child['unapproved_posts'] || $child['unapproved_topics']))
+			if ($child['can_approve_posts'] && ($child['unapproved_posts'] || $child['unapproved_topics'])) {
 				$child['link'] .= ' <a href="' . Config::$scripturl . '?action=moderate;area=postmod;sa=' . ($child['unapproved_topics'] > 0 ? 'topics' : 'posts') . ';brd=' . $child['id'] . ';' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'] . '" title="' . Lang::getTxt('unapproved_posts', $child, file: 'General') . '" class="moderation_link amt">!</a>';
+			}
 
 			$children[] = $child['new'] ? '<span class="strong">' . $child['link'] . '</span>' : '<span>' . $child['link'] . '</span>';
 		}
@@ -274,34 +288,26 @@ function template_bi_board_children($board)
 }
 
 /**
- * The lower part of the outer layer of the board index
- */
-function template_boardindex_outer_below()
-{
-	template_info_center();
-}
-
-/**
  * Displays the info center
  */
 function template_info_center()
 {
-	if (empty(Utils::$context['info_center']))
+	if (empty(Utils::$context['info_center'])) {
 		return;
+	}
 
 	// Here's where the "Info Center" starts...
 	echo '
 	<div class="roundframe" id="info_center">
 		<div class="title_bar">
 			<h3 class="titlebg">
-				<span class="toggle_up floatright" id="upshrink_ic" title="', Lang::getTxt('hide_infocenter', file: 'General'), '" style="display: none;"></span>
 				<a href="#" id="upshrink_link">', Lang::getTxt('info_center_title', ['forum_name' => Utils::$context['forum_name_html_safe']], file: 'General'), '</a>
 			</h3>
+			<span class="toggle_up" id="upshrink_ic" title="', Lang::getTxt('hide_infocenter', file: 'General'), '" style="display: none;"></span>
 		</div>
 		<div id="upshrink_stats"', empty(Theme::$current->options['collapse_header_ic']) ? '' : ' style="display: none;"', '>';
 
-	foreach (Utils::$context['info_center'] as $block)
-	{
+	foreach (Utils::$context['info_center'] as $block) {
 		$func = 'template_ic_block_' . $block['tpl'];
 		$func();
 	}
@@ -362,8 +368,7 @@ function template_ic_block_recent()
 			<div id="recent_posts_content">';
 
 	// Only show one post.
-	if (Theme::$current->settings['number_recent_posts'] == 1)
-	{
+	if (Theme::$current->settings['number_recent_posts'] == 1) {
 		// latest_post has link, href, time, subject, short_subject (shortened with...), and topic. (its id.)
 		echo '
 				<p id="infocenter_onepost" class="inline">
@@ -371,8 +376,7 @@ function template_ic_block_recent()
 				</p>';
 	}
 	// Show lots of posts.
-	elseif (!empty(Utils::$context['latest_posts']))
-	{
+	elseif (!empty(Utils::$context['latest_posts'])) {
 		echo '
 				<table id="ic_recentposts">
 					<tr class="windowbg">
@@ -385,7 +389,7 @@ function template_ic_block_recent()
 		/* Each post in latest_posts has:
 			board (with an id, name, and link.), topic (the topic's id.), member (with id, name, and link.),
 			subject, short_subject (shortened with...), time, link, and href. */
-		foreach (Utils::$context['latest_posts'] as $post)
+		foreach (Utils::$context['latest_posts'] as $post) {
 			echo '
 					<tr class="windowbg">
 						<td class="recentpost"><strong>', $post['link'], '</strong></td>
@@ -393,6 +397,7 @@ function template_ic_block_recent()
 						<td class="recentboard">', $post['board']['link'], '</td>
 						<td class="recenttime">', $post['time'], '</td>
 					</tr>';
+		}
 		echo '
 				</table>';
 	}
@@ -415,7 +420,7 @@ function template_ic_block_calendar()
 
 	// Holidays like "Christmas", "Chanukah", and "We Love [Unknown] Day" :P
 	if (!empty(Utils::$context['calendar_holidays'])) {
-		$holidays = array();
+		$holidays = [];
 
 		foreach (Utils::$context['calendar_holidays'] as $holiday) {
 			$holidays[] = $holiday->title . (!empty($holiday->location) ? ' (' . $holiday->location . ')' : '');
@@ -493,24 +498,28 @@ function template_ic_block_online()
 				</h4>
 			</div>
 			<p class="inline">
-				', Utils::$context['show_who'] ? '<a href="' . Config::$scripturl . '?action=who">' : '', '<strong>', Lang::getTxt('online', file: 'General'), ': </strong>', Lang::getTxt('number_of_guests', [Utils::$context['num_guests']], file: 'General'), ', ', Lang::getTxt('number_of_members', [Utils::$context['num_users_online']], file: 'General');
+				', Utils::$context['show_who'] ? '<a href="' . Config::$scripturl . '?action=who">' : '', '<strong>', Lang::getTxt('online', file: 'General'), ': </strong>', empty(Config::$modSettings['no_guest_logging']) ? Lang::getTxt('number_of_guests', [Utils::$context['num_guests']], file: 'General') . ', ' : '', Lang::getTxt('number_of_members', [Utils::$context['num_users_online']], file: 'General');
 
 	// Handle hidden users and buddies.
-	$bracketList = array();
+	$bracketList = [];
 
-	if (Utils::$context['show_buddies'])
+	if (Utils::$context['show_buddies']) {
 		$bracketList[] = Lang::getTxt('number_of_buddies', [Utils::$context['num_buddies']], file: 'General');
+	}
 
-	if (!empty(Utils::$context['num_spiders']))
+	if (!empty(Utils::$context['num_spiders'])) {
 		$bracketList[] = Lang::getTxt('number_of_spiders', [Utils::$context['num_spiders']], file: 'General');
+	}
 
-	if (!empty(Utils::$context['num_users_hidden']))
+	if (!empty(Utils::$context['num_users_hidden'])) {
 		$bracketList[] = Lang::getTxt('number_of_hidden_members', [Utils::$context['num_users_hidden']], file: 'General');
+	}
 
 	$bracketList = array_filter($bracketList, 'strlen');
 
-	if (!empty($bracketList))
+	if (!empty($bracketList)) {
 		echo ' (' . Lang::sentenceList($bracketList) . ')';
+	}
 
 	echo Utils::$context['show_who'] ? '</a>' : '', '
 
@@ -518,15 +527,15 @@ function template_ic_block_online()
 				', Lang::getTxt('most_online_ever', file: 'General'), ': ', Lang::numberFormat(Config::$modSettings['mostOnline']), ' (', Time::create('@' . Config::$modSettings['mostDate'])->format(), ')<br>';
 
 	// Assuming there ARE users online... each user in users_online has an id, username, name, group, href, and link.
-	if (!empty(Utils::$context['users_online']))
-	{
+	if (!empty(Utils::$context['users_online'])) {
 		echo '
 				', Lang::getTxt('users_active', ['minutes' => Config::$modSettings['lastActive'], 'list' => Lang::sentenceList(Utils::$context['list_users_online'])], file: 'General');
 
 		// Showing membergroups?
-		if (!empty(Theme::$current->settings['show_group_key']) && !empty(Utils::$context['membergroups']))
+		if (!empty(Theme::$current->settings['show_group_key']) && !empty(Utils::$context['membergroups'])) {
 			echo '
 				<span class="membergroups">' . implode(', ', Utils::$context['membergroups']) . '</span>';
+		}
 	}
 
 	echo '

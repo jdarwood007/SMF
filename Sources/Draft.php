@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,8 @@ declare(strict_types=1);
 namespace SMF;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 
 /**
  * Represents a post draft.
@@ -209,7 +211,7 @@ class Draft
 						// These have to be ints
 						case 'type':
 						case 'poster_time':
-							$this->type = (int) $value;
+							$this->$key = (int) $value;
 							break;
 
 						// Boolean values
@@ -240,7 +242,6 @@ class Draft
 
 	/**
 	 * Prepares the draft data for use in the editor.
-	 *
 	 */
 	public function prepare(): void
 	{
@@ -316,7 +317,8 @@ class Draft
 	 * Optionally validates that the drafts belong to the current user.
 	 *
 	 * @param int|array $drafts The IDs of one or more drafts to delete.
-	 * @param bool $check Whether or not to check that the drafts belong to the current user.
+	 * @param bool $check Whether or not to check that the drafts belong to the
+	 *    current user.
 	 * @return bool Whether the drafts were deleted.
 	 */
 	public static function delete(int|array $drafts, bool $check = true): bool
@@ -474,8 +476,11 @@ class Draft
 		}
 
 		// Find this user's drafts for the boards they can access
-		// @todo ... do we want to do this?  If they were able to create a draft, do we remove their access to said draft if they loose
-		//           access to the board or if the topic moves to a board they can not see?
+		/*
+		 * @todo ... do we want to do this? If they were able to create a draft,
+		 * do we remove their access to said draft if they loose access to the
+		 * board or if the topic moves to a board they can not see?
+		 */
 		$request = Db::$db->query(
 			'SELECT
 				b.id_board, b.name AS bname,
@@ -637,12 +642,7 @@ class Draft
 		}
 
 		if (isset($_POST['message'])) {
-			$body = Utils::htmlspecialchars($_POST['message'], ENT_QUOTES);
-			Msg::preparsecode($body);
-		}
-
-		if (isset($body)) {
-			$this->body = $body;
+			$this->body = Parser::sanitize(Utils::htmlspecialchars($_POST['message'], ENT_QUOTES));
 		}
 
 		if (isset($_POST['subject'])) {
@@ -740,12 +740,12 @@ class Draft
 
 			// Some items to return to the form.
 			Utils::$context['draft_saved'] = true;
-			Utils::$context['id' . ($this->type === 1 ? '_pm' : '') . '_draft'] = $this->id;
+			Utils::$context['id_draft'] = $this->id;
 		}
 		// Otherwise, creating a new draft.
 		else {
 			$this->id = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}user_drafts',
 				[
 					'id_topic' => 'int',
@@ -782,14 +782,14 @@ class Draft
 				[
 					'id_draft',
 				],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			// Did everything go as expected?
 			if (!empty($this->id)) {
 				$this->poster_time = time();
 				Utils::$context['draft_saved'] = true;
-				Utils::$context['id' . ($this->type === 1 ? '_pm' : '') . '_draft'] = $this->id;
+				Utils::$context['id_draft'] = $this->id;
 			} else {
 				Utils::$context['draft_saved'] = false;
 			}

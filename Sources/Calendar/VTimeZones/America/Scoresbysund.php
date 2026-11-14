@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Scoresbysund
  */
-class Scoresbysund extends \SMF\Calendar\VTimeZone
+class Scoresbysund extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,26 @@ class Scoresbysund extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Scoresbysund';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1981-03-29T02:00:00+0000',
+			'metazone' => 'Greenland_Eastern',
+		],
+		1 => [
+			'ts' => '2024-03-31T01:00:00+0000',
+			'metazone' => 'Greenland',
+		],
+	];
 
 	/**
 	 * @var array
@@ -50,7 +72,7 @@ class Scoresbysund extends \SMF\Calendar\VTimeZone
 		1 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19770403T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T040000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0100',
@@ -58,7 +80,7 @@ class Scoresbysund extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T030000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
@@ -73,7 +95,7 @@ class Scoresbysund extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790503T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '+0000',
 			'TZOFFSETTO' => '-0100',
@@ -81,7 +103,7 @@ class Scoresbysund extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19801030T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20240331T010000Z',
 			'TZNAME' => 'GMT',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '+0000',
@@ -89,26 +111,26 @@ class Scoresbysund extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19960530T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20231029T010000Z',
 			'TZNAME' => 'UTC-01',
 			'TZOFFSETFROM' => '+0000',
 			'TZOFFSETTO' => '-0100',
 		],
 		7 => [
-			'type' => 'DAYLIGHT',
-			'DTSTART' => '19800602T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
-			'TZNAME' => 'UTC-01',
-			'TZOFFSETFROM' => '-0100',
-			'TZOFFSETTO' => '-0100',
-		],
-		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19960101T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0100',
 			'TZOFFSETTO' => '-0200',
+		],
+		8 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19800602T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'TZNAME' => 'UTC-01',
+			'TZOFFSETFROM' => '-0200',
+			'TZOFFSETTO' => '-0100',
 		],
 	];
 }

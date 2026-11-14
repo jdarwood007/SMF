@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,7 +17,7 @@ namespace SMF\Localization;
 
 use SMF\Config;
 use SMF\IntegrationHook;
-use SMF\Lang;
+use SMF\Sapi;
 use SMF\Unicode\Utf8String;
 use SMF\Utils;
 
@@ -35,7 +35,7 @@ class AsciiTransliterator
 	 *
 	 * The version of the ICU library that was used to build the data files.
 	 */
-	public const BUILT_FROM_ICU_VERSION = '77.1';
+	public const BUILT_FROM_ICU_VERSION = '78.2';
 
 	/**
 	 * @var string
@@ -193,7 +193,7 @@ class AsciiTransliterator
 
 		if (!isset(self::$transliterator)) {
 			// Maybe there is a specific transliterator for the default language?
-			switch (substr(Lang::$default, 0, 2)) {
+			switch (substr(Config::$language, 0, 2)) {
 				// There's a specific transliterator for German to ASCII.
 				case 'de':
 					$locale_id = 'de-ASCII;' . self::DEFAULT_ID;
@@ -240,7 +240,7 @@ class AsciiTransliterator
 				// For anything else, guess at a specific transliterator.
 				// It might or might not work, but we'll handle that below.
 				default:
-					$locale_id = substr(Lang::$default, 0, 2) . '-Latin;' . self::DEFAULT_ID;
+					$locale_id = substr(Config::$language, 0, 2) . '-Latin;' . self::DEFAULT_ID;
 					break;
 			}
 
@@ -291,7 +291,7 @@ class AsciiTransliterator
 			$ord = mb_ord($char);
 
 			if (file_exists(__DIR__ . '/data/AsciiTransliteration_' . \sprintf('%04d', $ord >> 8) . '.php')) {
-				include_once Config::canonicalPath(__DIR__ . '/data/AsciiTransliteration_' . \sprintf('%04d', $ord >> 8) . '.php');
+				include_once Sapi::canonicalPath(__DIR__ . '/data/AsciiTransliteration_' . \sprintf('%04d', $ord >> 8) . '.php');
 
 				$new_chars[$char_num] = $ascii_transliteration[$ord >> 8][$ord & 255] ?? $char;
 			}

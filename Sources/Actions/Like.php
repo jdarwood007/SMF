@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -22,12 +22,14 @@ use SMF\Alert;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Debug\DebugUtils;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\OutputTypeInterface;
 use SMF\OutputTypes;
 use SMF\Routable;
+use SMF\Tasks\Likes_Notify;
 use SMF\Theme;
 use SMF\Time;
 use SMF\User;
@@ -480,7 +482,7 @@ class Like implements ActionInterface, Routable
 
 		// Insert the like.
 		Db::$db->insert(
-			'insert',
+			InsertType::Insert,
 			'{db_prefix}user_likes',
 			[
 				'content_id' => 'int',
@@ -509,7 +511,7 @@ class Like implements ActionInterface, Routable
 		// both are immediately called after this.
 		if ($this->type == 'msg') {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -518,7 +520,7 @@ class Like implements ActionInterface, Routable
 				],
 				[
 					[
-						'SMF\\Tasks\\Likes_Notify',
+						Likes_Notify::class,
 						Utils::jsonEncode([
 							'content_id' => $content,
 							'content_type' => $type,

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -235,6 +235,7 @@ class MemcachedImplementation extends CacheApi implements CacheApiInterface
 			}
 		}
 
-		return $retVal;
+		// The bitwise or above produces an int, which this method does not return.
+		return (bool) $retVal;
 	}
 }

@@ -9,10 +9,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -21,9 +21,10 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\EmailAddress;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\IP;
@@ -35,6 +36,7 @@ use SMF\SecurityToken;
 use SMF\Theme;
 use SMF\Time;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -43,7 +45,6 @@ use SMF\Utils;
 class Bans implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -497,7 +498,7 @@ class Bans implements ActionInterface
 				// Overwrite some of the default form values if a user ID was given.
 				if (!empty($_REQUEST['u'])) {
 					$request = Db::$db->query(
-						'SELECT id_member, real_name, member_ip, email_address
+						'SELECT id_member, real_name, member_ip, email_address_ci
 						FROM {db_prefix}members
 						WHERE id_member = {int:current_user}
 						LIMIT 1',
@@ -553,6 +554,12 @@ class Bans implements ActionInterface
 						list(Utils::$context['ban_suggestions']['member']['name'], Utils::$context['ban_suggestions']['main_ip'], Utils::$context['ban_suggestions']['email']) = Db::$db->fetch_row($request);
 
 						Utils::$context['ban_suggestions']['main_ip'] = new IP(Utils::$context['ban_suggestions']['main_ip']);
+
+						$email = new EmailAddress(Utils::$context['ban_suggestions']['email']);
+
+						if ($email->isValid()) {
+							Utils::$context['ban_suggestions']['email'] = $email->casefolded();
+						}
 					}
 					Db::$db->free_result($request);
 
@@ -1061,14 +1068,14 @@ class Bans implements ActionInterface
 		}
 
 		if (!empty($memberEmails)) {
-			$queryPart[] = 'mem.email_address IN ({array_string:member_emails})';
+			$queryPart[] = 'mem.email_address_ci IN ({array_string:member_emails})';
 			$queryValues['member_emails'] = $memberEmails;
 		}
 
 		$count = 0;
 
 		foreach ($memberEmailWild as $email) {
-			$queryPart[] = 'mem.email_address LIKE {string:wild_' . $count . '}';
+			$queryPart[] = 'mem.email_address_ci LIKE {string:wild_' . $count . '}';
 			$queryValues['wild_' . $count++] = $email;
 		}
 
@@ -1110,7 +1117,7 @@ class Bans implements ActionInterface
 		$request = Db::$db->query(
 			'SELECT mem.id_member, mem.is_activated - {int:ban_flag} AS new_value
 			FROM {db_prefix}members AS mem
-				LEFT JOIN {db_prefix}ban_items AS bi ON (bi.id_member = mem.id_member OR mem.email_address LIKE bi.email_address)
+				LEFT JOIN {db_prefix}ban_items AS bi ON (bi.id_member = mem.id_member OR mem.email_address_ci LIKE bi.email_address)
 				LEFT JOIN {db_prefix}ban_groups AS bg ON (bg.id_ban_group = bi.id_ban_group AND bg.cannot_access = {int:cannot_access_activated} AND (bg.expire_time IS NULL OR bg.expire_time > {int:current_time}))
 			WHERE (bi.id_ban IS NULL OR bg.id_ban_group IS NULL)
 				AND mem.is_activated >= {int:ban_flag}',
@@ -1131,9 +1138,16 @@ class Bans implements ActionInterface
 		Db::$db->free_result($request);
 
 		if (!empty($updates)) {
-			foreach ($updates as $newStatus => $members) {
-				User::updateMemberData($members, ['is_activated' => $newStatus]);
+			$members = [];
+
+			foreach ($updates as $newStatus => $ids) {
+				foreach (User::load($ids, dataset: UserDataset::None) as $member) {
+					$member->is_activated = $newStatus;
+					$members[] = $member;
+				}
 			}
+
+			User::saveBatch($members);
 		}
 
 		// Update the latest member and our total members as banning may change them.
@@ -1653,7 +1667,11 @@ class Bans implements ActionInterface
 		);
 
 		while ($row = Db::$db->fetch_assoc($request)) {
-			$message_ips[] = new IP($row['poster_ip']);
+			$ip = new IP($row['poster_ip']);
+
+			if (!$ip->isRegisteredProxyServer()) {
+				$message_ips[] = (string) $ip;
+			}
 		}
 		Db::$db->free_result($request);
 
@@ -1682,7 +1700,11 @@ class Bans implements ActionInterface
 		);
 
 		while ($row = Db::$db->fetch_assoc($request)) {
-			$error_ips[] = new IP($row['ip']);
+			$ip = new IP($row['ip']);
+
+			if (!$ip->isRegisteredProxyServer()) {
+				$error_ips[] = (string) $ip;
+			}
 		}
 		Db::$db->free_result($request);
 
@@ -1870,16 +1892,28 @@ class Bans implements ActionInterface
 						$ban_triggers['hostname']['hostname'] = $value;
 					}
 				} elseif ($key == 'email') {
-					if (preg_match('/[^\w.\-\+*@]/', $value) == 1) {
+					// Can this pattern resolve to a valid email address once
+					// any wildcards are replaced with real strings?
+					$test = new EmailAddress(strtr($value, ['*' => md5('*') . '.com']));
+
+					if (!$test->isValid()) {
 						Utils::$context['ban_errors'][] = 'invalid_email';
 					}
+					// If the pattern is valid, ensure it is casefolded.
+					else {
+						$value = strtr($test->casefolded(), [md5('*') . '.com' => '*']);
+					}
+
+					// Escape literal SQL wildcard characters and replace POSIX
+					// wildcard characters with SQL wildcard characters.
+					$value = substr(strtr($value, ['_' => '\\_', '%' => '\\%', '*' => '%']), 0, 255);
 
 					// Check the user is not banning an admin.
 					$request = Db::$db->query(
 						'SELECT id_member
 						FROM {db_prefix}members
 						WHERE (id_group = {int:admin_group} OR FIND_IN_SET({int:admin_group}, additional_groups) != 0)
-							AND email_address LIKE {string:email}
+							AND email_address_ci LIKE {string:email}
 						LIMIT 1',
 						[
 							'admin_group' => 1,
@@ -1891,8 +1925,6 @@ class Bans implements ActionInterface
 						Utils::$context['ban_errors'][] = 'no_ban_admin';
 					}
 					Db::$db->free_result($request);
-
-					$value = substr(strtolower(str_replace('*', '%', $value)), 0, 255);
 
 					$ban_triggers['email']['email_address'] = $value;
 				} elseif ($key == 'user') {
@@ -2065,7 +2097,7 @@ class Bans implements ActionInterface
 		}
 
 		Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}ban_items',
 			$insertKeys,
 			$insertTriggers,
@@ -2279,7 +2311,7 @@ class Bans implements ActionInterface
 
 		// Yes yes, we're ready to add now.
 		$ban_info['id'] = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}ban_groups',
 			[
 				'name' => 'string-20',
@@ -2329,7 +2361,7 @@ class Bans implements ActionInterface
 		$suggestions = [];
 
 		$request = Db::$db->query(
-			'SELECT id_member, real_name, member_ip, email_address
+			'SELECT id_member, real_name, member_ip, email_address_ci
 			FROM {db_prefix}members
 			WHERE id_member = {int:current_user}
 			LIMIT 1',

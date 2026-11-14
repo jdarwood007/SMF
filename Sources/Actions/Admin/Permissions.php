@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,7 +18,6 @@ namespace SMF\Actions\Admin;
 use SMF\ActionInterface;
 use SMF\Actions\Moderation\Posts as PostMod;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Board;
 use SMF\Category;
 use SMF\Config;
@@ -42,7 +41,6 @@ use SMF\Utils;
 class Permissions implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -243,8 +241,10 @@ class Permissions implements ActionInterface
 
 		$this->setGroupsContext();
 
+		$profile_id = !empty($_REQUEST['pid']) ? (int) $_REQUEST['pid'] : PermissionProfile::DEFAULT;
+
 		// We can modify any permission set, except for the ones we can't.
-		Utils::$context['can_modify'] = PermissionProfile::load((int) ($_REQUEST['pid'] ?? PermissionProfile::DEFAULT)) !== null && PermissionProfile::load((int) ($_REQUEST['pid'] ?? PermissionProfile::DEFAULT))->canModify();
+		Utils::$context['can_modify'] = PermissionProfile::load($profile_id) !== null && PermissionProfile::load($profile_id)->canModify();
 
 		// Load the proper template.
 		Utils::$context['sub_template'] = 'permission_index';
@@ -335,7 +335,7 @@ class Permissions implements ActionInterface
 		SecurityToken::validate('admin-mpq', 'quick');
 
 		if ($_POST['copy_from'] === 'empty') {
-			$_POST['copy_from'] = 0;
+			$_POST['copy_from'] = null;
 		}
 
 		// Make sure only one of the quick options was selected.
@@ -352,12 +352,12 @@ class Permissions implements ActionInterface
 		}
 
 		// Profile ID must be an integer.
-		$_REQUEST['pid'] = (int) ($_REQUEST['pid'] ?? 0);
+		$profile_id = (int) ($_REQUEST['pid'] ?? PermissionProfile::DEFAULT);
 
 		// Sorry, but that one can't be modified.
 		if (
-			PermissionProfile::load($_REQUEST['pid']) === null
-			|| !PermissionProfile::load($_REQUEST['pid'])->canModify()
+			PermissionProfile::load($profile_id) === null
+			|| !PermissionProfile::load($profile_id)->canModify()
 		) {
 			ErrorHandler::fatalLang('no_access', false);
 		}
@@ -370,7 +370,7 @@ class Permissions implements ActionInterface
 			$this->quickSetPredefined();
 		}
 		// Set a permission profile based on the permissions of a selected group.
-		elseif (!empty($_POST['copy_from'])) {
+		elseif ($_POST['copy_from'] !== null) {
 			$this->quickCopyFrom();
 		}
 		// Set or unset a certain permission for the selected groups.
@@ -380,7 +380,8 @@ class Permissions implements ActionInterface
 
 		self::updateBoardManagers();
 
-		Utils::redirectexit('action=admin;area=permissions;pid=' . $_REQUEST['pid']);
+		// Use the original profile id passed so we return to the right page.
+		Utils::redirectexit('action=admin;area=permissions;pid=' . ((int) $_REQUEST['pid']));
 	}
 
 	/**
@@ -1740,15 +1741,10 @@ class Permissions implements ActionInterface
 				$is_new = true;
 
 				foreach (['', '_own', '_any'] as $suffix) {
-					try {
-						$permission = Permission::get($generic_name . $suffix);
-					} catch (\Throwable $e) {
-						continue;
+					if (Permission::exists($generic_name . $suffix)) {
+						Permission::get($generic_name . $suffix)->view_group = $perm_info[1];
+						$is_new = false;
 					}
-
-					$is_new = false;
-					$permission->view_group = $perm_info[1];
-					unset($permission);
 				}
 
 				if ($is_new) {
@@ -1771,27 +1767,17 @@ class Permissions implements ActionInterface
 
 		foreach ($hidden_permissions as $permission) {
 			foreach (['', '_own', '_any'] as $suffix) {
-				try {
-					$permission = Permission::get($permission . $suffix);
-				} catch (\Throwable $e) {
-					continue;
+				if (Permission::exists($permission . $suffix)) {
+					Permission::get($permission . $suffix)->hidden = true;
 				}
-
-				$permission->hidden = true;
-				unset($permission);
 			}
 		}
 
 		foreach ($relabel_permissions as $permission => $label) {
 			foreach (['', '_own', '_any'] as $suffix) {
-				try {
-					$permission = Permission::get($permission . $suffix);
-				} catch (\Throwable $e) {
-					continue;
+				if (Permission::exists($permission . $suffix)) {
+					Permission::get($permission . $suffix)->label = $label;
 				}
-
-				$permission->label = $label;
-				unset($permission);
 			}
 		}
 	}

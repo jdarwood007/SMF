@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Sofia
  */
-class Sofia extends \SMF\Calendar\VTimeZone
+class Sofia extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Sofia extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Sofia';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -71,7 +89,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19440403T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T010000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -107,7 +125,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19800405T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SA;UNTIL=19820403T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SA;UNTIL=19820403T210000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -136,7 +154,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810329T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19900325T000000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -144,7 +162,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -152,7 +170,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810329T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19960330T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -160,7 +178,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790930T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -168,7 +186,7 @@ class Sofia extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19961027T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19961026T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Taipei
  */
-class Taipei extends \SMF\Calendar\VTimeZone
+class Taipei extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Taipei extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Taipei';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Taipei',
+		],
+	];
 
 	/**
 	 * @var array
@@ -92,7 +110,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19480501T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19510501T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19510430T160000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -100,7 +118,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19481001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19511001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19510930T150000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -115,7 +133,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19521101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19541101T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19541031T150000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -123,7 +141,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19530401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19590401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19590331T160000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -131,7 +149,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19551001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19611001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19610930T150000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -139,7 +157,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19600601T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYMONTHDAY=1;UNTIL=19610601T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYMONTHDAY=1;UNTIL=19610531T160000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -147,7 +165,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19740401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19750401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19750331T160000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -155,7 +173,7 @@ class Taipei extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19741001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19751001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19750930T150000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',

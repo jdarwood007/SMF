@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -42,6 +42,10 @@ class GroupAct_Notify extends BackgroundTask
 	 */
 	public function execute(): bool
 	{
+		if (empty($this->_details['request_list'])) {
+			return true;
+		}
+
 		// Get the details of all the members concerned...
 		$request = Db::$db->query(
 			'SELECT lgr.id_request, lgr.id_member, lgr.id_group, mem.email_address,
@@ -84,7 +88,7 @@ class GroupAct_Notify extends BackgroundTask
 
 			// Same as for approving, kind of.
 			foreach ($affected_users as $user) {
-				$custom_reason = isset($this->_details['reason']) && isset($this->_details['reason'][$user['rid']]) ? $this->_details['reason'][$user['rid']] : '';
+				$custom_reason = isset($this->_details['reason']) && isset($this->_details['reason'][$user['rid']]) ? Utils::htmlspecialchars($this->_details['reason'][$user['rid']], ENT_QUOTES) : '';
 
 				// They are being approved?
 				if ($this->_details['status'] == 'approve') {

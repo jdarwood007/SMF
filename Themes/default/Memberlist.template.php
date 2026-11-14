@@ -1,18 +1,18 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
 use SMF\Lang;
-use SMF\Theme;
 use SMF\Utils;
 
 /**
@@ -23,8 +23,8 @@ function template_main()
 	echo '
 	<div class="main_section" id="memberlist">
 		<div class="pagesection">
-			', template_button_strip(Utils::$context['memberlist_buttons'], 'right'), '
 			<div class="pagelinks floatleft">', Utils::$context['page_index'], '</div>
+			', template_button_strip(Utils::$context['memberlist_buttons'], 'right'), '
 		</div>
 		<div class="cat_bar">
 			<h3 class="catbg">
@@ -39,23 +39,25 @@ function template_main()
 					<tr class="title_bar">';
 
 	// Display each of the column headers of the table.
-	foreach (Utils::$context['columns'] as $key => $column)
-	{
+	foreach (Utils::$context['columns'] as $key => $column) {
 		// @TODO maybe find something nicer?
-		if ($key == 'email_address' && !Utils::$context['can_send_email'])
+		if ($key == 'email_address' && !Utils::$context['can_send_email']) {
 			continue;
+		}
 
 		// This is a selected column, so underline it or some such.
-		if ($column['selected'])
+		if ($column['selected']) {
 			echo '
 						<th scope="col" class="', $key, isset($column['class']) ? ' ' . $column['class'] : '', ' selected" style="width: auto;"' . (isset($column['colspan']) ? ' colspan="' . $column['colspan'] . '"' : '') . '>
 							<a href="' . $column['href'] . '" rel="nofollow">' . $column['label'] . '</a><span class="main_icons sort_' . Utils::$context['sort_direction'] . '"></span></th>';
+		}
 
 		// This is just some column... show the link and be done with it.
-		else
-			echo '
+		else {
+		echo '
 						<th scope="col" class="', $key, isset($column['class']) ? ' ' . $column['class'] : '', '"', isset($column['width']) ? ' style="width: ' . $column['width'] . '"' : '', isset($column['colspan']) ? ' colspan="' . $column['colspan'] . '"' : '', '>
 						', $column['link'], '</th>';
+		}
 	}
 
 	echo '
@@ -64,58 +66,60 @@ function template_main()
 				<tbody>';
 
 	// Assuming there are members loop through each one displaying their data.
-	if (!empty(Utils::$context['members']))
-	{
-		foreach (Utils::$context['members'] as $member)
-		{
+	if (!empty(Utils::$context['members'])) {
+		foreach (Utils::$context['members'] as $member) {
 			echo '
 					<tr class="windowbg">
 						<td class="is_online centertext">
-							', Utils::$context['can_send_pm'] ? '<a href="' . $member['online']['href'] . '" title="' . $member['online']['text'] . '">' : '', Theme::$current->settings['use_image_buttons'] ? '<span class="' . ($member['online']['is_online'] == 1 ? 'on' : 'off') . '" title="' . $member['online']['text'] . '"></span>' : $member['online']['label'], Utils::$context['can_send_pm'] ? '</a>' : '', '
+							', Utils::$context['can_send_pm'] ? '<a href="' . $member['online']['href'] . '" title="' . $member['online']['text'] . '">' : '', '<span class="' . ($member['online']['is_online'] == 1 ? 'on' : 'off') . '" title="' . $member['online']['text'] . '"></span>', Utils::$context['can_send_pm'] ? '</a>' : '', '
 						</td>
 						<td class="real_name lefttext">', $member['link'], '</td>';
 
-			if (!isset(Utils::$context['disabled_fields']['website']))
+			if (!isset(Utils::$context['disabled_fields']['website'])) {
 				echo '
 						<td class="website_url centertext">', $member['website']['url'] != '' ? '<a href="' . $member['website']['url'] . '" target="_blank" rel="noopener"><span class="main_icons www" title="' . $member['website']['title'] . '"></span></a>' : '', '</td>';
+			}
 
 			// Group and date.
 			echo '
 						<td class="id_group centertext">', empty($member['group']) ? $member['post_group'] : $member['group'], '</td>
 						<td class="registered centertext">', $member['registered_date'], '</td>';
 
-			if (!isset(Utils::$context['disabled_fields']['posts']))
-			{
+			if (!isset(Utils::$context['disabled_fields']['posts'])) {
 				echo '
 						<td class="post_count centertext">';
 
-				if (!empty($member['posts']))
+				if (!empty($member['posts'])) {
 					echo '
 							<div class="generic_bar">
 								<div class="bar" style="width: ', $member['post_percent'], '%;"></div>
 								<span>', $member['posts'], '</span>
 							</div>';
+				}
 
 				echo '
 						</td>';
 			}
 
 			// Show custom fields marked to be shown here
-			if (!empty(Utils::$context['custom_profile_fields']['columns']))
-				foreach (Utils::$context['custom_profile_fields']['columns'] as $key => $column)
+			if (!empty(Utils::$context['custom_profile_fields']['columns'])) {
+				foreach (Utils::$context['custom_profile_fields']['columns'] as $key => $column) {
 					echo '
 						<td class="', $key, ' centertext">', $member['options'][$key], '</td>';
+				}
+			}
 
 			echo '
 					</tr>';
 		}
 	}
 	// No members?
-	else
-		echo '
+	else {
+	echo '
 					<tr>
 						<td colspan="', Utils::$context['colspan'], '" class="windowbg">', Lang::getTxt('search_no_results', file: 'General'), '</td>
 					</tr>';
+	}
 
 	echo '
 				</tbody>
@@ -128,11 +132,12 @@ function template_main()
 			<div class="pagelinks floatleft">', Utils::$context['page_index'], '</div>';
 
 	// If it is displaying the result of a search show a "search again" link to edit their criteria.
-	if (isset(Utils::$context['old_search']))
+	if (isset(Utils::$context['old_search'])) {
 		echo '
 			<div class="buttonlist floatright">
 				<a class="button" href="', Config::$scripturl, '?action=mlist;sa=search;search=', Utils::$context['old_search_value'], '">', Lang::getTxt('mlist_search_again', file: 'General'), '</a>
 			</div>';
+	}
 	echo '
 		</div>
 	</div><!-- #memberlist -->';
@@ -159,10 +164,10 @@ function template_search()
 			<div id="advanced_search" class="roundframe">
 				<dl id="mlist_search" class="settings">
 					<dt>
-						<label><strong>', Lang::getTxt('search_for', file: 'General'), '</strong></label>
+						<label for="search"><strong>', Lang::getTxt('search_for', file: 'General'), '</strong></label>
 					</dt>
 					<dd>
-						<input type="text" name="search" value="', Utils::$context['old_search'], '" size="40">
+						<input type="text" name="search" id="search" value="', Utils::$context['old_search'], '" size="40">
 					</dd>
 					<dt>
 						<label><strong>', Lang::getTxt('mlist_search_filter', file: 'General'), '</strong></label>
@@ -170,12 +175,13 @@ function template_search()
 					<dd>
 						<ul>';
 
-	foreach (Utils::$context['search_fields'] as $id => $title)
+	foreach (Utils::$context['search_fields'] as $id => $title) {
 		echo '
 							<li>
 								<input type="checkbox" name="fields[]" id="fields-', $id, '" value="', $id, '"', in_array($id, Utils::$context['search_defaults']) ? ' checked' : '', '>
 								<label for="fields-', $id, '">', $title, '</label>
 							</li>';
+	}
 
 	echo '
 						</ul>

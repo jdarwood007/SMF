@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
@@ -28,18 +29,29 @@ function template_login()
 				</h3>
 			</div>
 			<div class="roundframe">
-				<form class="login" action="', Utils::$context['login_url'], '" name="frmLogin" id="frmLogin" method="post" accept-charset="UTF-8">';
+				<form class="login" action="', Utils::$context['login_url'], '" name="frmLogin" id="frmLogin" method="post" accept-charset="UTF-8"';
+
+	// A plain submit is enough when the response is going to come back to the
+	// page it was sent from. Anywhere else, login.js has to take the form over,
+	// and this attribute is how it knows to.
+	if (!empty(Utils::$context['from_ajax']) && (empty(Config::$modSettings['allow_cors']) || empty(Config::$modSettings['allow_cors_credentials']) || empty(Utils::$context['valid_cors_found']) || !in_array(Utils::$context['valid_cors_found'], ['same', 'subdomain']))) {
+		echo ' data-ajax-login="', Utils::$context['valid_cors_found'] ?? '', '"';
+	}
+
+	echo '>';
 
 	// Did they make a mistake last time?
-	if (!empty(Utils::$context['login_errors']))
+	if (!empty(Utils::$context['login_errors'])) {
 		echo '
 					<div class="errorbox">', implode('<br>', Utils::$context['login_errors']), '</div>
 					<br>';
+	}
 
 	// Or perhaps there's some special description for this time?
-	if (isset(Utils::$context['description']))
+	if (isset(Utils::$context['description'])) {
 		echo '
 					<div class="information">', Utils::$context['description'], '</div>';
+	}
 
 	// Now just get the basic information - username, password, etc.
 	echo '
@@ -63,10 +75,11 @@ function template_login()
 						</dd>';
 
 	// If they have deleted their account, give them a chance to change their mind.
-	if (isset(Utils::$context['login_show_undelete']))
+	if (isset(Utils::$context['login_show_undelete'])) {
 		echo '
 						<dt class="alert">', Lang::getTxt('undelete_account', file: 'Login'), '</dt>
 						<dd><input type="checkbox" name="undelete"></dd>';
+	}
 
 	echo '
 					</dl>
@@ -76,11 +89,13 @@ function template_login()
 					<p class="smalltext">
 						<a href="', Config::$scripturl, '?action=reminder">', Lang::getTxt('forgot_your_password', file: 'General'), '</a>
 					</p>';
-	if (!empty(Config::$modSettings['registration_method']) && Config::$modSettings['registration_method'] == 1)
+
+	if (!empty(Config::$modSettings['registration_method']) && Config::$modSettings['registration_method'] == 1) {
 		echo '
 					<p class="smalltext">
 						', Lang::getTxt('welcome_guest_activate', ['scripturl' => Config::$scripturl], file: 'General'), '
 					</p>';
+	}
 	echo '
 					<input type="hidden" name="', Utils::$context['session_var'], '" value="', Utils::$context['session_id'], '">
 					<input type="hidden" name="', Utils::$context['login_token_var'], '" value="', Utils::$context['login_token'], '">
@@ -89,80 +104,24 @@ function template_login()
 							document.getElementById("', !empty(Utils::$context['from_ajax']) ? 'ajax_' : '', isset(Utils::$context['default_username']) && Utils::$context['default_username'] != '' ? 'loginpass' : 'loginuser', '").focus();
 						}, 150);';
 
-	if (!empty(Utils::$context['from_ajax']) && ((empty(Config::$modSettings['allow_cors']) || empty(Config::$modSettings['allow_cors_credentials']) || empty(Utils::$context['valid_cors_found']) || !in_array(Utils::$context['valid_cors_found'], array('same', 'subsite')))))
-	{
-		echo '
-						form = $("#frmLogin");
-						form.submit(function(e) {
-							e.preventDefault();
-							e.stopPropagation();
-
-							$.ajax({
-								url: form.prop("action") + (form.prop("action").indexOf("?") !== -1 ? ";" : "?") + "ajax",
-								method: "POST",
-								headers: {
-									"X-SMF-AJAX": 1
-								},
-								xhrFields: {
-									withCredentials: typeof allow_xhjr_credentials !== "undefined" ? allow_xhjr_credentials : false
-								},
-								data: form.serialize(),
-								success: function(data) {';
-
-
-		// While a nice action is to replace the document body after a login, this may fail on CORS requests because the action may not be redirected back to the page they started the login process from.  So for these cases, we simply just reload the page.
-		if (empty(Utils::$context['valid_cors_found']) || Utils::$context['valid_cors_found'] == 'same')
-			echo '
-									if (data.indexOf("<bo" + "dy") > -1) {
-										document.open();
-										document.write(data);
-										document.close();
-									}
-									else
-										form.parent().html($(data).find(".roundframe").html());';
-		else
-			echo '
-									if ($(data).find(".roundframe").length > 0 && $(data).find("body").length == 0) {
-										form.parent().html($(data).find(".roundframe").html());
-									}
-									else {
-										window.location.reload();
-									';
-
-		echo '
-								},
-								error: function(xhr) {
-									var data = xhr.responseText;
-									if (data.indexOf("<bo" + "dy") > -1) {
-										document.open();
-										document.write(data);
-										document.close();
-									}
-									else
-										form.parent().html($(data).filter("#fatal_error").html());
-								}
-							});
-
-							return false;
-						});';
-	}
-
 	echo '
 					</script>
 				</form>';
 
-	if (!empty(Utils::$context['can_register']))
+	if (!empty(Utils::$context['can_register'])) {
 		echo '
 				<hr>
 				<div class="centertext">
 					', Lang::getTxt('register_prompt', ['scripturl' => Config::$scripturl], file: 'General'), '
 				</div>';
+	}
 
 	// It is a long story as to why we have this when we're clearly not going to use it.
-	if (!empty(Utils::$context['from_ajax']))
+	if (!empty(Utils::$context['from_ajax'])) {
 		echo '
 				<br>
 				<a href="javascript:self.close();"></a>';
+	}
 
 	echo '
 			</div><!-- .roundframe -->
@@ -183,11 +142,12 @@ function template_login_tfa()
 			</div>
 			<div class="roundframe">';
 
-	if (!empty(Utils::$context['tfa_error']) || !empty(Utils::$context['tfa_backup_error']))
+	if (!empty(Utils::$context['tfa_error']) || !empty(Utils::$context['tfa_backup_error'])) {
 		echo '
 				<div class="error">
 					', Lang::getTxt('tfa_' . (!empty(Utils::$context['tfa_error']) ? 'code_' : 'backup_') . 'invalid', file: 'Profile'), '
 				</div>';
+	}
 
 	echo '
 				<form action="', Utils::$context['tfa_url'], '" method="post" id="frmTfa">
@@ -241,8 +201,7 @@ function template_login_tfa()
 		if (empty(Utils::$context['valid_cors_found']) || Utils::$context['valid_cors_found'] == 'same') {
 			echo '
 									document.location = ', Utils::escapeJavaScript(!empty($_SESSION['login_url']) ? $_SESSION['login_url'] : Config::$scripturl), ';';
-		}
-		else {
+		} else {
 			echo '
 									window.location.reload();';
 		}
@@ -297,10 +256,11 @@ function template_kick_guest()
 			<p class="information centertext">
 				', empty(Utils::$context['kick_message']) ? Lang::getTxt('only_members_can_access', file: 'Login') : Utils::$context['kick_message'], '<br>';
 
-	if (Utils::$context['can_register'])
+	if (Utils::$context['can_register']) {
 		echo Lang::getTxt('login_below_or_register', ['url' => Config::$scripturl . '?action=signup', 'forum_name' => Utils::$context['forum_name_html_safe']], file: 'Login');
-	else
-		echo Lang::getTxt('login_below', file: 'Login');
+	} else {
+	echo Lang::getTxt('login_below', file: 'Login');
+	}
 
 	// And now the login information.
 	echo '
@@ -391,7 +351,7 @@ function template_admin_login()
 {
 	// Since this should redirect to whatever they were doing, send all the get data.
 	echo '
-	<form action="', !empty(Config::$modSettings['force_ssl']) ? strtr(Config::$scripturl, array('http://' => 'https://')) : Config::$scripturl, Utils::$context['get_data'], '" method="post" accept-charset="UTF-8" name="frmLogin" id="frmLogin">
+	<form action="', !empty(Config::$modSettings['force_ssl']) ? strtr(Config::$scripturl, ['http://' => 'https://']) : Config::$scripturl, Utils::$context['get_data'], '" method="post" accept-charset="UTF-8" name="frmLogin" id="frmLogin">
 		<div class="login" id="admin_login">
 			<div class="cat_bar">
 				<h3 class="catbg">
@@ -400,9 +360,10 @@ function template_admin_login()
 			</div>
 			<div class="roundframe centertext">';
 
-	if (!empty(Utils::$context['incorrect_password']))
+	if (!empty(Utils::$context['incorrect_password'])) {
 		echo '
 				<div class="error">', Lang::getTxt('admin_incorrect_password', file: 'Admin'), '</div>';
+	}
 
 	echo '
 				<strong>', Lang::getTxt('password', file: 'General'), '</strong>
@@ -441,10 +402,11 @@ function template_retry_activate()
 				<dl>';
 
 	// You didn't even have an ID?
-	if (empty(Utils::$context['member_id']))
+	if (empty(Utils::$context['member_id'])) {
 		echo '
 					<dt>', Lang::getTxt('invalid_activation_username', file: 'Login'), '</dt>
 					<dd><input type="text" name="user" size="30"></dd>';
+	}
 
 	echo '
 					<dt>', Lang::getTxt('invalid_activation_retry', file: 'Login'), '</dt>
@@ -479,13 +441,14 @@ function template_resend()
 					<dd><input type="password" name="passwd" size="30"></dd>
 				</dl>';
 
-	if (Utils::$context['can_activate'])
+	if (Utils::$context['can_activate']) {
 		echo '
 				<p>', Lang::getTxt('invalid_activation_known', file: 'Login'), '</p>
 				<dl>
 					<dt>', Lang::getTxt('invalid_activation_retry', file: 'Login'), '</dt>
 					<dd><input type="text" name="code" size="30"></dd>
 				</dl>';
+	}
 
 	echo '
 				<p><input type="submit" value="', Lang::getTxt('invalid_activation_resend', file: 'Login'), '" class="button"></p>

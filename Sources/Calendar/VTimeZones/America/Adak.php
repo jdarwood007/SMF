@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Adak
  */
-class Adak extends \SMF\Calendar\VTimeZone
+class Adak extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Adak extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Adak';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1983-11-30T10:00:00+0000',
+			'metazone' => 'Hawaii_Aleutian',
+		],
+	];
 
 	/**
 	 * @var array
@@ -78,7 +96,7 @@ class Adak extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19670430T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19730429T130000Z',
 			'TZNAME' => 'BDT',
 			'TZOFFSETFROM' => '-1100',
 			'TZOFFSETTO' => '-1000',
@@ -86,7 +104,7 @@ class Adak extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T120000Z',
 			'TZNAME' => 'BST',
 			'TZOFFSETFROM' => '-1000',
 			'TZOFFSETTO' => '-1100',
@@ -108,27 +126,51 @@ class Adak extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19760425T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T130000Z',
 			'TZNAME' => 'BDT',
 			'TZOFFSETFROM' => '-1100',
 			'TZOFFSETTO' => '-1000',
 		],
 		10 => [
 			'type' => 'STANDARD',
+			'DTSTART' => '19671029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T120000Z',
+			'TZNAME' => 'AHST',
+			'TZOFFSETFROM' => '-1000',
+			'TZOFFSETTO' => '-1000',
+		],
+		11 => [
+			'type' => 'STANDARD',
 			'DTSTART' => '19831130T000000',
 			'TZNAME' => 'HST',
 			'TZOFFSETFROM' => '-1000',
 			'TZOFFSETTO' => '-1000',
 		],
-		11 => [
+		12 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19870405T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T020000',
+			'DTSTART' => '19760425T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19860427T120000Z',
 			'TZNAME' => 'HDT',
 			'TZOFFSETFROM' => '-1000',
 			'TZOFFSETTO' => '-0900',
 		],
-		12 => [
+		13 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19671029T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T110000Z',
+			'TZNAME' => 'HST',
+			'TZOFFSETFROM' => '-0900',
+			'TZOFFSETTO' => '-1000',
+		],
+		14 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19870405T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20060402T120000Z',
+			'TZNAME' => 'HDT',
+			'TZOFFSETFROM' => '-1000',
+			'TZOFFSETTO' => '-0900',
+		],
+		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20070311T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
@@ -136,7 +178,7 @@ class Adak extends \SMF\Calendar\VTimeZone
 			'TZOFFSETFROM' => '-1000',
 			'TZOFFSETTO' => '-0900',
 		],
-		13 => [
+		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20071104T020000',
 			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',

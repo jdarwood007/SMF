@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Kuching
  */
-class Kuching extends \SMF\Calendar\VTimeZone
+class Kuching extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Kuching extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Kuching';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1981-12-31T16:00:00+0000',
+			'metazone' => 'Malaysia',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Kuching extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19350914T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=14;UNTIL=19410914T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=14;UNTIL=19410913T160000Z',
 			'TZNAME' => 'UTC+0820',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0820',
@@ -65,7 +83,7 @@ class Kuching extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19351214T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=14;UNTIL=19411214T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=14;UNTIL=19411213T154000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0820',
 			'TZOFFSETTO' => '+0800',

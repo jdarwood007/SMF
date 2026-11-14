@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -205,7 +205,7 @@ class ViewQuery implements ActionInterface, Routable
 					$result = Db::$db->query('ANALYZE FORMAT=JSON ' . $select);
 				} elseif ($vendor == 'PostgreSQL') {
 					$result = Db::$db->query('(ANALYZE, FORMAT JSON) ' . $select);
-				} elseif ($vendor == 'MySQL' && version_compare($version, '8.3.0', '>=')) {
+				} elseif ($vendor == 'MySQL' && version_compare(Utils::standardizeVersionString($version), '8.3.0', '>=')) {
 					Db::$db->query('SET explain_json_format_version=2');
 					$result = Db::$db->query('EXPLAIN ANALYZE FORMAT=JSON ' . $select);
 				} else {

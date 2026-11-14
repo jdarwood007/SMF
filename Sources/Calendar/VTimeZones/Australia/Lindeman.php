@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Australia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Australia/Lindeman
  */
-class Lindeman extends \SMF\Calendar\VTimeZone
+class Lindeman extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Lindeman extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Australia/Lindeman';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Australia_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -85,7 +103,7 @@ class Lindeman extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19430328T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440326T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440325T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -114,7 +132,7 @@ class Lindeman extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19891029T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19911027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19911026T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -122,7 +140,7 @@ class Lindeman extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19900304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19920301T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19920229T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -130,7 +148,7 @@ class Lindeman extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19921025T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19931031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19931030T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -138,7 +156,7 @@ class Lindeman extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19930307T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19940306T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19940305T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',

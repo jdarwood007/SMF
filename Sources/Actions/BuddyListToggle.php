@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,9 +19,12 @@ use SMF\ActionInterface;
 use SMF\ActionRouter;
 use SMF\ActionTrait;
 use SMF\Cache\CacheApi;
+use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\Routable;
+use SMF\Tasks\Buddy_Notify;
 use SMF\User;
 use SMF\Utils;
 
@@ -61,7 +64,7 @@ class BuddyListToggle implements ActionInterface, Routable
 		User::$me->isAllowedTo('profile_extra_own');
 		User::$me->kickIfGuest();
 
-		if (empty($this->userReceiver)) {
+		if (empty($this->userReceiver) || empty(Config::$modSettings['enable_buddylist'])) {
 			ErrorHandler::fatalLang('no_access', false);
 		}
 
@@ -76,7 +79,7 @@ class BuddyListToggle implements ActionInterface, Routable
 			// And add a nice alert. Don't abuse though!
 			if ((CacheApi::get('Buddy-sent-' . User::$me->id . '-' . $this->userReceiver, 86400)) == null) {
 				Db::$db->insert(
-					'insert',
+					InsertType::Insert,
 					'{db_prefix}background_tasks',
 					[
 						'task_class' => 'string',
@@ -85,7 +88,7 @@ class BuddyListToggle implements ActionInterface, Routable
 					],
 					[
 						[
-							'SMF\\Tasks\\Buddy_Notify',
+							Buddy_Notify::class,
 							Utils::jsonEncode([
 								'receiver_id' => $this->userReceiver,
 								'id_member' => User::$me->id,
@@ -104,7 +107,7 @@ class BuddyListToggle implements ActionInterface, Routable
 		}
 
 		// Update the settings.
-		User::updateMemberData(User::$me->id, ['buddy_list' => implode(',', User::$me->buddies)]);
+		User::$me->save();
 
 		// Redirect back to the profile
 		Utils::redirectexit('action=profile;u=' . $this->userReceiver);

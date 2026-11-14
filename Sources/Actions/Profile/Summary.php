@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -20,6 +20,7 @@ use SMF\Actions\Who;
 use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\EmailAddress;
 use SMF\IP;
 use SMF\Lang;
 use SMF\Menu;
@@ -63,7 +64,7 @@ class Summary implements ActionInterface
 			'can_send_pm' => User::$me->allowedTo('pm_send'),
 			'can_have_buddy' => User::$me->allowedTo('profile_extra_own') && !empty(Config::$modSettings['enable_buddylist']),
 			'can_issue_warning' => User::$me->allowedTo('issue_warning') && Config::$modSettings['warning_settings'][0] == 1,
-			'can_view_warning' => (User::$me->allowedTo('moderate_forum') || User::$me->allowedTo('issue_warning') || User::$me->allowedTo('view_warning_any') || (User::$me->is_owner && User::$me->allowedTo('view_warning_own'))) && Config::$modSettings['warning_settings'][0] === '1',
+			'can_view_warning' => (User::$me->allowedTo('moderate_forum') || User::$me->allowedTo('issue_warning') || User::$me->allowedTo('view_warning_any') || (Profile::$member->is_me && User::$me->allowedTo('view_warning_own'))) && Config::$modSettings['warning_settings'][0] === '1',
 		];
 
 		// Set a canonical URL for this page.
@@ -203,7 +204,7 @@ class Summary implements ActionInterface
 			// Check their email as well...
 			if (\strlen(Profile::$member->formatted['email']) != 0) {
 				$ban_query[] = '({string:email} LIKE bi.email_address)';
-				$ban_query_vars['email'] = Profile::$member->formatted['email'];
+				$ban_query_vars['email'] = EmailAddress::create(Profile::$member->formatted['email'])->casefolded();
 			}
 
 			// So... are they banned?  Dying to know!
@@ -269,7 +270,7 @@ class Summary implements ActionInterface
 	protected function __construct()
 	{
 		if (!isset(Profile::$member)) {
-			Profile::load();
+			Profile::loadMember();
 		}
 	}
 }

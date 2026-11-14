@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace SMF;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Tasks\UpdateTldRegex;
 use SMF\WebFetch\WebFetchApi;
 
@@ -29,16 +30,6 @@ use SMF\WebFetch\WebFetchApi;
  */
 class Url implements \Stringable
 {
-	use BackwardCompatibility;
-
-	/*****************
-	 * Class constants
-	 *****************/
-
-	public const SCHEME_HTTPS = 'https';
-	public const SCHEME_HTTP = 'http';
-	public const SCHEME_GRAVATAR = 'gravatar';
-
 	/*******************
 	 * Public properties
 	 *******************/
@@ -172,6 +163,17 @@ class Url implements \Stringable
 	 */
 	protected $is_ascii;
 
+	/****************************
+	 * Internal static properties
+	 ****************************/
+
+	/**
+	 * @var array
+	 *
+	 * Cache for $this->getIPs()
+	 */
+	protected static array $ips;
+
 	/****************
 	 * Public methods
 	 ****************/
@@ -223,7 +225,7 @@ class Url implements \Stringable
 
 		if (!empty($this->host)) {
 			if (!\function_exists('idn_to_ascii')) {
-				require_once Config::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
+				require_once Sapi::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
 			}
 
 			// Convert the host using the Punycode algorithm
@@ -275,7 +277,7 @@ class Url implements \Stringable
 
 		if (!empty($this->host)) {
 			if (!\function_exists('idn_to_utf8')) {
-				require_once Config::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
+				require_once Sapi::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
 			}
 
 			// Decode the domain from Punycode.
@@ -312,9 +314,9 @@ class Url implements \Stringable
 	/**
 	 * Performs Unicode normalization on the URL.
 	 *
-	 * Internally calls $this->sanitize(), then performs Unicode normalization on the
-	 * URL as a whole, using NFKC normalization for the domain name (see RFC 3491)
-	 * and NFC normalization for the rest.
+	 * Internally calls $this->sanitize(), then performs Unicode normalization
+	 * on the URL as a whole, using NFKC normalization for the domain name (see
+	 * RFC 3491) and NFC normalization for the rest.
 	 *
 	 * @return self A reference to this object for method chaining.
 	 */
@@ -417,7 +419,8 @@ class Url implements \Stringable
 	 * characters (a.k.a. IRIs)
 	 *
 	 * @param int $component Optional flag for parse_url's second parameter.
-	 * @return string|int|array|null|bool Same as parse_url(), but with unmangled Unicode.
+	 * @return string|int|array|null|bool Same as parse_url(), but with
+	 *    unmangled Unicode.
 	 */
 	public function parse(int $component = -1): string|int|array|bool|null
 	{
@@ -433,7 +436,7 @@ class Url implements \Stringable
 
 		foreach (['scheme', 'host', 'port', 'user', 'pass', 'path', 'query', 'fragment'] as $prop) {
 			// Clear out any old value.
-			unset($this->{$prop});
+			$this->{$prop} = null;
 
 			// Set the new value, if any.
 			if (isset($parsed[$prop])) {
@@ -443,28 +446,28 @@ class Url implements \Stringable
 
 		switch ($component) {
 			case PHP_URL_SCHEME:
-				return $this->scheme ?? null;
+				return $this->scheme;
 
 			case PHP_URL_HOST:
-				return $this->host ?? null;
+				return $this->host;
 
 			case PHP_URL_PORT:
-				return $this->port ?? null;
+				return $this->port;
 
 			case PHP_URL_USER:
-				return $this->user ?? null;
+				return $this->user;
 
 			case PHP_URL_PASS:
-				return $this->pass ?? null;
+				return $this->pass;
 
 			case PHP_URL_PATH:
-				return $this->path ?? null;
+				return $this->path;
 
 			case PHP_URL_QUERY:
-				return $this->query ?? null;
+				return $this->query;
 
 			case PHP_URL_FRAGMENT:
-				return $this->fragment ?? null;
+				return $this->fragment;
 
 			default:
 				return $parsed;
@@ -490,8 +493,20 @@ class Url implements \Stringable
 			return $proxied;
 		}
 
-		// Don't bother with HTTPS URLs, schemeless URLs, or obviously invalid URLs.
-		if (empty($proxied->scheme) || empty($proxied->host) || empty($proxied->path) || $proxied->scheme === 'https') {
+		if (
+			// Don't bother with HTTPS URLs, schemeless URLs, or obviously invalid URLs.
+			empty($proxied->scheme)
+			|| $proxied->scheme === 'https'
+			|| empty($proxied->host)
+			|| empty($proxied->path)
+			// Don't proxy URLs with domains that aren't part of public DNS.
+			|| preg_match('/\b(?' . '>example|local(?' . '>host)?|onion|test|alt|in(?' . '>ternal|valid))$/', $proxied->host)
+			// Don't proxy URLs whose hosts are private or reserved IP addresses.
+			|| (
+				filter_var(trim($proxied->host, '[]'), FILTER_VALIDATE_IP) !== false
+				&& filter_var(trim($proxied->host, '[]'), FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE) === false
+			)
+		) {
 			return $proxied;
 		}
 
@@ -513,6 +528,116 @@ class Url implements \Stringable
 		$proxied->parse();
 
 		return $proxied;
+	}
+
+	/**
+	 * Gets instances of SMF\IP for the IP address(es) that this URL's host
+	 * resolves to.
+	 *
+	 * @return array Zero or more instances of SMF\IP.
+	 */
+	public function getIPs(): array
+	{
+		$is_ascii = $this->is_ascii;
+		$this->toAscii();
+		$ascii_host = $this->host;
+
+		if (!isset(self::$ips[$ascii_host])) {
+			// Resolve the host to its address(es). A literal IP resolves to itself.
+			self::$ips[$ascii_host] = [];
+
+			if (filter_var(trim($ascii_host, '[]'), FILTER_VALIDATE_IP)) {
+				self::$ips[$ascii_host][] = new IP(trim($ascii_host, '[]'));
+			} else {
+				$records = @dns_get_record($ascii_host, DNS_A | DNS_AAAA);
+
+				foreach ((array) $records as $record) {
+					if (!empty($record['ip'])) {
+						self::$ips[$ascii_host][] = new IP($record['ip']);
+					}
+
+					if (!empty($record['ipv6'])) {
+						self::$ips[$ascii_host][] = new IP($record['ipv6']);
+					}
+				}
+			}
+		}
+
+		if (!$is_ascii) {
+			$this->toUtf8();
+		}
+
+		return self::$ips[$ascii_host];
+	}
+
+	/**
+	 * Checks whether this URL resolves to the given IP address.
+	 *
+	 * If this URL resolves to multiple IP addresses, this method returns true
+	 * if any of those IP addresses are the given one.
+	 *
+	 * @param \SMF\IP $ip The IP address to check.
+	 * @return bool Whether this URL resolves to the given IP address.
+	 */
+	public function resolvesTo(IP $ip): bool
+	{
+		foreach ($this->getIPs() as $known_ip) {
+			if ((string) $ip === (string) $known_ip) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Checks whether it is safe for the server to fetch this URL.
+	 *
+	 * Rejects URLs whose scheme is not in the fetchable set, and URLs whose
+	 * host resolves to (or is) a non-global IP address: loopback, private,
+	 * link-local (incl. 169.254.0.0/16 cloud metadata), or other reserved
+	 * ranges.
+	 *
+	 * @param array $allowed_schemes The URL schemes that the WebFetchApi is
+	 *    willing to use when fetching the content of this URL. If empty, any
+	 *    scheme that the WebFetchApi has a handler for is allowed.
+	 *    Default: []
+	 * @return bool Whether this URL is safe to fetch.
+	 */
+	public function isFetchSafe(array $allowed_schemes = []): bool
+	{
+		if (empty($allowed_schemes)) {
+			$allowed_schemes = array_keys(WebFetchApi::$scheme_handlers);
+		}
+
+		$is_ascii = $this->is_ascii;
+
+		$this->toAscii();
+
+		if (
+			// Only known fetchable schemes.
+			empty($this->scheme)
+			|| !\in_array($this->scheme, $allowed_schemes)
+			// Must have a host.
+			|| empty($this->host)
+			// Reject reserved TLDs, since they are never in public DNS.
+			|| preg_match('/\b(?' . '>example|local(?' . '>host)?|onion|test|alt|in(?' . '>ternal|valid))$/', $this->host)
+		) {
+			$is_safe = false;
+		} else {
+			$ips = $this->getIPs();
+
+			$is_safe = $ips !== [] && $ips === array_filter(
+				$ips,
+				fn($ip) => $ip->isValid(FILTER_FLAG_GLOBAL_RANGE),
+			);
+		}
+
+		if (!$is_ascii) {
+			$this->toUtf8();
+		}
+
+		return $is_safe;
 	}
 
 	/**
@@ -559,8 +684,8 @@ class Url implements \Stringable
 	public function redirectsToHttps(): bool
 	{
 		// Ask for the headers for the passed URL, but via HTTP.
-		// Need to add the trailing slash for empty paths, or it puts it there and
-		// thinks there's a redirect when there isn't.
+		// Need to add the trailing slash for empty paths, or it puts it there
+		// and thinks there's a redirect when there isn't.
 		$http_url = 'http://' . $this->host . (empty($this->path) ? '/' : $this->path);
 
 		$headers = @get_headers($http_url);
@@ -592,18 +717,29 @@ class Url implements \Stringable
 	 */
 	public function isWebsite(): bool
 	{
-		return $this->isScheme([self::SCHEME_HTTP, self::SCHEME_HTTPS]);
+		return $this->isScheme(['http', 'https']);
 	}
 
 	/**
 	 * Check if this URL uses one of the specified schemes.
+	 *
+	 * Scheme names are case insensitive, per RFC 3986, section 3.1, and this
+	 * class does not normalize them, so both sides are folded before comparing.
 	 *
 	 * @param string|string[] $scheme Schemes to check.
 	 * @return bool Whether the URL matches a scheme.
 	 */
 	public function isScheme(string|array $scheme): bool
 	{
-		return !empty($this->scheme) && \in_array($this->scheme, array_map('strval', (array) $scheme));
+		if (empty($this->scheme)) {
+			return false;
+		}
+
+		return \in_array(
+			strtolower($this->scheme),
+			array_map(fn($s) => strtolower((string) $s), (array) $scheme),
+			true,
+		);
 	}
 
 	/**
@@ -613,16 +749,15 @@ class Url implements \Stringable
 	 */
 	public function isGravatar(): bool
 	{
-		return
-			$this->isScheme(self::SCHEME_GRAVATAR)
-			|| $this->url === 'gravatar://'
-			|| (
-				!empty($this->host)
-				&& (
-					$this->host === 'gravatar.com'
-					||  $this->host === 'secure.gravatar.com'
-				)
-			);
+		return (
+			// If this literal string was passed to the constructor, parse_url()
+			// would reject it, causing $this->scheme, etc., not to be set.
+			// However, the string itself would still be written to $this->url.
+			$this->url === 'gravatar://'
+			// A valid URL was passed.
+			|| $this->isScheme('gravatar')
+			|| \in_array($this->host ?? null, ['gravatar.com', 'secure.gravatar.com'])
+		);
 	}
 
 	/***********************
@@ -650,21 +785,22 @@ class Url implements \Stringable
 	 * The optimized regex is stored in Config::$modSettings['tld_regex'].
 	 *
 	 * To update the stored version of the regex to use the latest list of valid
-	 * TLDs from iana.org, set the $update parameter to true. Updating can take some
-	 * time, based on network connectivity, so it should normally only be done by
-	 * calling this function from a background or scheduled task.
+	 * TLDs from iana.org, set the $update parameter to true. Updating can take
+	 * some time, based on network connectivity, so it should normally only be
+	 * done by calling this function from a background or scheduled task.
 	 *
-	 * If $update is not true, but the regex is missing or invalid, the regex will
-	 * be regenerated from a hard-coded list of TLDs. This regenerated regex will be
-	 * overwritten on the next scheduled update.
+	 * If $update is not true, but the regex is missing or invalid, the regex
+	 * will be regenerated from a hard-coded list of TLDs. This regenerated
+	 * regex will be overwritten on the next scheduled update.
 	 *
-	 * @param bool $update If true, fetch and process the latest official list of TLDs from iana.org.
+	 * @param bool $update If true, fetch and process the latest official list
+	 *    of TLDs from iana.org.
 	 */
 	public static function setTldRegex(bool $update = false): void
 	{
 		static $done = false;
 
-		// If we don't need to do anything, don't
+		// If we don't need to do anything, don't.
 		if (!$update && $done) {
 			return;
 		}
@@ -692,14 +828,14 @@ class Url implements \Stringable
 				$tlds = [];
 			}
 		}
-		// If we aren't updating and the regex is valid, we're done
+		// If we aren't updating and the regex is valid, we're done.
 		elseif (!empty(Config::$modSettings['tld_regex']) && @preg_match('~' . Config::$modSettings['tld_regex'] . '~', '') !== false) {
 			$done = true;
 
 			return;
 		}
 
-		// If we successfully got an update, process the list into an array
+		// If we successfully got an update, process the list into an array.
 		if (!empty($tlds)) {
 			// Clean $tlds and convert it to an array
 			$tlds = array_filter(
@@ -711,23 +847,25 @@ class Url implements \Stringable
 				},
 			);
 
-			// Convert Punycode to Unicode
+			// Convert Punycode to Unicode.
 			if (!\function_exists('idn_to_utf8')) {
-				require_once Config::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
+				require_once Sapi::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
 			}
 
 			foreach ($tlds as &$tld) {
 				$tld = idn_to_utf8($tld, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
 			}
 		}
-		// Otherwise, use the 2012 list of gTLDs and ccTLDs for now and schedule a background update
+		// Otherwise, use the 2012 list of gTLDs and ccTLDs for now and schedule
+		// a background update.
 		else {
 			$tlds = array_merge(self::$basic_tlds, self::$cc_tlds);
 
-			// Schedule a background update, unless civilization has collapsed and/or we are having connectivity issues.
+			// Schedule a background update, unless civilization has collapsed
+			// and/or we are having connectivity issues.
 			if (empty($postapocalypticNightmare)) {
 				Db::$db->insert(
-					'insert',
+					InsertType::Insert,
 					'{db_prefix}background_tasks',
 					[
 						'task_class' => 'string-255',
@@ -746,10 +884,11 @@ class Url implements \Stringable
 			}
 		}
 
-		// Tack on some "special use domain names" that aren't in DNS but may possibly resolve.
+		// Tack on some "special use domain names" that aren't in DNS but may
+		// possibly resolve.
 		$tlds = array_merge($tlds, self::$special_use_tlds);
 
-		// Get an optimized regex to match all the TLDs
+		// Get an optimized regex to match all the TLDs.
 		$tld_regex = Utils::buildRegex($tlds);
 
 		// Remember the new regex in Config::$modSettings
@@ -760,7 +899,7 @@ class Url implements \Stringable
 			Autolinker::createJavaScriptFile(true);
 		}
 
-		// Redundant repetition is redundant
+		// Redundant repetition is redundant.
 		$done = true;
 	}
 
@@ -769,8 +908,8 @@ class Url implements \Stringable
 	 ******************/
 
 	/**
-	 * Checks whether $this->url contains only ASCII characters.
-	 * Sets the value of $this->is_ascii to the result.
+	 * Checks whether $this->url contains only ASCII characters and sets the
+	 * value of $this->is_ascii to the result.
 	 */
 	protected function checkIfAscii(): void
 	{

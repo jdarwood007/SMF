@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -54,7 +54,7 @@ class Activate implements ActionInterface
 				|| Profile::$member->is_activated == User::REQUESTED_DELETE_BANNED
 				|| Profile::$member->is_activated == User::REQUESTED_DELETE_ANONYMIZE_BANNED
 			) {
-				User::delete(Utils::$context['id_member']);
+				User::delete(Profile::$member->id);
 				Utils::redirectexit();
 			}
 
@@ -64,13 +64,9 @@ class Activate implements ActionInterface
 			IntegrationHook::call('integrate_activate', [Profile::$member->username]);
 
 			// Actually update this member now, as it guarantees the unapproved count can't get corrupted.
-			User::updateMemberData(
-				Profile::$member->id,
-				[
-					'is_activated' => Profile::$member->is_activated >= User::BANNED ? User::ACTIVATED_BANNED : User::ACTIVATED,
-					'validation_code' => '',
-				],
-			);
+			Profile::$member->is_activated = Profile::$member->is_activated >= User::BANNED ? User::ACTIVATED_BANNED : User::ACTIVATED;
+			Profile::$member->validation_code = '';
+			Profile::$member->save();
 
 			// Log what we did?
 			Logging::logAction('approve_member', ['member' => Profile::$member->id], 'admin');
@@ -125,7 +121,7 @@ class Activate implements ActionInterface
 	protected function __construct()
 	{
 		if (!isset(Profile::$member)) {
-			Profile::load();
+			Profile::loadMember();
 		}
 	}
 }

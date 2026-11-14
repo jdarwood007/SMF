@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,8 @@ namespace SMF;
 
 use SMF\Cache\CacheApi;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 
 /**
  * This class loads information about the current board, as well as other boards
@@ -231,15 +233,30 @@ class Board implements \ArrayAccess, Routable
 	 * @var bool
 	 *
 	 * Whether this board is the recycle bin board.
+	 *
+	 * For the sake of compatibility with \ArrayAccess it is possible to write
+	 * to this property, but doing so is pointless because the value will be
+	 * overwritten the next time the property is read.
 	 */
-	public bool $recycle = false;
+	public bool $recycle {
+		// @todo Once \ArrayAccess compatibility is no longer required, change this hook to
+		// `get => !empty(Config::$modSettings['recycle_enable']) && $this->id == (Config::$modSettings['recycle_board'] ?? NAN);`
+		&get {
+			$this->recycle = (
+				!empty(Config::$modSettings['recycle_enable'])
+				&& $this->id == (Config::$modSettings['recycle_board'] ?? NAN)
+			);
+
+			return $this->recycle;
+		}
+	}
 
 	/**
 	 * @var bool
 	 *
 	 * Whether posts in this board count toward a user's total post count.
 	 */
-	public bool $count_posts = true;
+	public bool $posts_count = true;
 
 	/**
 	 * @var bool
@@ -326,6 +343,15 @@ class Board implements \ArrayAccess, Routable
 	 */
 	public string $error;
 
+	/**
+	 * @var bool
+	 *
+	 * Whether this board is selected in the search form.
+	 *
+	 * Only used during search.
+	 */
+	public bool $selected = false;
+
 	/**************************
 	 * Public static properties
 	 **************************/
@@ -399,7 +425,6 @@ class Board implements \ArrayAccess, Routable
 		'id_theme' => 'theme',
 		'board_theme' => 'theme',
 		'id_profile' => 'profile',
-		'posts_count' => 'count_posts',
 		'href' => 'url',
 		'id_last_msg' => 'last_msg',
 		'id_msg_updated' => 'msg_updated',
@@ -410,6 +435,7 @@ class Board implements \ArrayAccess, Routable
 
 		// Initial exclamation mark means inverse of the property.
 		'is_read' => '!new',
+		'count_posts' => '!posts_count',
 	];
 
 	/****************************
@@ -446,7 +472,7 @@ class Board implements \ArrayAccess, Routable
 			'profile',
 			'redirect',
 			'recycle',
-			'count_posts',
+			'posts_count',
 			'cur_topic_approved',
 			'cur_topic_starter',
 		],
@@ -728,7 +754,7 @@ class Board implements \ArrayAccess, Routable
 		// Are we saving the changes?
 		if ($save) {
 			foreach ($affected_boards as $board_id) {
-				self::$loaded[$board_id]->save();
+				self::$loaded[$board_id]->save(Board::SAVE_DEFINITION);
 			}
 
 			// Ensure that the order is correct.
@@ -748,8 +774,8 @@ class Board implements \ArrayAccess, Routable
 		}
 
 		// Save the unparsed description in case we need it later.
-		if (!isset($this->custom['unparsed_description'])) {
-			$this->custom['unparsed_description'] = $this->description;
+		if (!isset($this->internal_data['unparsed_description'])) {
+			$this->internal_data['unparsed_description'] = $this->description;
 		}
 
 		if (!empty(CacheApi::$enable)) {
@@ -788,8 +814,8 @@ class Board implements \ArrayAccess, Routable
 	 */
 	public function unparseDescription(): void
 	{
-		if (isset($this->custom['unparsed_description'])) {
-			$this->description = $this->custom['unparsed_description'];
+		if (isset($this->internal_data['unparsed_description'])) {
+			$this->description = $this->internal_data['unparsed_description'];
 		}
 	}
 
@@ -913,13 +939,27 @@ class Board implements \ArrayAccess, Routable
 			self::$board_id = (int) ($_REQUEST['board'] ?? 0);
 		}
 
-		if (!isset(self::$loaded[$id])) {
+		/*
+		 * The current board already has an object, and it is the one Board::$info
+		 * points at, so put that one back rather than building a second object
+		 * claiming to be the same board. Something dropping the current board from
+		 * the loaded list is not unusual: Category::getTree() unsets each board it
+		 * is about to rebuild from the row it just read. The constructor cannot
+		 * rebuild this one - it takes the "load the current board" path, finds
+		 * Board::$info already set, and returns having assigned nothing at all,
+		 * leaving an object whose typed $id throws the moment anything reads it.
+		 */
+		if (isset($id, self::$info) && $id === self::$board_id && !isset(self::$loaded[$id])) {
+			self::$loaded[$id] = self::$info;
+		}
+
+		if (!isset($id, self::$loaded[$id])) {
 			new self($id, $props);
 		} else {
 			self::$loaded[$id]->set($props);
 		}
 
-		return self::$loaded[$id] ?? null;
+		return self::$loaded[$id ?? self::$board_id] ?? null;
 	}
 
 	/**
@@ -935,7 +975,15 @@ class Board implements \ArrayAccess, Routable
 		}
 
 		// Can we unload the category too?
-		if ($id > 0 && self::$loaded[$id]->cat?->id > 0 && array_filter(self::$loaded, fn($b) => $b->id !== $id && $b->cat?->id === self::$loaded[$id]->cat->id) === []) {
+		if (
+			$id > 0
+			&& isset(self::$loaded[$id]->cat)
+			&& self::$loaded[$id]->cat->id > 0
+			&& [] === array_filter(
+				self::$loaded,
+				fn($b) => $b->id !== $id && $b->cat?->id === self::$loaded[$id]->cat->id,
+			)
+		) {
 			Category::unload(self::$loaded[$id]->cat->id);
 		}
 
@@ -996,7 +1044,7 @@ class Board implements \ArrayAccess, Routable
 
 			// Update log_mark_read and log_boards.
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}log_mark_read',
 				['id_msg' => 'int', 'id_member' => 'int', 'id_board' => 'int'],
 				$markRead,
@@ -1004,7 +1052,7 @@ class Board implements \ArrayAccess, Routable
 			);
 
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}log_boards',
 				['id_msg' => 'int', 'id_member' => 'int', 'id_board' => 'int'],
 				$markRead,
@@ -1156,7 +1204,7 @@ class Board implements \ArrayAccess, Routable
 
 				// Find all the id_member's for the member_name's in the list.
 				if (!empty($moderators)) {
-					foreach (User::load($moderators, User::LOAD_BY_NAME, 'minimal') as $moderator) {
+					foreach (User::load($moderators, User::LOAD_BY_NAME, UserDataset::Minimal) as $moderator) {
 						$boardOptions['moderators'][] = $moderator->id;
 					}
 				}
@@ -1229,7 +1277,7 @@ class Board implements \ArrayAccess, Routable
 		$board->profile = (int) ($boardOptions['profile'] ?? $board->profile ?? 1);
 
 		// Boolean properties.
-		$board->count_posts = !empty($boardOptions['posts_count'] ?? $board->count_posts ?? true);
+		$board->posts_count = !empty($boardOptions['posts_count'] ?? $board->posts_count ?? true);
 		$board->override_theme = !empty($boardOptions['override_theme'] ?? $board->override_theme ?? false);
 
 		// Array properties.
@@ -1239,17 +1287,17 @@ class Board implements \ArrayAccess, Routable
 		$board->deny_groups = $boardOptions['deny_groups'] ?? $board->deny_groups;
 
 		// There's an integration hook called in Board::save() that wants to know this.
-		$board->custom['boardOptions'] = $boardOptions;
+		$board->internal_data['boardOptions'] = $boardOptions;
 
 		// If we moved any boards, save their changes first.
 		if (!empty($moved_boards)) {
 			foreach (array_diff($moved_boards, [$board->id]) as $moved) {
-				self::$loaded[$moved]->save();
+				self::$loaded[$moved]->save(Board::SAVE_DEFINITION);
 			}
 		}
 
 		// We're ready to save the changes now.
-		$board->save();
+		$board->save(Board::SAVE_DEFINITION | Board::SAVE_MODS | Board::SAVE_GROUPS);
 
 		// If we were moving boards, ensure that the order is correct.
 		if (!empty($moved_boards)) {
@@ -1668,7 +1716,7 @@ class Board implements \ArrayAccess, Routable
 				'id' => $row['id_member'],
 				'name' => $row['real_name'],
 				'href' => Config::$scripturl . '?action=profile;u=' . $row['id_member'],
-				'link' => '<a href="' . Config::$scripturl . '?action=profile;u=' . $row['id_member'] . '">' . $row['real_name'] . '</a>',
+				'link' => '<a href="' . Config::$scripturl . '?action=profile;u=' . $row['id_member'] . '" title="' . Lang::getTxt('board_moderator', file: 'General') . '">' . $row['real_name'] . '</a>',
 			];
 		}
 		Db::$db->free_result($request);
@@ -1727,7 +1775,7 @@ class Board implements \ArrayAccess, Routable
 				'id' => $row['id_group'],
 				'name' => $row['group_name'],
 				'href' => Config::$scripturl . '?action=groups;sa=members;group=' . $row['id_group'],
-				'link' => '<a href="' . Config::$scripturl . '?action=groups;sa=members;group=' . $row['id_group'] . '">' . $row['group_name'] . '</a>',
+				'link' => '<a href="' . Config::$scripturl . '?action=groups;sa=members;group=' . $row['id_group'] . '" title="' . Lang::getTxt('board_moderator', file: 'General') . '">' . $row['group_name'] . '</a>',
 			];
 		}
 
@@ -1889,21 +1937,28 @@ class Board implements \ArrayAccess, Routable
 
 			Slug::setRequested(rtrim($matches[1], '-'), 'board', (int) $params['board']);
 
-			// Either an action suffix or a start value.
-			// This accounts for both 'boards/ID/START' and '/boards/ID/ACTION'
-			if (!empty($route)) {
-				if (isset(QueryString::$route_parsers[reset($route)])) {
-					$params = array_merge(
-						$params,
-						\call_user_func(
-							[QueryString::$route_parsers[reset($route)], 'parseRoute'],
-							$route,
-							$params,
-						),
-					);
-				} elseif (!isset($params['start'])) {
-					$params['start'] = array_shift($route);
+			// What's left can be a start value, an action suffix, or both.
+			// E.g.: 'boards/1', 'boards/1/post', and 'boards/1/20/post'.
+			// Note that we must ask QueryString::getRouteParser() rather than
+			// simply looking in QueryString::$route_parsers, because the
+			// parsers for actions are only added to that list on demand.
+			if (!empty($route) && QueryString::getRouteParser((string) reset($route)) === null) {
+				$start = array_shift($route);
+
+				if (!isset($params['start'])) {
+					$params['start'] = $start;
 				}
+			}
+
+			if (!empty($route) && ($parser = QueryString::getRouteParser((string) reset($route))) !== null) {
+				$params = array_merge(
+					$params,
+					\call_user_func(
+						[$parser, 'parseRoute'],
+						$route,
+						$params,
+					),
+				);
 			}
 		}
 
@@ -2032,8 +2087,8 @@ class Board implements \ArrayAccess, Routable
 	 *  - If cache is enabled, Board::$info is stored in cache.
 	 *  - Redirects to appropriate post if only a message ID was requested.
 	 *  - Is only used when inside a topic or board.
-	 *  - Determines the local moderators for the board and calls
-	 *    User::setModerators.
+	 *  - Loads User objects for the local moderators of the board and assigns
+	 *    them moderator status.
 	 *  - Prevents access if user is not in proper group nor a local moderator
 	 *    of the board.
 	 *
@@ -2088,7 +2143,14 @@ class Board implements \ArrayAccess, Routable
 				}
 
 				if (!empty(self::$board_id)) {
-					User::setModerators();
+					if (!empty($this->moderators)) {
+						foreach (User::load(array_keys($this->moderators)) as $mod) {
+							// Setting this to true will automatically trigger related
+							// changes like adjusting their group, icons, etc.
+							$mod->is_mod = true;
+						}
+					}
+
 					$this->checkAccess();
 					$this->buildLinkTree();
 				}
@@ -2252,7 +2314,6 @@ class Board implements \ArrayAccess, Routable
 
 							case 'id_board':
 								$props['id'] = (int) $value;
-								$props['recycle'] = !empty(Config::$modSettings['recycle_enable']) && !empty(Config::$modSettings['recycle_board']) && Config::$modSettings['recycle_board'] == $value;
 								break;
 
 							case 'id_cat':
@@ -2276,16 +2337,16 @@ class Board implements \ArrayAccess, Routable
 								break;
 
 							case 'override_theme':
-							case 'count_posts':
-								$prop[$key] = !empty($value);
+							case 'posts_count':
+								$props[$key] = !empty($value);
 								break;
 
 							case 'member_groups':
-								$prop[$key] = $value == '' ? [] : array_filter(explode(',', $value), 'strlen');
+								$props[$key] = array_map('intval', array_filter(explode(',', $value), 'strlen'));
 								break;
 
 							case 'deny_member_groups':
-								$prop['deny_groups'] = $value == '' ? [] : array_filter(explode(',', $value), 'strlen');
+								$props['deny_groups'] = array_map('intval', array_filter(explode(',', $value), 'strlen'));
 								break;
 
 							default:
@@ -2470,7 +2531,7 @@ class Board implements \ArrayAccess, Routable
 			'description' => 'string',
 			'num_topics' => 'int',
 			'num_posts' => 'int',
-			'count_posts' => 'int',
+			'posts_count' => 'int',
 			'id_theme' => 'int',
 			'override_theme' => 'int',
 			'unapproved_posts' => 'int',
@@ -2492,7 +2553,7 @@ class Board implements \ArrayAccess, Routable
 			$this->description,
 			$this->num_topics,
 			$this->num_posts,
-			(int) $this->count_posts,
+			(int) $this->posts_count,
 			$this->theme,
 			(int) $this->override_theme,
 			$this->unapproved_posts,
@@ -2502,12 +2563,12 @@ class Board implements \ArrayAccess, Routable
 		];
 
 		$this->id = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}boards',
 			$columns,
 			[$params],
 			['id_board'],
-			Db::INSERT_RETURN_MODE_SINGLE,
+			ReturnMode::SingleRow,
 		);
 
 		$this->saveViewPermissions();
@@ -2590,7 +2651,7 @@ class Board implements \ArrayAccess, Routable
 					'id_profile = {int:profile}',
 					'name = {string:board_name}',
 					'description = {string:board_description}',
-					'count_posts = {int:count_posts}',
+					'posts_count = {int:posts_count}',
 					'id_theme = {int:board_theme}',
 					'override_theme = {int:override_theme}',
 					'redirect = {string:redirect}',
@@ -2607,15 +2668,35 @@ class Board implements \ArrayAccess, Routable
 					'profile' => $this->profile,
 					'board_name' => $this->name,
 					'board_description' => $this->description,
-					'count_posts' => (int) $this->count_posts,
+					'posts_count' => (int) $this->posts_count,
 					'board_theme' => $this->theme,
 					'override_theme' => (int) $this->override_theme,
 					'redirect' => $this->redirect,
 				],
 			);
 
+			// Old mods would have expected $params['count_posts'], which had
+			// an inverted value (i.e. 0 = true, 1 = false).
+			if (!empty(Config::$backward_compatibility)) {
+				$params['count_posts'] = $count_posts = (int) !$this->posts_count;
+			}
+
 			// Do any hooks want to add or adjust anything?
-			IntegrationHook::call('integrate_modify_board', [$this->id, $this->custom['boardOptions'] ?? [], &$set, &$params]);
+			IntegrationHook::call('integrate_modify_board', [$this->id, $this->internal_data['boardOptions'] ?? [], &$set, &$params]);
+
+			// Clean up the backward compatibility changes.
+			if (!empty(Config::$backward_compatibility)) {
+				// If posts_count did not change, but count_posts did, then
+				// sync the change to count_posts back to posts_count.
+				if (
+					(int) $params['posts_count'] === (int) $this->posts_count
+					&& (int) $params['count_posts'] !== (int) $count_posts
+				) {
+					$params['posts_count'] = (int) empty($params['count_posts']);
+				}
+
+				unset($params['count_posts']);
+			}
 		}
 
 		// Perform the update.
@@ -2688,7 +2769,7 @@ class Board implements \ArrayAccess, Routable
 
 		if (!empty($this->moderators)) {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}moderators',
 				['id_board' => 'int', 'id_member' => 'int'],
 				array_map(fn($mod) => [$this->id, $mod], $this->moderators),
@@ -2707,7 +2788,7 @@ class Board implements \ArrayAccess, Routable
 
 		if (!empty($this->moderator_groups)) {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}moderator_groups',
 				['id_board' => 'int', 'id_group' => 'int'],
 				array_map(fn($mod) => [$this->id, $mod], $this->moderator_groups),

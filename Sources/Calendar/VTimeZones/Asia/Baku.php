@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Baku
  */
-class Baku extends \SMF\Calendar\VTimeZone
+class Baku extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Baku extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Baku';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1991-03-30T22:00:00+0000',
+			'metazone' => 'Azerbaijan',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Baku extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19810401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T200000Z',
 			'TZNAME' => 'UTC+05',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0500',
@@ -65,7 +83,7 @@ class Baku extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19811001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19831001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19830930T190000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0500',
 			'TZOFFSETTO' => '+0400',
@@ -73,7 +91,7 @@ class Baku extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19840930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T210000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0500',
 			'TZOFFSETTO' => '+0400',
@@ -81,46 +99,70 @@ class Baku extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19850331T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T220000Z',
 			'TZNAME' => 'UTC+05',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0500',
 		],
 		6 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T220000Z',
+			'TZNAME' => 'UTC+04',
+			'TZOFFSETFROM' => '+0400',
+			'TZOFFSETTO' => '+0400',
+		],
+		7 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19840930T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T220000Z',
+			'TZNAME' => 'UTC+03',
+			'TZOFFSETFROM' => '+0400',
+			'TZOFFSETTO' => '+0300',
+		],
+		8 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19850331T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100327T230000Z',
+			'TZNAME' => 'UTC+04',
+			'TZOFFSETFROM' => '+0300',
+			'TZOFFSETTO' => '+0400',
+		],
+		9 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19920927T030000',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0400',
 		],
-		7 => [
+		10 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19821119T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19960331T010000Z',
 			'TZNAME' => 'UTC+05',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0500',
 		],
-		8 => [
+		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19980619T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19961027T010000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0500',
 			'TZOFFSETTO' => '+0400',
 		],
-		9 => [
+		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19970330T040000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20150329T040000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20150329T000000Z',
 			'TZNAME' => 'UTC+05',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0500',
 		],
-		10 => [
+		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19971026T050000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20151025T050000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20151025T000000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0500',
 			'TZOFFSETTO' => '+0400',

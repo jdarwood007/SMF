@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Africa;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Africa/Cairo
  */
-class Cairo extends \SMF\Calendar\VTimeZone
+class Cairo extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Cairo extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Africa/Cairo';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -78,7 +96,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19420401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19440401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19440331T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -93,7 +111,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19431101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19451101T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19451031T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -115,7 +133,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19571001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19581001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19580930T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -130,7 +148,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19590501T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19810501T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19810430T230000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -138,7 +156,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19590930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=30;UNTIL=19650930T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=30;UNTIL=19650930T000000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -146,7 +164,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19661001T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19941001T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19941001T000000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -168,7 +186,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19840501T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19880501T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19880430T230000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -183,7 +201,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19900501T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19940501T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19940430T230000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -191,7 +209,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19950428T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1FR;UNTIL=20100430T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1FR;UNTIL=20100429T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -199,7 +217,7 @@ class Cairo extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19950929T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1TH;UNTIL=20050930T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1TH;UNTIL=20050929T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',

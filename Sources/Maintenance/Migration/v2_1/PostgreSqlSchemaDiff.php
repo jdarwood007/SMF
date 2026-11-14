@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -35,8 +35,10 @@ class PostgreSqlSchemaDiff extends MigrationBase
 	 *********************/
 
 	/**
-	 * Schmea fixes we will peform, these are not cross database safe as we intend to run this only on PostgreSQL.
 	 * @var array
+	 *
+	 * Schmea fixes we will peform, these are not cross database safe as we
+	 * intend to run this only on PostgreSQL.
 	 */
 	private array $schema_fixes = [
 		['log_subscribed', 'ALTER pending_details DROP DEFAULT'],
@@ -127,7 +129,7 @@ class PostgreSqlSchemaDiff extends MigrationBase
 	public function execute(): bool
 	{
 		while (Maintenance::getCurrentStart() < \count($this->schema_fixes)) {
-			$fix = $this->schemaFixes[Maintenance::getCurrentStart()];
+			$fix = $this->schema_fixes[Maintenance::getCurrentStart()];
 
 			$this->query(
 				'ALTER TABLE {db_prefix}' . $fix[0] . '
@@ -141,6 +143,7 @@ class PostgreSqlSchemaDiff extends MigrationBase
 		$this->query(
 			'DROP INDEX IF EXISTS {db_prefix}log_actions_id_topic_id_log',
 		);
+
 		$this->query(
 			'CREATE INDEX {db_prefix}log_actions_id_topic_id_log ON {db_prefix}log_actions (id_topic, id_log)',
 		);

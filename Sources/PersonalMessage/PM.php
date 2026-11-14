@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -22,6 +22,8 @@ use SMF\Autolinker;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Editor;
 use SMF\ErrorHandler;
 use SMF\Group;
@@ -29,12 +31,12 @@ use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Mail;
 use SMF\Menu;
-use SMF\Msg;
 use SMF\Parser;
 use SMF\Security;
 use SMF\Theme;
 use SMF\Time;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 use SMF\Verifier;
 
@@ -108,7 +110,7 @@ class PM implements \ArrayAccess
 	/**
 	 * @var array
 	 *
-	 * Data about received copies of this PM.
+	 * Data about received copies of this PM, keyed by the recipient's ID.
 	 */
 	public array $received = [];
 
@@ -229,7 +231,7 @@ class PM implements \ArrayAccess
 	{
 		$this->id = $id;
 		$this->set($props);
-		$this->received = Received::loadByPm($this->id);
+		$this->received = Received::loadByPm($this->id)[$this->id] ?? [];
 		$this->folder = $this->member_from !== User::$me->id ? 'inbox' : 'sent';
 		self::$loaded[$id] = $this;
 	}
@@ -327,7 +329,13 @@ class PM implements \ArrayAccess
 
 		$label_ids = array_diff(array_keys($labels), [-1]);
 
-		$href = Config::$scripturl . '?action=pm;f=' . $this->folder . (Utils::$context['current_label_id'] != -1 && !empty($label_ids) && \in_array(Utils::$context['current_label_id'], $label_ids) ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmid=' . $this->id . '#msg' . $this->id;
+		// Every link below stays in the folder the member is looking at.
+		// $this->folder is worked out from who sent the PM, which answers
+		// 'sent' for one you sent yourself, or to a list you are on, even while
+		// you are reading it in your inbox.
+		$folder = Utils::$context['folder'] ?? $this->folder;
+
+		$href = Config::$scripturl . '?action=pm;f=' . $folder . (Utils::$context['current_label_id'] != -1 && !empty($label_ids) && \in_array(Utils::$context['current_label_id'], $label_ids) ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmid=' . $this->id . '#msg' . $this->id;
 
 		$number_recipients = \count($recipients['to']);
 
@@ -356,25 +364,25 @@ class PM implements \ArrayAccess
 			'quickbuttons' => [
 				'reply_to_all' => [
 					'label' => Lang::getTxt('reply_to_all', file: 'PersonalMessage'),
-					'href' => Config::$scripturl . '?action=pm;sa=send;f=' . $this->folder . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmsg=' . $this->id . ($this->member_from != User::$me->id ? ';quote' : '') . ';u=all',
+					'href' => Config::$scripturl . '?action=pm;sa=send;f=' . $folder . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmsg=' . $this->id . ($this->member_from != User::$me->id ? ';quote' : '') . ';u=all',
 					'icon' => 'reply_all_button',
 					'show' => Utils::$context['can_send_pm'] && !$author['is_guest'] && ($number_recipients > 1 || $this->member_from == User::$me->id),
 				],
 				'reply' => [
 					'label' => Lang::getTxt('reply', file: 'General'),
-					'href' => Config::$scripturl . '?action=pm;sa=send;f=' . $this->folder . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmsg=' . $this->id . ';u=' . $this->member_from,
+					'href' => Config::$scripturl . '?action=pm;sa=send;f=' . $folder . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmsg=' . $this->id . ';u=' . $this->member_from,
 					'icon' => 'reply_button',
 					'show' => Utils::$context['can_send_pm'] && !$author['is_guest'] && $this->member_from != User::$me->id,
 				],
 				'quote' => [
 					'label' => Lang::getTxt('quote_action', file: 'General'),
-					'href' => Config::$scripturl . '?action=pm;sa=send;f=' . $this->folder . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmsg=' . $this->id . ';quote' . ($number_recipients > 1 || $this->member_from == User::$me->id ? ';u=all' : (!$author['is_guest'] ? ';u=' . $this->member_from : '')),
+					'href' => Config::$scripturl . '?action=pm;sa=send;f=' . $folder . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';pmsg=' . $this->id . ';quote' . ($number_recipients > 1 || $this->member_from == User::$me->id ? ';u=all' : (!$author['is_guest'] ? ';u=' . $this->member_from : '')),
 					'icon' => 'quote',
 					'show' => Utils::$context['can_send_pm'],
 				],
 				'delete' => [
 					'label' => Lang::getTxt('delete', file: 'General'),
-					'href' => Config::$scripturl . '?action=pm;sa=pmactions;pm_actions%5b' . $this->id . '%5D=delete;f=' . $this->folder . ';start=' . Utils::$context['start'] . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'],
+					'href' => Config::$scripturl . '?action=pm;sa=pmactions;pm_actions%5b' . $this->id . '%5D=delete;f=' . $folder . ';start=' . Utils::$context['start'] . (Utils::$context['current_label_id'] != -1 ? ';l=' . Utils::$context['current_label_id'] : '') . ';' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'],
 					'javascript' => 'data-confirm="' . Utils::escapeJavaScript(Lang::getTxt('remove_message_question', file: 'General')) . '"',
 					'class' => 'you_sure',
 					'icon' => 'remove_button',
@@ -595,7 +603,7 @@ class PM implements \ArrayAccess
 		Theme::loadJavaScriptFile('suggest.js', ['defer' => false, 'minimize' => true], 'smf_suggest');
 
 		if (Utils::$context['drafts_autosave']) {
-			Theme::loadJavaScriptFile('drafts.js', ['defer' => false, 'minimize' => true], 'smf_drafts');
+			Theme::loadJavaScriptFile('sceditor.plugins.drafts.js', ['minimize' => true], 'smf_drafts');
 		}
 
 		Utils::$context['sub_template'] = 'send';
@@ -648,10 +656,10 @@ class PM implements \ArrayAccess
 
 			// Add 'Re: ' to it....
 			if (!isset(Utils::$context['response_prefix'])) {
-				if (Lang::$default === User::$me->language) {
+				if (Config::$language === User::$me->language) {
 					Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General');
 				} elseif (!(Utils::$context['response_prefix'] = CacheApi::get('response_prefix', 600))) {
-					Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Lang::$default);
+					Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Config::$language);
 					CacheApi::put('response_prefix', Utils::$context['response_prefix'], 600);
 				}
 			}
@@ -791,6 +799,20 @@ class PM implements \ArrayAccess
 			}
 		}
 
+		$plugins = [];
+		$options = [];
+
+		if (Utils::$context['drafts_autosave']) {
+			$plugins[] = 'drafts';
+			$plugins[] = 'pmDrafts';
+			$options['draftOptions'] = [
+				'sLastNote' => 'draft_lastautosave',
+				'sLastID' => 'id_draft',
+				'sQueryParams' => 'action=pm;sa=send2',
+				'iFreq' => empty(Config::$modSettings['drafts_autosave_frequency']) ? 60000 : Config::$modSettings['drafts_autosave_frequency'] * 1000,
+			];
+		}
+
 		// Now create the editor.
 		new Editor([
 			'id' => 'message',
@@ -802,6 +824,8 @@ class PM implements \ArrayAccess
 			],
 			'preview_type' => Editor::PREVIEW_XML,
 			'required' => true,
+			'plugins' => $plugins,
+			'options' => $options,
 		]);
 
 		Utils::$context['bcc_value'] = '';
@@ -991,7 +1015,7 @@ class PM implements \ArrayAccess
 			}
 
 			// Preparse the message.
-			Msg::preparsecode($message);
+			$message = Parser::sanitize($message);
 
 			// Make sure there's still some content left without the tags.
 			$temp = Parser::transform(
@@ -1006,7 +1030,7 @@ class PM implements \ArrayAccess
 
 		// Wrong verification code?
 		if (!User::$me->is_admin && !isset($_REQUEST['xml']) && !empty(Config::$modSettings['pm_posts_verification']) && User::$me->posts < Config::$modSettings['pm_posts_verification']) {
-			$verifier = new Verifier(['id' => 'pm']);
+			$verifier = new Verifier(['id' => 'pm'], true);
 			$post_errors = array_merge($post_errors, $verifier->errors);
 		}
 
@@ -1024,10 +1048,8 @@ class PM implements \ArrayAccess
 
 			Utils::$context['preview_message'] = Utils::htmlspecialchars($_REQUEST['message'], ENT_QUOTES);
 
-			Msg::preparsecode(Utils::$context['preview_message'], true);
-
 			// Parse out the BBC if it is enabled.
-			Utils::$context['preview_message'] = Parser::transform(Utils::$context['preview_message']);
+			Utils::$context['preview_message'] = Parser::transform(Parser::sanitize(Utils::$context['preview_message'], true));
 
 			// Censor, as always.
 			Lang::censorText(Utils::$context['preview_subject']);
@@ -1157,9 +1179,7 @@ class PM implements \ArrayAccess
 		}
 
 		// This is the one that will go in their inbox.
-		$htmlmessage = Utils::htmlspecialchars($message, ENT_QUOTES);
-
-		Msg::preparsecode($htmlmessage);
+		$htmlmessage = Parser::sanitize(Utils::htmlspecialchars($message, ENT_QUOTES));
 
 		$htmlsubject = strtr(Utils::htmlspecialchars($subject), ["\r" => '', "\n" => '', "\t" => '']);
 
@@ -1192,7 +1212,7 @@ class PM implements \ArrayAccess
 			$request = Db::$db->query(
 				'SELECT id_member, member_name
 				FROM {db_prefix}members
-				WHERE ' . (Db::$db->case_sensitive ? 'LOWER(member_name)' : 'member_name') . ' IN ({array_string:usernames})',
+				WHERE {column_ci:member_name} IN ({array_string:usernames})',
 				[
 					'usernames' => array_keys($usernames),
 				],
@@ -1295,7 +1315,15 @@ class PM implements \ArrayAccess
 		}
 
 		// Load the groups that are allowed to read PMs.
-		$pmReadGroups = Group::getAllowedTo('pm_read');
+		$allGroups = Group::getAllWithPermissions('pm_read', null);
+
+		foreach ($allGroups as $k => $g) {
+			if ($g['pm_read'] === 1) {
+				$pmReadGroups['allowed'][] = $k;
+			} else {
+				$pmReadGroups['denied'][] = $k;
+			}
+		}
 
 		if (empty(Config::$modSettings['permission_enable_deny'])) {
 			$pmReadGroups['denied'] = [];
@@ -1424,7 +1452,7 @@ class PM implements \ArrayAccess
 					)
 				)
 			) {
-				$notifications[empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $row['lngfile']][] = $row['email_address'];
+				$notifications[empty($row['lngfile']) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $row['lngfile']][] = $row['email_address'];
 			}
 
 			$log['sent'][$row['id_member']] = Lang::getTxt('pm_successfully_sent', ['member' => $row['real_name']], file: 'PersonalMessage');
@@ -1438,7 +1466,7 @@ class PM implements \ArrayAccess
 
 		// Insert the message itself and then grab the last insert id.
 		$id_pm = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}personal_messages',
 			[
 				'id_pm_head' => 'int',
@@ -1463,7 +1491,7 @@ class PM implements \ArrayAccess
 				],
 			],
 			['id_pm'],
-			Db::INSERT_RETURN_MODE_SINGLE,
+			ReturnMode::SingleRow,
 		);
 
 		// Add the recipients.
@@ -1501,7 +1529,7 @@ class PM implements \ArrayAccess
 			}
 
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}pm_recipients',
 				[
 					'id_pm' => 'int', 'id_member' => 'int', 'bcc' => 'int', 'deleted' => 'int', 'is_new' => 'int',
@@ -1601,7 +1629,15 @@ class PM implements \ArrayAccess
 		}
 
 		if (!empty($all_to)) {
-			User::updateMemberData($all_to, ['instant_messages' => '+', 'unread_messages' => '+', 'new_pm' => 1]);
+			$members = User::load($all_to, dataset: UserDataset::Minimal);
+
+			foreach ($members as $member) {
+				$member->messages++;
+				$member->unread_messages++;
+				$member->new_pm = 1;
+			}
+
+			User::saveBatch($members);
 		}
 
 		return $log;
@@ -1611,7 +1647,7 @@ class PM implements \ArrayAccess
 	 * Delete the specified personal messages.
 	 *
 	 * @param int|array|null $personal_messages An array containing the IDs of PMs to delete or null to delete all of them
-	 * @param string|null $folder Which "folder" to delete PMs from - 'sent' to delete them from the outbox, null or anything else to delete from the inbox
+	 * @param ?string $folder Which "folder" to delete PMs from - 'sent' to delete them from the outbox, null or anything else to delete from the inbox
 	 * @param array|int|null $owner An array of IDs of users whose PMs are being deleted, the ID of a single user or null to use the current user's ID
 	 */
 	public static function delete(int|array|null $personal_messages, ?string $folder = null, array|int|null $owner = null): void
@@ -1655,7 +1691,10 @@ class PM implements \ArrayAccess
 		}
 
 		if ($folder != 'sent' || $folder === null) {
-			// Calculate the number of messages each member's gonna lose...
+			// Load the affected members.
+			$members = User::load($owner, dataset: UserDataset::Minimal);
+
+			// Calculate the number of messages each member is going to lose...
 			$request = Db::$db->query(
 				'SELECT id_member, COUNT(*) AS num_deleted_messages, CASE WHEN is_read & 1 >= 1 THEN 1 ELSE 0 END AS is_read
 				FROM {db_prefix}pm_recipients
@@ -1669,24 +1708,21 @@ class PM implements \ArrayAccess
 				],
 			);
 
-			// ...And update the statistics accordingly - now including unread messages!.
+			// Update the statistics accordingly - now including unread messages!
 			while ($row = Db::$db->fetch_assoc($request)) {
-				if ($row['is_read']) {
-					User::updateMemberData((int) $row['id_member'], ['instant_messages' => $where == '' ? 0 : 'instant_messages - ' . $row['num_deleted_messages']]);
-				} else {
-					User::updateMemberData((int) $row['id_member'], ['instant_messages' => $where == '' ? 0 : 'instant_messages - ' . $row['num_deleted_messages'], 'unread_messages' => $where == '' ? 0 : 'unread_messages - ' . $row['num_deleted_messages']]);
-				}
+				$member = array_find($members, fn($mem) => $mem->id == $row['id_member']);
 
-				// If this is the current member we need to make their message count correct.
-				if (User::$me->id == $row['id_member']) {
-					User::$me->messages -= $row['num_deleted_messages'];
+				$member->messages -= $row['num_deleted_messages'];
 
-					if (!($row['is_read'])) {
-						User::$me->unread_messages -= $row['num_deleted_messages'];
-					}
+				if (!$row['is_read']) {
+					$member->unread_messages -= $row['num_deleted_messages'];
 				}
 			}
+
 			Db::$db->free_result($request);
+
+			// Save the changes to the affected members.
+			User::saveBatch($members);
 
 			// Do the actual deletion.
 			Db::$db->query(
@@ -1898,11 +1934,14 @@ class PM implements \ArrayAccess
 
 			// Need to store all this.
 			CacheApi::put('labelCounts:' . $owner, Utils::$context['labels'], 720);
-			User::updateMemberData((int) $owner, ['unread_messages' => $total_unread]);
 
-			// If it was for the current member, reflect this in User::$me as well.
 			if ($owner == User::$me->id) {
 				User::$me->unread_messages = $total_unread;
+				User::$me->save();
+			} else {
+				$member = current(User::load($owner, dataset: UserDataset::None));
+				$member->unread_messages = $total_unread;
+				$member->save();
 			}
 		}
 	}

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Belem
  */
-class Belem extends \SMF\Calendar\VTimeZone
+class Belem extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Belem extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Belem';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Brasilia',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Belem extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19320401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19330401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=31;UNTIL=19330401T020000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
@@ -72,7 +90,7 @@ class Belem extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19491201T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=1;UNTIL=19521201T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=1;UNTIL=19521201T030000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
@@ -87,7 +105,7 @@ class Belem extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19510401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19520401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=31;UNTIL=19520401T020000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
@@ -122,7 +140,7 @@ class Belem extends \SMF\Calendar\VTimeZone
 		],
 		11 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19650331T000000',
+			'DTSTART' => '19650401T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
@@ -136,8 +154,7 @@ class Belem extends \SMF\Calendar\VTimeZone
 		],
 		13 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19660301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19680301T000000',
+			'DTSTART' => '19660301T010000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
@@ -145,47 +162,55 @@ class Belem extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19661101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19671101T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19671101T030000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
 		],
 		15 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19670301T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19680301T020000Z',
+			'TZNAME' => 'UTC-03',
+			'TZOFFSETFROM' => '-0200',
+			'TZOFFSETTO' => '-0300',
+		],
+		16 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19851102T000000',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
 		],
-		16 => [
+		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860315T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
 		],
-		17 => [
+		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19861025T000000',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
 		],
-		18 => [
+		19 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19870214T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
 		],
-		19 => [
+		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19871025T000000',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
 		],
-		20 => [
+		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19880207T000000',
 			'TZNAME' => 'UTC-03',

@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; Search
+// Version: 3.0 Alpha 5-dev; Search
 
 // Comma-separated list of words that should be ignored when searching in this language. Translators should NOT just translate the words in this list. Instead, replace them with common words that should be ignored when searching in the target language.
 $txt['search_stopwords'] = 'a,about,an,are,as,at,be,by,for,from,how,in,is,it,of,on,or,that,the,this,to,was,what,when,where,who,will,with';
@@ -83,7 +83,7 @@ $txt['search_index_size'] = 'Size:';
 $txt['search_index_remove'] = 'Remove';
 $txt['search_index_resume'] = 'Resume';
 // This string is used in a javascript confirmation popup; don't use entities.
-$txt['search_index_custom_warning'] = 'In order to be able to use a custom index search, you must first create a custom index.';
+$txt['search_index_custom_warning'] = 'In order to be able to use this search index, you must first create it.';
 
 $txt['search_force_index'] = 'Force the use of a search index';
 $txt['search_match_words'] = 'Match whole words only';

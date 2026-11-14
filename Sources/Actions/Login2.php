@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -21,6 +21,7 @@ use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Cookie;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\IP;
@@ -67,6 +68,17 @@ class Login2 implements ActionInterface, Routable
 		'salt' => 'updateSalt',
 		'check' => 'checkCookie',
 	];
+
+	/*********************
+	 * Internal properties
+	 *********************/
+
+	/**
+	 * @var User
+	 *
+	 * The member they are trying to login as.
+	 */
+	private User $member;
 
 	/****************
 	 * Public methods
@@ -137,20 +149,12 @@ class Login2 implements ActionInterface, Routable
 		// Try checking for 2.1 json-format cookie in $_SESSION
 		elseif (isset($_SESSION['login_' . Config::$cookiename]) && preg_match('~^{"0":\d+,"1":"[0-9a-f]*","2":\d+~', $_SESSION['login_' . Config::$cookiename]) === 1) {
 			list(, , $timeout) = Utils::jsonDecode($_SESSION['login_' . Config::$cookiename]);
-		}
-		// Next, try checking for 2.0 serialized string cookie in $_COOKIE
-		elseif (isset($_COOKIE[Config::$cookiename]) && preg_match('~^a:[34]:\{i:0;i:\d+;i:1;s:(0|40):"([a-fA-F0-9]{40})?";i:2;[id]:\d+;~', $_COOKIE[Config::$cookiename]) === 1) {
-			list(, , $timeout) = Utils::safeUnserialize($_COOKIE[Config::$cookiename]);
-		}
-		// Last, see if you need to fall back on checking for 2.0 serialized string cookie in $_SESSION
-		elseif (isset($_SESSION['login_' . Config::$cookiename]) && preg_match('~^a:[34]:\{i:0;i:\d+;i:1;s:(0|40):"([a-fA-F0-9]{40})?";i:2;[id]:\d+;~', $_SESSION['login_' . Config::$cookiename]) === 1) {
-			list(, , $timeout) = Utils::safeUnserialize($_SESSION['login_' . Config::$cookiename]);
 		} else {
 			throw new \Exception('login_no_session_cookie');
 		}
 
 		User::$me->password_salt = bin2hex(random_bytes(16));
-		User::updateMemberData(User::$me->id, ['password_salt' => User::$me->password_salt]);
+		User::$me->save();
 
 		// Preserve the 2FA cookie?
 		if (!empty(Config::$modSettings['tfa_mode']) && !empty($_COOKIE[Config::$cookiename . '_tfa'])) {
@@ -257,6 +261,7 @@ class Login2 implements ActionInterface, Routable
 
 		// Cookies are required...
 		if (empty($_COOKIE)) {
+			Cookie::setLoginCookie(Cookie::LENGTH_DEFAULT, 0, '');
 			Utils::$context['login_errors'] = [Lang::getTxt('login_cookie_error', file: 'Errors')];
 
 			return;
@@ -284,50 +289,69 @@ class Login2 implements ActionInterface, Routable
 				true,
 			)
 		) {
-			Utils::$context['login_errors'] = [Lang::getTxt('incorrect_password', file: 'Login')];
+			Utils::$context['login_errors'] = [Lang::getTxt('invalid_credentials', file: 'General')];
 
 			return;
 		}
 
 		// Load the data up!
-		$loaded = User::load($_POST['user'], User::LOAD_BY_NAME, 'minimal');
+		$loaded = User::load($_POST['user'], User::LOAD_BY_NAME, User::$me->dataset);
 
 		// Probably mistyped or their email, try it as an email address. (member_name first, though!)
 		if (empty($loaded)) {
-			$loaded = User::load($_POST['user'], User::LOAD_BY_EMAIL, 'minimal');
+			$loaded = User::load($_POST['user'], User::LOAD_BY_EMAIL, User::$me->dataset);
 		}
 
 		// Let them try again, it didn't match anything...
 		if (empty($loaded)) {
-			Utils::$context['login_errors'] = [Lang::getTxt('username_no_exist', file: 'General')];
+			Utils::$context['login_errors'] = [Lang::getTxt('invalid_credentials', file: 'General')];
 
 			return;
 		}
 
-		User::$my_id = (reset($loaded))->id;
+		$this->member = reset($loaded);
 
 		// Bad password! Thought you could fool the database?!
-		if (!Security::hashVerifyPassword(Utils::htmlspecialcharsDecode($_POST['passwrd']), User::$profiles[User::$my_id]['passwd'])) {
-			// If the forum was recently upgraded, password might be encrypted
-			// using a different algorithm. If so, fix it. Otherwise, bail out.
-			if (!$this->checkPasswordFallbacks()) {
-				return;
+		if (
+			!Security::checkPassword(
+				Utils::htmlspecialcharsDecode($_POST['passwrd']),
+				$this->member,
+				Security::PASSWORD_FALLBACK_ALL,
+			)
+		) {
+			// They've messed up again - keep a count to see if they need a hand.
+			$_SESSION['failed_login'] ??= 0;
+			$_SESSION['failed_login']++;
+
+			// Hmm... don't remember it, do you?  Here, try the password reminder ;).
+			if ($_SESSION['failed_login'] >= Config::$modSettings['failed_login_threshold']) {
+				Utils::redirectexit('action=reminder');
 			}
+			// We'll give you another chance...
+			else {
+				// Log an error so we know that it didn't go well in the error log.
+				ErrorHandler::log(Lang::getTxt('incorrect_password', file: 'Login') . ' - <span class="remove">' . $this->member->username . '</span>', 'user');
+
+				Utils::$context['login_errors'] = [Lang::getTxt('invalid_credentials', file: 'General')];
+			}
+
+			return;
 		}
+
 		// Correct password, but it took multiple tries...
-		elseif (!empty(User::$profiles[User::$my_id]['passwd_flood'])) {
+		if (!empty($this->member->passwd_flood)) {
 			// Let's be sure they weren't a little hacker.
-			self::validatePasswordFlood(User::$profiles[User::$my_id]['id_member'], User::$profiles[User::$my_id]['member_name'], User::$profiles[User::$my_id]['passwd_flood'], true);
+			Security::validatePasswordFlood($this->member->id, $this->member->username, $this->member->passwd_flood, true);
 
 			// If we got here then we can reset the flood counter.
-			User::updateMemberData(User::$profiles[User::$my_id]['id_member'], ['passwd_flood' => '']);
+			$this->member->passwd_flood = '';
+			$this->member->save();
 		}
 
 		// Correct password, but they've got no salt. Fix it!
-		if (\strlen(User::$profiles[User::$my_id]['password_salt']) < 32) {
-			User::$profiles[User::$my_id]['password_salt'] = bin2hex(random_bytes(16));
-
-			User::updateMemberData(User::$profiles[User::$my_id]['id_member'], ['password_salt' => User::$profiles[User::$my_id]['password_salt']]);
+		if (\strlen($this->member->password_salt) < 32) {
+			$this->member->password_salt = bin2hex(random_bytes(16));
+			$this->member->save();
 		}
 
 		// Check their activation status.
@@ -383,72 +407,6 @@ class Login2 implements ActionInterface, Routable
 		}
 	}
 
-	/**
-	 * This protects against brute force attacks on a member's password.
-	 * Importantly, even if the password was right we DON'T TELL THEM!
-	 *
-	 * @param int $id_member The ID of the member
-	 * @param string $member_name The name of the member.
-	 * @param bool|string $password_flood_value False if we don't have a flood value, otherwise a string with a timestamp and number of tries separated by a |
-	 * @param bool $was_correct Whether or not the password was correct
-	 * @param bool $tfa Whether we're validating for two-factor authentication
-	 */
-	public static function validatePasswordFlood(int $id_member, string $member_name, bool|string $password_flood_value = false, bool $was_correct = false, bool $tfa = false): void
-	{
-		// As this is only brute protection, we allow 5 attempts every 10 seconds.
-
-		// Destroy any session or cookie data about this member, as they validated wrong.
-		// Only if they're not validating for 2FA
-		if (!$tfa) {
-			Cookie::setLoginCookie(-3600, 0);
-
-			if (isset($_SESSION['login_' . Config::$cookiename])) {
-				unset($_SESSION['login_' . Config::$cookiename]);
-			}
-		}
-
-		// We need a member!
-		if (!$id_member) {
-			// Redirect back!
-			Utils::redirectexit();
-
-			// Probably not needed, but still make sure...
-			ErrorHandler::fatalLang('no_access', false);
-		}
-
-		// Right, have we got a flood value?
-		if ($password_flood_value !== false) {
-			@list($time_stamp, $number_tries) = explode('|', $password_flood_value);
-		}
-
-		// Timestamp or number of tries invalid?
-		if (empty($number_tries) || empty($time_stamp)) {
-			$number_tries = 0;
-			$time_stamp = time();
-		}
-
-		// They've failed logging in already
-		if (!empty($number_tries)) {
-			// Give them less chances if they failed before
-			$number_tries = $time_stamp < time() - 20 ? 2 : $number_tries;
-
-			// They are trying too fast, make them wait longer
-			if ($time_stamp < time() - 10) {
-				$time_stamp = time();
-			}
-		}
-
-		$number_tries++;
-
-		// Broken the law?
-		if ($number_tries > 5) {
-			ErrorHandler::fatalLang('login_threshold_brute_fail', 'login', [$member_name]);
-		}
-
-		// Otherwise set the members data. If they correct on their first attempt then we actually clear it, otherwise we set it!
-		User::updateMemberData($id_member, ['passwd_flood' => $was_correct && $number_tries == 1 ? '' : $time_stamp . '|' . $number_tries]);
-	}
-
 	/******************
 	 * Internal methods
 	 ******************/
@@ -501,216 +459,6 @@ class Login2 implements ActionInterface, Routable
 	}
 
 	/**
-	 * Checks $_POST['passwrd'] against other possible encrypted strings.
-	 *
-	 * If a match is found, the old encrypted string is replaced with an updated
-	 * version that uses modern encryption.
-	 *
-	 * This allows seamlessly updating the encryption after the forum has been
-	 * upgraded or converted.
-	 *
-	 * @return bool Whether the supplied password was correct.
-	 */
-	protected function checkPasswordFallbacks(): bool
-	{
-		// Let's be cautious, no hacking please. thanx.
-		self::validatePasswordFlood(User::$profiles[User::$my_id]['id_member'], User::$profiles[User::$my_id]['member_name'], User::$profiles[User::$my_id]['passwd_flood']);
-
-		// Maybe we were too hasty... let's try some other authentication methods.
-		$other_passwords = [];
-
-		// SMF 2.1 prepended the username before the password.
-		if (Security::hashVerifyPassword(Utils::strtolower(User::$profiles[User::$my_id]['member_name']) . Utils::htmlspecialcharsDecode($_POST['passwrd']), User::$profiles[User::$my_id]['passwd'])) {
-			$other_passwords[] = User::$profiles[User::$my_id]['passwd'];
-		}
-
-		// SMF 1.1 and 2.0 password styles.
-		if (\strlen(User::$profiles[User::$my_id]['passwd']) == 40) {
-			// Maybe they are using a hash from before the password fix.
-			// This is also valid for SMF 1.1 to 2.0 style of hashing, changed to bcrypt in SMF 2.1
-			$other_passwords[] = sha1(strtolower(User::$profiles[User::$my_id]['member_name']) . Utils::htmlspecialcharsDecode($_POST['passwrd']));
-
-			// Perhaps we converted to UTF-8 and have a valid password being hashed differently.
-			if (!empty(Config::$modSettings['previousCharacterSet']) && Config::$modSettings['previousCharacterSet'] != 'utf8') {
-				// Try iconv first, for no particular reason.
-				if (\function_exists('iconv')) {
-					$other_passwords['iconv'] = sha1(strtolower(iconv('UTF-8', Config::$modSettings['previousCharacterSet'], User::$profiles[User::$my_id]['member_name'])) . Utils::htmlspecialcharsDecode(iconv('UTF-8', Config::$modSettings['previousCharacterSet'], $_POST['passwrd'])));
-				}
-
-				// Say it aint so, iconv failed!
-				if (empty($other_passwords['iconv']) && \function_exists('mb_convert_encoding')) {
-					$other_passwords[] = sha1(strtolower(mb_convert_encoding(User::$profiles[User::$my_id]['member_name'], 'UTF-8', Config::$modSettings['previousCharacterSet'])) . Utils::htmlspecialcharsDecode(mb_convert_encoding($_POST['passwrd'], 'UTF-8', Config::$modSettings['previousCharacterSet'])));
-				}
-			}
-		}
-
-		// None of the below cases will be used most of the time (because the salt is normally set.)
-		if (!empty(Config::$modSettings['enable_password_conversion']) && User::$profiles[User::$my_id]['password_salt'] == '') {
-			// YaBB SE, Discus, MD5 (used a lot), SHA-1 (used some), SMF 1.0.x, IkonBoard, and none at all.
-			switch (\strlen(User::$profiles[User::$my_id]['passwd'])) {
-				case 13:
-					$other_passwords[] = crypt($_POST['passwrd'], substr($_POST['passwrd'], 0, 2));
-					$other_passwords[] = crypt($_POST['passwrd'], substr(User::$profiles[User::$my_id]['passwd'], 0, 2));
-					$other_passwords[] = crypt($_POST['passwrd'], User::$profiles[User::$my_id]['passwd']);
-
-					// This one is a strange one... MyPHP, crypt() on the MD5 hash.
-					$other_passwords[] = crypt(md5($_POST['passwrd']), md5($_POST['passwrd']));
-					break;
-
-				case 32:
-					$other_passwords[] = md5($_POST['passwrd']);
-					$other_passwords[] = hash_hmac('md5', $_POST['passwrd'], strtolower(User::$profiles[User::$my_id]['member_name']));
-					$other_passwords[] = md5($_POST['passwrd'] . strtolower(User::$profiles[User::$my_id]['member_name']));
-					$other_passwords[] = md5(md5($_POST['passwrd']));
-
-					// APBoard 2 Login Method.
-					$other_passwords[] = md5(crypt($_POST['passwrd'], 'CRYPT_MD5'));
-					break;
-
-				case 34:
-					// phpBB3.
-					$other_passwords[] = $this->phpBB3_password_check($_POST['passwrd'], User::$profiles[User::$my_id]['passwd']);
-					break;
-
-				case 40:
-					$other_passwords[] = sha1($_POST['passwrd']);
-					break;
-
-				case 64:
-					// Snitz style - SHA-256.
-					$other_passwords[] = hash('sha256', $_POST['passwrd']);
-					break;
-			}
-
-			$other_passwords[] = $_POST['passwrd'];
-		}
-		// If the salt is set let's try some other options
-		elseif (!empty(Config::$modSettings['enable_password_conversion']) && User::$profiles[User::$my_id]['password_salt'] != '') {
-			switch (\strlen(User::$profiles[User::$my_id]['passwd'])) {
-				case 32:
-					// MyBB
-					$other_passwords[] = md5(md5(User::$profiles[User::$my_id]['password_salt']) . md5($_POST['passwrd']));
-
-					// vBulletin 3 style hashing?  Let's welcome them with open arms \o/.
-					$other_passwords[] = md5(md5($_POST['passwrd']) . stripslashes(User::$profiles[User::$my_id]['password_salt']));
-
-					// Hmm.. p'raps it's Invision 2 style?
-					$other_passwords[] = md5(md5(User::$profiles[User::$my_id]['password_salt']) . md5($_POST['passwrd']));
-
-					// Some common md5 ones.
-					$other_passwords[] = md5(User::$profiles[User::$my_id]['password_salt'] . $_POST['passwrd']);
-					$other_passwords[] = md5($_POST['passwrd'] . User::$profiles[User::$my_id]['password_salt']);
-					break;
-
-				case 40:
-					// BurningBoard3 style of hashing.
-					$other_passwords[] = sha1(User::$profiles[User::$my_id]['password_salt'] . sha1(User::$profiles[User::$my_id]['password_salt'] . sha1($_POST['passwrd'])));
-					// PunBB
-					$other_passwords[] = sha1(User::$profiles[User::$my_id]['password_salt'] . sha1($_POST['passwrd']));
-					break;
-
-				case 64:
-					// PHP-Fusion
-					$other_passwords[] = hash_hmac('sha256', $_POST['passwrd'], User::$profiles[User::$my_id]['password_salt']);
-					break;
-			}
-		}
-
-		// Allows mods to easily extend the $other_passwords array
-		IntegrationHook::call('integrate_other_passwords', [&$other_passwords]);
-
-		// Whichever encryption it was using, let's make it use SMF's now ;).
-		if (\in_array(User::$profiles[User::$my_id]['passwd'], $other_passwords)) {
-			User::$profiles[User::$my_id]['passwd'] = Security::hashPassword(Utils::htmlspecialcharsDecode($_POST['passwrd']));
-			User::$profiles[User::$my_id]['password_salt'] = bin2hex(random_bytes(16));
-
-			// Update the password and set up the hash.
-			User::updateMemberData(User::$profiles[User::$my_id]['id_member'], ['passwd' => User::$profiles[User::$my_id]['passwd'], 'password_salt' => User::$profiles[User::$my_id]['password_salt'], 'passwd_flood' => '']);
-		}
-		// Okay, they for sure didn't enter the password!
-		else {
-			// They've messed up again - keep a count to see if they need a hand.
-			$_SESSION['failed_login'] = isset($_SESSION['failed_login']) ? ($_SESSION['failed_login'] + 1) : 1;
-
-			// Hmm... don't remember it, do you?  Here, try the password reminder ;).
-			if ($_SESSION['failed_login'] >= Config::$modSettings['failed_login_threshold']) {
-				Utils::redirectexit('action=reminder');
-			}
-			// We'll give you another chance...
-			else {
-				// Log an error so we know that it didn't go well in the error log.
-				ErrorHandler::log(Lang::getTxt('incorrect_password', file: 'Login') . ' - <span class="remove">' . User::$profiles[User::$my_id]['member_name'] . '</span>', 'user');
-
-				Utils::$context['login_errors'] = [Lang::getTxt('incorrect_password', file: 'Login')];
-
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Custom encryption for phpBB3 based passwords.
-	 *
-	 * @return ?string The hashed version of $_POST['passwrd']
-	 */
-	protected function phpBB3_password_check(string $passwd, string $passwd_hash): ?string
-	{
-		// Too long or too short?
-		if (\strlen($passwd_hash) != 34) {
-			return null;
-		}
-
-		// Range of characters allowed.
-		$range = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-
-		// Tests
-		$strpos = strpos($range, $passwd_hash[3]);
-		$count = 1 << $strpos;
-		$salt = substr($passwd_hash, 4, 8);
-
-		$hash = md5($salt . $passwd, true);
-
-		for (; $count != 0; --$count) {
-			$hash = md5($hash . $passwd, true);
-		}
-
-		$output = substr($passwd_hash, 0, 12);
-		$i = 0;
-
-		while ($i < 16) {
-			$value = \ord($hash[$i++]);
-			$output .= $range[$value & 0x3f];
-
-			if ($i < 16) {
-				$value |= \ord($hash[$i]) << 8;
-			}
-
-			$output .= $range[($value >> 6) & 0x3f];
-
-			if ($i++ >= 16) {
-				break;
-			}
-
-			if ($i < 16) {
-				$value |= \ord($hash[$i]) << 16;
-			}
-
-			$output .= $range[($value >> 12) & 0x3f];
-
-			if ($i++ >= 16) {
-				break;
-			}
-
-			$output .= $range[($value >> 18) & 0x3f];
-		}
-
-		// Return now.
-		return $output;
-	}
-
-	/**
 	 * Check activation status of the current user.
 	 *
 	 * @return bool True if they are activated, false otherwise.
@@ -722,11 +470,11 @@ class Login2 implements ActionInterface, Routable
 		}
 
 		// What is the true activation status of this account?
-		$activation_status = User::$profiles[User::$my_id]['is_activated'] % User::BANNED;
+		$activation_status = $this->member->is_activated % User::BANNED;
 
 		// Check if the account is activated - COPPA first...
 		if ($activation_status == User::NEED_COPPA) {
-			Utils::$context['login_errors'][] = Lang::getTxt('coppa_no_consent', file: 'Login') . ' <a href="' . Config::$scripturl . '?action=coppa;member=' . User::$profiles[User::$my_id]['id_member'] . '">' . Lang::getTxt('coppa_need_more_details', file: 'Login') . '</a>';
+			Utils::$context['login_errors'][] = Lang::getTxt('coppa_no_consent', file: 'Login') . ' <a href="' . Config::$scripturl . '?action=coppa;member=' . $this->member->id . '">' . Lang::getTxt('coppa_need_more_details', file: 'Login') . '</a>';
 
 			return false;
 		}
@@ -738,7 +486,8 @@ class Login2 implements ActionInterface, Routable
 		// Awaiting deletion, changed their mind?
 		elseif (\in_array($activation_status, [User::REQUESTED_DELETE, User::REQUESTED_DELETE_ANONYMIZE])) {
 			if (isset($_REQUEST['undelete'])) {
-				User::updateMemberData(User::$profiles[User::$my_id]['id_member'], ['is_activated' => User::$profiles[User::$my_id]['is_activated'] >= User::BANNED ? User::ACTIVATED_BANNED : User::ACTIVATED]);
+				$this->member->is_activated = $this->member->is_activated >= User::BANNED ? User::ACTIVATED_BANNED : User::ACTIVATED;
+				$this->member->save();
 
 				Config::updateModSettings(['unapprovedMembers' => (Config::$modSettings['unapprovedMembers'] > 0 ? Config::$modSettings['unapprovedMembers'] - 1 : 0)]);
 			} else {
@@ -751,9 +500,9 @@ class Login2 implements ActionInterface, Routable
 		}
 		// Standard activation?
 		elseif ($activation_status != User::ACTIVATED) {
-			ErrorHandler::log(Lang::getTxt('activate_not_completed1', file: 'Login') . ' - <span class="remove">' . User::$profiles[User::$my_id]['member_name'] . '</span>', 'user');
+			ErrorHandler::log(Lang::getTxt('activate_not_completed1', file: 'Login') . ' - <span class="remove">' . $this->member->username . '</span>', 'user');
 
-			Utils::$context['login_errors'][] = Lang::getTxt('activate_not_completed1', file: 'Login') . ' <a href="' . Config::$scripturl . '?action=activate;sa=resend;u=' . User::$profiles[User::$my_id]['id_member'] . '">' . Lang::getTxt('activate_not_completed2', file: 'Login') . '</a>';
+			Utils::$context['login_errors'][] = Lang::getTxt('activate_not_completed1', file: 'Login') . ' <a href="' . Config::$scripturl . '?action=activate;sa=resend;u=' . $this->member->id . '">' . Lang::getTxt('activate_not_completed2', file: 'Login') . '</a>';
 
 			return false;
 		}
@@ -770,7 +519,7 @@ class Login2 implements ActionInterface, Routable
 		IntegrationHook::call(
 			'integrate_login',
 			[
-				User::$profiles[User::$my_id]['member_name'],
+				$this->member->username,
 				null,
 				// This is divided by 60 for compatibility with old mods that
 				// expected a number of minutes rather than a number of seconds.
@@ -779,7 +528,7 @@ class Login2 implements ActionInterface, Routable
 		);
 
 		// Get ready to set the cookie...
-		User::setMe(User::$my_id);
+		User::setMe($this->member->id);
 		User::$me->stay_logged_in = !empty(Utils::$context['never_expire']);
 
 		// Bam!  Cookie set.  A session too, just in case.
@@ -791,7 +540,7 @@ class Login2 implements ActionInterface, Routable
 		}
 
 		// Are you banned?
-		User::$me->kickIfBanned(true);
+		User::$me->enforceBans(true);
 
 		// Don't stick the language or theme after this point.
 		unset($_SESSION['language'], $_SESSION['id_theme']);
@@ -804,13 +553,15 @@ class Login2 implements ActionInterface, Routable
 		}
 
 		// You've logged in, haven't you?
-		$update = ['member_ip' => User::$me->ip, 'member_ip2' => IP::getUserIPAlternative()];
+		User::$me->ip = IP::getUserIP();
+		User::$me->ip2 = IP::getUserIPAlternative();
+		User::$me->validation_code = '';
 
 		if (empty(User::$me->tfa_secret)) {
-			$update['last_login'] = time();
+			User::$me->last_login = time();
 		}
 
-		User::updateMemberData(User::$me->id, $update);
+		User::$me->save();
 
 		// Get rid of the online entry for that old guest....
 		Db::$db->query(
@@ -825,7 +576,7 @@ class Login2 implements ActionInterface, Routable
 		// Log this entry, only if we have it enabled.
 		if (!empty(Config::$modSettings['loginHistoryDays'])) {
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}member_logins',
 				[
 					'id_member' => 'int',

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Etc;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Etc/GMT+7
  */
-class GMT7 extends \SMF\Calendar\VTimeZone
+class GMT7 extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -39,5 +41,13 @@ class GMT7 extends \SMF\Calendar\VTimeZone
 	 * Developers: Do not update the data in this array manually. Instead,
 	 * run "php -f other/update_timezones.php" on the command line.
 	 */
-	public array $components = [];
+	public array $components = [
+		0 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '15821014T170000',
+			'TZNAME' => 'UTC-07',
+			'TZOFFSETFROM' => '-0700',
+			'TZOFFSETTO' => '-0700',
+		],
+	];
 }

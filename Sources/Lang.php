@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -100,13 +100,6 @@ class Lang
 	/**
 	 * @var string
 	 *
-	 * Local copy of SMF\Config::$language
-	 */
-	public static string $default;
-
-	/**
-	 * @var string
-	 *
 	 * MessageFormat string to show the SMF copyright.
 	 * The default value will be overwritten when a language is loaded.
 	 */
@@ -129,7 +122,7 @@ class Lang
 	/**
 	 * @var array
 	 *
-	 * Array of localized strings for time zone "meta-zones".
+	 * Array of localized strings for time zone metazones.
 	 */
 	public static array $tztxt = [];
 
@@ -146,13 +139,6 @@ class Lang
 	 * Array of localized strings for the admin help popup.
 	 */
 	public static array $helptxt = [];
-
-	/**
-	 * @var array
-	 *
-	 * Language file directories.
-	 */
-	public static array $dirs = [];
 
 	/**
 	 * @var string
@@ -191,6 +177,13 @@ class Lang
 	/**
 	 * @var array
 	 *
+	 * Language file directories.
+	 */
+	private static array $dirs = [];
+
+	/**
+	 * @var array
+	 *
 	 * Tracks which language files we have loaded.
 	 */
 	private static $already_loaded = [];
@@ -219,6 +212,27 @@ class Lang
 	 */
 	private static array $localized_copyright = [];
 
+	/**
+	 * @var array
+	 *
+	 * Regular expressions to match any censored words.
+	 */
+	private static array $censor_vulgar;
+
+	/**
+	 * @var array
+	 *
+	 * Replacements for the censored words.
+	 */
+	private static array $censor_proper;
+
+	/**
+	 * @var array
+	 *
+	 * Instances of \Collator for Lang::collate() and Lang::compareStrings().
+	 */
+	private static array $collators;
+
 	/***********************
 	 * Public static methods
 	 ***********************/
@@ -239,15 +253,15 @@ class Lang
 	 *    loaded.
 	 * @return string The language actually loaded.
 	 */
-	public static function load(string $filename, string $lang = '', bool $fatal = true, bool $force_reload = false): string
-	{
-		if (!isset(self::$default)) {
-			self::$default = &Config::$language;
-		}
-
+	public static function load(
+		string $filename,
+		string $lang = '',
+		bool $fatal = true,
+		bool $force_reload = false,
+	): string {
 		// Default to the user's language.
 		if ($lang == '') {
-			$lang = User::$me->language ?? self::$default;
+			$lang = User::$me->language ?? Config::$language;
 		}
 
 		if (empty(self::$dirs)) {
@@ -262,7 +276,11 @@ class Lang
 			}
 
 			// Don't repeat this unnecessarily.
-			if (!$force_reload && isset(self::$already_loaded[$name]) && self::$already_loaded[$name] == $lang) {
+			if (
+				!$force_reload
+				&& isset(self::$already_loaded[$name])
+				&& self::$already_loaded[$name] === $lang
+			) {
 				continue;
 			}
 
@@ -271,14 +289,14 @@ class Lang
 			foreach (self::$dirs as $dir) {
 				$attempts[] = [$dir, $name, $lang];
 
-				if ($lang !== self::$default) {
-					$attempts[] = [$dir, $name, self::$default];
+				if ($lang !== Config::$language) {
+					$attempts[] = [$dir, $name, Config::$language];
 				}
 
 				// Fall back to English if none of the preferred languages can be found.
 				if (
 					empty(Config::$modSettings['disable_language_fallback'])
-					&& 'en_US' !== self::$default
+					&& 'en_US' !== Config::$language
 					&& 'en_US' !== $lang
 				) {
 					$attempts[] = [$dir, $name, 'en_US'];
@@ -288,112 +306,30 @@ class Lang
 			// Try to find the language file.
 			$found = false;
 
-			// Flip this around.
+			// Least preferred first, so that the more preferred files that are
+			// loaded after it overwrite the strings they have in common. A
+			// string that only the least preferred file defines survives, which
+			// is how a partial translation falls back to English key by key.
 			$attempts = array_reverse($attempts);
 
-			foreach ($attempts as $k => $file) {
-				if (file_exists($file[0] . '/' . $file[2] . '/' . $file[1] . '.php')) {
-					// Include it!
-					// {DIR} / {locale} / {file} .php
-					require Config::canonicalPath($file[0] . '/' . $file[2] . '/' . $file[1] . '.php');
-
-					// Note that we found it.
-					$found = true;
-
-					// Keep track of what we're up to, soldier.
-					if (DebugUtils::isDebugEnabled()) {
-						DebugUtils::addDebugSource(
-							lang_key: 'language_files',
-							key: implode('|', $file),
-							value: Config::canonicalPath((Config::$languagesdir == $file[0] ? basename($file[0]) : ltrim(str_replace(array_map('dirname', self::$dirs), '', $file[0]), '/')) . '/' . $file[2] . '/' . $file[1] . '.php'),
-						);
-					}
-
-					// Load the strings into our properties.
-					foreach (['txt', 'txtBirthdayEmails', 'tztxt', 'editortxt', 'helptxt'] as $var) {
-						if (!isset(${$var})) {
-							continue;
-						}
-
-						foreach (${$var} as $key => $value) {
-							// Never overwrite strings that were set via self::setTxt()
-							if ((self::$loaded_keys[$var][$key]['file'] ?? '') === 'setTxt') {
-								continue;
-							}
-
-							// Don't overwrite strings from Modifications or ThemeStrings
-							// unless $force_reload is true.
-							if (
-								!$force_reload
-								&& \array_key_exists($key, self::$loaded_keys[$var] ?? [])
-								&& self::$loaded_keys[$var][$key]['file'] !== $file[1]
-								&& (
-									// Modifications takes precedence over all others.
-									self::$loaded_keys[$var][$key]['file'] === 'Modifications'
-									// ThemeStrings takes precedence over all except Modifications.
-									|| (
-										self::$loaded_keys[$var][$key]['file'] === 'ThemeStrings'
-										&& $file[1] !== 'Modifications'
-									)
-								)
-							) {
-								continue;
-							}
-
-							// Add the string to the appropriate array.
-							self::${$var}[$key] = $value;
-
-							// Keep track of where this string came from.
-							self::$loaded_keys[$var][$key] = [
-								'file' => $file[1],
-								'lang' => $file[2],
-							];
-						}
-
-						unset(${$var});
-					}
-
-					// Did this file define the $forum_copyright?
-					if (!empty($forum_copyright)) {
-						self::$localized_copyright[$file[2]] = $forum_copyright;
-
-						self::$forum_copyright = self::$localized_copyright[$lang] ?? (self::$localized_copyright[self::$default] ?? (self::$localized_copyright['en_US'] ?? ''));
-
-						unset($forum_copyright);
-					}
-
-					// setlocale is required for basename() & pathinfo() to work properly on the selected language
-					if (!empty(self::$txt['lang_locale'])) {
-						if (str_contains(self::$txt['lang_locale'], '.')) {
-							$locale_variants = self::$txt['lang_locale'];
-						} else {
-							$locale_variants = array_unique(
-								[
-									self::$txt['lang_locale'] . '.UTF-8',
-									self::$txt['lang_locale'] . '.UTF8',
-									self::$txt['lang_locale'] . '.utf-8',
-									self::$txt['lang_locale'] . '.utf8',
-									self::$txt['lang_locale'],
-								],
-							);
-						}
-
-						setlocale(LC_CTYPE, $locale_variants);
-					}
-
-					if (isset(self::$txt['lang_rtl'])) {
-						Utils::$context['right_to_left'] = !empty(self::$txt['lang_rtl']);
-					}
-				}
+			foreach ($attempts as $attempt) {
+				$found = self::attemptToLoadFile(
+					$attempt,
+					implode(DIRECTORY_SEPARATOR, [$attempt[0], $attempt[2], $attempt[1] . '.php']),
+					$force_reload,
+				) || $found;
 			}
 
-			/*
-			 * Legacy language calls.
-			 * Under normal conditions, we stop once we find it through the locale lookup.
-			 * Modifications is a special case in which we allow it to be checked everywhere.
-			 */
-			if ((!$found || str_contains($filename, 'Modifications') || str_contains($filename, 'ThemeStrings')) && Config::$backward_compatibility) {
-				$found = self::loadOld($attempts) || $found;
+			// Legacy language calls.
+			if (
+				!empty(Config::$backward_compatibility)
+				&& (
+					!$found
+					|| str_contains($filename, 'Modifications')
+					|| str_contains($filename, 'ThemeStrings')
+				)
+			) {
+				$found = self::loadOld($attempts, $force_reload) || $found;
 			}
 
 			// That couldn't be found!  Log the error, but *try* to continue normally.
@@ -425,7 +361,7 @@ class Lang
 				self::$forum_copyright = $class_vars['forum_copyright'];
 			}
 
-			// For the sake of backward compatibility
+			// For the sake of backward compatibility.
 			if (!empty(self::$txt['emails'])) {
 				foreach (self::$txt['emails'] as $key => $value) {
 					self::$txt[$key . '_subject'] = $value['subject'];
@@ -434,10 +370,11 @@ class Lang
 				self::$txt['emails'] = [];
 			}
 
-			// For sake of backward compatibility: $birthdayEmails is supposed to be
-			// empty in a normal install. If it isn't it means the forum is using
-			// something "old" (it may be the translation, it may be a mod) and this
-			// code (like the piece above) takes care of converting it to the new format
+			// For sake of backward compatibility: $birthdayEmails is supposed
+			// to be empty in a normal install. If it isn't it means the forum
+			// is using something "old" (it may be the translation, it may be a
+			// mod) and this code (like the piece above) takes care of
+			// converting it to the new format.
 			if (!empty($birthdayEmails)) {
 				foreach ($birthdayEmails as $key => $value) {
 					self::$txtBirthdayEmails[$key . '_subject'] = $value['subject'];
@@ -471,30 +408,42 @@ class Lang
 	{
 		// We only accept real directories.
 		if (!empty($custom_dirs)) {
-			$custom_dirs = array_filter(array_map('realpath', (array) $custom_dirs), 'is_dir');
+			$custom_dirs = array_filter(
+				array_map('realpath', (array) $custom_dirs),
+				'is_dir',
+			);
 		}
 
 		if (!empty($custom_dirs)) {
-			self::$dirs = array_merge($custom_dirs, self::$dirs);
+			self::$dirs = array_merge(
+				array_map(fn($dir) => Sapi::canonicalPath($dir), $custom_dirs),
+				self::$dirs,
+			);
 		} else {
-			self::$dirs[] = Config::$languagesdir;
+			self::$dirs[] = Sapi::canonicalPath(Config::$languagesdir);
 
-			// Make sure we have Theme::$current->settings - if not we're in trouble and need to find it!
-			if (empty(Theme::$current->settings['default_theme_dir'])) {
-				Theme::loadEssential(false);
-			}
+			// If there's no database or we're installing, we can't load the theme.
+			// Otherwise, make sure to include the theme's language directories.
+			if (isset(Db\DatabaseApi::$db->connection) && !\defined('SMF_INSTALLING')) {
+				// Is the theme already loaded?
+				$theme_loaded = !empty(Utils::$context['theme_loaded']);
 
-			foreach (['theme_dir', 'base_theme_dir', 'default_theme_dir'] as $var) {
-				if (isset(Theme::$current->settings[$var])) {
-					self::$dirs[] = Theme::$current->settings[$var] . '/languages';
+				if (empty(Theme::$current->settings['default_theme_dir'])) {
+					Theme::loadEssential(false);
 				}
-			}
 
-			// Don't count this as loading the theme.
-			Utils::$context['theme_loaded'] = false;
+				foreach (['theme_dir', 'base_theme_dir', 'default_theme_dir'] as $var) {
+					if (isset(Theme::$current->settings[$var])) {
+						self::$dirs[] = Sapi::canonicalPath(Theme::$current->settings[$var] . '/languages');
+					}
+				}
+
+				// Don't count this as loading the theme.
+				Utils::$context['theme_loaded'] = $theme_loaded;
+			}
 		}
 
-		self::$dirs = array_unique(self::$dirs);
+		self::$dirs = array_filter(array_unique(self::$dirs), 'is_dir');
 	}
 
 	/**
@@ -506,46 +455,44 @@ class Lang
 	public static function get(bool $use_cache = true): array
 	{
 		// Either we don't use the cache, or its expired.
-		if (!$use_cache || (Utils::$context['languages'] = CacheApi::get('known_languages', !empty(CacheApi::$enable) && CacheApi::$enable < 1 ? 86400 : 3600)) == null) {
-			// Special case during install.
-			if (\defined('SMF_INSTALLING')) {
-				$language_directories = [Config::$languagesdir];
+		if (
+			!$use_cache
+			|| empty(CacheApi::$enable)
+			|| null == (
+				Utils::$context['languages'] = CacheApi::get(
+					'known_languages',
+					CacheApi::$enable > 1 ? 86400 : 3600,
+				)
+			)
+		) {
+			// Shall we include the theme's language directories?
+			if (
+				// Skip this if we're installing.
+				!\defined('SMF_INSTALLING')
+				// Can't load the theme without the database.
+				&& isset(Db\DatabaseApi::$db->connection)
+				// Only do this if the theme hasn't been loaded yet.
+				&& empty(Theme::$current->settings['default_theme_dir'])
+			) {
+				// We use Theme::load() here instead of Theme::loadEssential()
+				// in order to take into account any board-specific theme,
+				// calls to integration hooks, etc. Plus, Theme::load() will
+				// call Lang::addDirs() for us.
+				Theme::load(0, false);
 			} else {
-				// If we don't have our theme information yet, let's get it.
-				if (empty(Theme::$current->settings['default_theme_dir'])) {
-					Theme::load(0, false);
-				}
-
-				// Default language directories to try.
-				$language_directories = [
-					Config::$languagesdir,
-					Theme::$current->settings['default_theme_dir'] . '/languages',
-				];
-
-				if (!empty(Theme::$current->settings['actual_theme_dir']) && Theme::$current->settings['actual_theme_dir'] != Theme::$current->settings['default_theme_dir']) {
-					$language_directories[] = Theme::$current->settings['actual_theme_dir'] . '/languages';
-				}
-
-				// We possibly have a base theme directory.
-				if (!empty(Theme::$current->settings['base_theme_dir'])) {
-					$language_directories[] = Theme::$current->settings['base_theme_dir'] . '/languages';
-				}
+				// Make sure Lang::$dirs is populated.
+				self::addDirs();
 			}
 
-			// Remove any duplicates.
-			$language_directories = array_unique($language_directories);
-
-			foreach ($language_directories as $language_dir) {
-				// Can't look in here... doesn't exist!
-				if (!file_exists($language_dir)) {
-					continue;
-				}
-
+			foreach (self::$dirs as $language_dir) {
 				$dir = dir($language_dir);
 
 				while ($entry = $dir->read()) {
 					// Languages are in a sub directory.
-					if (!is_dir($language_dir . '/' . $entry) || !file_exists($language_dir . '/' . $entry . '/General.php')) {
+					if (
+						!is_dir($language_dir . '/' . $entry)
+						|| !file_exists($language_dir . '/' . $entry . '/General.php')
+					) {
 						continue;
 					}
 
@@ -559,16 +506,24 @@ class Lang
 								continue;
 							}
 
-							preg_match('~\$txt\[\'native_name\'\]\s*=\s*\'([^\']+)\';~', $line, $matchNative);
+							preg_match(
+								'~\$txt\[\'native_name\'\]\s*=\s*\'([^\']+)\';~',
+								$line,
+								$matches,
+							);
 
 							// Set the language's name.
-							if (!empty($matchNative) && !empty($matchNative[1])) {
-								// Don't mislabel the language if the translator missed this one.
-								if ($entry !== 'en_US' && $matchNative[1] === 'English (US)') {
+							if (!empty($matches) && !empty($matches[1])) {
+								// Don't mislabel the language if the translator
+								// forgot to translate this one.
+								if (
+									$entry !== 'en_US'
+									&& $matches[1] === 'English (US)'
+								) {
 									break;
 								}
 
-								$langName = Utils::htmlspecialcharsDecode($matchNative[1]);
+								$lang = Utils::htmlspecialcharsDecode($matches[1]);
 
 								break;
 							}
@@ -579,10 +534,10 @@ class Lang
 
 					// Build this language entry.
 					Utils::$context['languages'][$entry] = [
-						'name' => $langName ?? $entry,
+						'name' => $lang ?? $entry,
 						'selected' => false,
 						'filename' => $entry,
-						'location' => Config::canonicalPath($language_dir . '/' . $entry . '/General.php'),
+						'location' => Sapi::canonicalPath($language_dir . '/' . $entry . '/General.php'),
 					];
 				}
 				$dir->close();
@@ -590,7 +545,11 @@ class Lang
 
 			// Let's cash in on this deal.
 			if (!empty(CacheApi::$enable)) {
-				CacheApi::put('known_languages', Utils::$context['languages'], !empty(CacheApi::$enable) && CacheApi::$enable < 1 ? 86400 : 3600);
+				CacheApi::put(
+					'known_languages',
+					Utils::$context['languages'],
+					CacheApi::$enable > 1 ? 86400 : 3600,
+				);
 			}
 		}
 
@@ -626,7 +585,7 @@ class Lang
 		$target = &self::${$var};
 
 		// Drill down to the specified key.
-		foreach ((array) $txt_key as $key) {
+		foreach ($txt_key as $key) {
 			if (isset($target[$key])) {
 				$target = &$target[$key];
 			} else {
@@ -669,11 +628,11 @@ class Lang
 
 		// Drill down to the specified key.
 		foreach ($txt_key as $depth => $key) {
-			if (isset($target[(string) $key])) {
-				$target = &$target[(string) $key];
+			if (isset($target[$key])) {
+				$target = &$target[$key];
 			} else {
-				$target[(string) $key] = $depth === array_key_last($txt_key) ? '' : [];
-				$target = &$target[(string) $key];
+				$target[$key] = $depth === array_key_last($txt_key) ? '' : [];
+				$target = &$target[$key];
 			}
 		}
 
@@ -722,7 +681,7 @@ class Lang
 		$txt_key = array_values((array) $txt_key);
 
 		if ($lang == '') {
-			$lang = User::$me->language ?? self::$default;
+			$lang = User::$me->language ?? Config::$language;
 		}
 
 		self::loadFileForGetTxt($file, $var, $txt_key, $lang);
@@ -784,74 +743,91 @@ class Lang
 	 */
 	public static function censorText(string &$text, bool $force = false): string
 	{
-		static $censor_vulgar = null, $censor_proper;
-
-		if ((!empty(Theme::$current->options['show_no_censored']) && !empty(Config::$modSettings['allow_no_censored']) && !$force) || empty(Config::$modSettings['censor_vulgar']) || !\is_string($text) || trim($text) === '') {
+		if (
+			(
+				!empty(Theme::$current->options['show_no_censored'])
+				&& !empty(Config::$modSettings['allow_no_censored'])
+				&& !$force
+			)
+			|| empty(Config::$modSettings['censor_vulgar'])
+			|| trim($text) === ''
+		) {
 			return $text;
 		}
 
 		IntegrationHook::call('integrate_word_censor', [&$text]);
 
 		// Let SpoofDetector help us detect attempts to bypass the word censor.
-		Unicode\SpoofDetector::enhanceWordCensor($text);
+		// This method will temporarily append additional content to the censor
+		// settings if it detects an attempt to bypass the word censor, so we
+		// need to unset self::$censor_vulgar in order to force a reload.
+		if (Unicode\SpoofDetector::enhanceWordCensor($text)) {
+			unset(self::$censor_vulgar);
+		}
 
 		// If they haven't yet been loaded, load them.
-		if ($censor_vulgar == null) {
-			$censor_vulgar = explode("\n", Config::$modSettings['censor_vulgar']);
-			$censor_proper = explode("\n", Config::$modSettings['censor_proper']);
+		if (!isset(self::$censor_vulgar)) {
+			self::$censor_vulgar = explode("\n", Config::$modSettings['censor_vulgar']);
+			self::$censor_proper = explode("\n", Config::$modSettings['censor_proper']);
+
+			self::$censor_proper = array_pad(
+				self::$censor_proper,
+				\count(self::$censor_vulgar),
+				"\u{2022}\u{2022}\u{2022}\u{2022}",
+			);
 
 			// Quote them for use in regular expressions.
-			for ($i = 0, $n = \count($censor_vulgar); $i < $n; $i++) {
+			for ($i = 0, $n = \count(self::$censor_vulgar); $i < $n; $i++) {
 				// If a word is replaced with itself, just leave it as it is.
 				// Why would the admin replace a word with itself, you ask?
 				// If the spoof detector incorrectly censors an allowed word
 				// because it happens to be visually confusable with a banned
 				// word, the admin can create an entry to replace the allowed
 				// word with itself in order to override the spoof detector.
-				if ($censor_vulgar[$i] === $censor_proper[$i]) {
-					$censor_proper[$i] = '$0';
+				if (self::$censor_vulgar[$i] === self::$censor_proper[$i]) {
+					self::$censor_proper[$i] = '$0';
 				}
 
-				$censor_vulgar[$i] = str_replace(['\\\\\\*', '\\*', '&', '\''], ['[*]', '[^\\s]*?', '&amp;', '&#039;'], preg_quote($censor_vulgar[$i], '/'));
+				self::$censor_vulgar[$i] = str_replace(['\\\\\\*', '\\*', '&', '\''], ['[*]', '[^\\s]*?', '&amp;', '&#039;'], preg_quote(self::$censor_vulgar[$i], '/'));
 
 				if (!empty(Config::$modSettings['censorWholeWord'])) {
 					// Use the faster \b if we can, or something more complex if we can't
-					$boundary_before = preg_match('/^\w/', $censor_vulgar[$i]) ? '\b' : '(?<![\p{L}\p{M}\p{N}_])';
-					$boundary_after = preg_match('/\w$/', $censor_vulgar[$i]) ? '\b' : '(?![\p{L}\p{M}\p{N}_])';
+					$boundary_before = preg_match('/^\w/', self::$censor_vulgar[$i]) ? '\b' : '(?<![\p{L}\p{M}\p{N}_])';
+					$boundary_after = preg_match('/\w$/', self::$censor_vulgar[$i]) ? '\b' : '(?![\p{L}\p{M}\p{N}_])';
 				} else {
 					$boundary_before = $boundary_after = '';
 				}
 
-				$censor_vulgar[$i] = '/' . $boundary_before . $censor_vulgar[$i] . $boundary_after . '/u' . (empty(Config::$modSettings['censorIgnoreCase']) ? '' : 'i');
+				self::$censor_vulgar[$i] = '/' . $boundary_before . self::$censor_vulgar[$i] . $boundary_after . '/u' . (empty(Config::$modSettings['censorIgnoreCase']) ? '' : 'i');
 			}
 		}
 
 		// Censoring isn't so very complicated :P.
-		foreach ($censor_vulgar as $i => $pattern) {
+		foreach (self::$censor_vulgar as $i => $pattern) {
 			$text = preg_replace_callback(
 				$pattern,
-				function ($matches) use ($censor_proper, $i) {
+				function ($matches) use ($i) {
 					// Special case to return the original word unchanged.
-					if ($censor_proper[$i] === '$0') {
+					if (self::$censor_proper[$i] === '$0') {
 						return $matches[0];
 					}
 
 					// If the replacement contains any letters, try to match case.
-					if (preg_match('/\p{L}/u', $censor_proper[$i])) {
+					if (preg_match('/\p{L}/u', self::$censor_proper[$i])) {
 						// If original was all uppercase, return uppercase.
 						if (Utils::strtoupper($matches[0]) === $matches[0]) {
-							return Utils::strtoupper($censor_proper[$i]);
+							return Utils::strtoupper(self::$censor_proper[$i]);
 						}
 
 						// If original started with a capital letter, return with a capital letter.
 						$first_vulgar_char = Utils::entitySubstr($matches[0], 0, 1);
 
 						if (Utils::ucfirst($first_vulgar_char) === $first_vulgar_char) {
-							return Utils::ucfirst($censor_proper[$i]);
+							return Utils::ucfirst(self::$censor_proper[$i]);
 						}
 					}
 
-					return $censor_proper[$i];
+					return self::$censor_proper[$i];
 				},
 				$text,
 			);
@@ -934,20 +910,17 @@ class Lang
 	 * current locale to format the number.
 	 *
 	 * @param int|float|string $number A number.
-	 * @param int|null $decimals If set, will use the specified number of decimal
-	 *    places. Otherwise, it's automatically determined.
+	 * @param int|null $decimals If set, will use the specified number of
+	 *    decimal places. Otherwise, it's automatically determined.
 	 * @return string A formatted number
 	 */
 	public static function numberFormat(int|float|string $number, ?int $decimals = null): string
 	{
 		if (!is_numeric($number)) {
-			throw new \ValueError();
+			return $number;
 		}
 
-		if (\is_string($number)) {
-			$number = $number + 0;
-		}
-
+		// Get the correct separator characters for the current language.
 		self::$decimal_separator = self::$txt['decimal_separator'] ?? null;
 		self::$digit_group_separator = self::$txt['digit_group_separator'] ?? null;
 
@@ -962,7 +935,7 @@ class Lang
 			}
 		}
 
-		$skeleton = \is_int($number) ? 'integer' : ':: .' . str_repeat('0', $decimals ?? 2);
+		$skeleton = ':: ' . (!isset($decimals) ? '.*' : 'precision-increment/' . \sprintf('%.' . max(0, $decimals) . 'F', 10 ** -$decimals)) . ' rounding-mode-half-up';
 
 		return MessageFormatter::formatMessage('{0, number, ' . $skeleton . '}', [$number]);
 	}
@@ -997,6 +970,142 @@ class Lang
 	}
 
 	/**
+	 * Sorts an array of strings according to the current locale's rules.
+	 *
+	 * Maintains key association like asort().
+	 *
+	 * @param array &$strings An array of strings.
+	 */
+	public static function collate(array &$strings): void
+	{
+		$locale = self::getLocale();
+
+		if (class_exists('\Collator')) {
+			if (!isset(self::$collators[$locale])) {
+				self::$collators[$locale] = \Collator::create($locale);
+			}
+
+			self::$collators[$locale]->asort($strings);
+		} else {
+			if (
+				($old_lc_collate = setlocale(LC_COLLATE, '0')) === false
+				|| !str_starts_with($old_lc_collate, $locale)
+			) {
+				if (str_contains($locale, '.')) {
+					$locale_variants = [$locale];
+				} else {
+					$locale_variants = [
+						$locale . '.UTF-8',
+						$locale . '.UTF8',
+						$locale . '.utf-8',
+						$locale . '.utf8',
+						$locale,
+					];
+				}
+
+				setlocale(LC_COLLATE, $locale_variants);
+			}
+
+			uasort($strings, 'strcoll');
+
+			if ($old_lc_collate !== false) {
+				setlocale(LC_COLLATE, $old_lc_collate);
+			}
+		}
+	}
+
+	/**
+	 * Compares two strings according to the current locale's rules.
+	 *
+	 * Returns 1 if $string1 is greater than $string2 for sorting purposes.
+	 * Returns 0 if $string1 is equivalent to $string2 for sorting purposes.
+	 * Returns -1 if $string1 is less than $string2 for sorting purposes.
+	 *
+	 * @param string $string1 The first string to compare.
+	 * @param string $string2 The second string to compare.
+	 * @return int The result of the comparison: either -1, 0, or 1.
+	 */
+	public static function compareStrings(string $string1, string $string2): int
+	{
+		$locale = self::getLocale();
+
+		if (class_exists('\Collator')) {
+			if (!isset(self::$collators[$locale])) {
+				self::$collators[$locale] = \Collator::create($locale);
+			}
+
+			$result = (int) self::$collators[$locale]->compare($string1, $string2);
+		} else {
+			if (
+				($old_lc_collate = setlocale(LC_COLLATE, '0')) === false
+				|| !str_starts_with($old_lc_collate, $locale)
+			) {
+				if (str_contains($locale, '.')) {
+					$locale_variants = [$locale];
+				} else {
+					$locale_variants = [
+						$locale . '.UTF-8',
+						$locale . '.UTF8',
+						$locale . '.utf-8',
+						$locale . '.utf8',
+						$locale,
+					];
+				}
+
+				setlocale(LC_COLLATE, $locale_variants);
+			}
+
+			$result = strcoll($string1, $string2) <=> 0;
+
+			if ($old_lc_collate !== false) {
+				setlocale(LC_COLLATE, $old_lc_collate);
+			}
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Gets the locale code for an installed language.
+	 *
+	 * If the $lang argument is empty or is set to a language that is not
+	 * installed, the locale code for the current language will be returned.
+	 *
+	 * @param string $lang The language whose locale code we want. If empty or
+	 *    unrecognized, uses the current language.
+	 *    Default: ''
+	 * @return string The locale code.
+	 */
+	public static function getLocale(string $lang = ''): string
+	{
+		// Get the current language's locale. We'll need it below no matter what happens.
+		try {
+			$current_locale = self::getTxt('lang_locale', file: 'General');
+		} catch (\ValueError $e) {
+			$current_locale = self::getLocaleFromLanguageName(User::$me->language ?? Config::$language) ?? 'en_US';
+		}
+
+		// If no particular language was requested, we're done.
+		if ($lang === '') {
+			return $current_locale;
+		}
+
+		// Look up the requested language's locale code.
+		try {
+			$lang_locale = self::getTxt('lang_locale', file: 'General', lang: $lang);
+		} catch (\ValueError $e) {
+			$lang_locale = null;
+		}
+
+		// Ensure we leave the $txt strings in their original state.
+		if ($lang_locale !== $current_locale) {
+			self::getTxt('lang_locale', file: 'General', lang: $current_locale);
+		}
+
+		return $lang_locale ?? $current_locale;
+	}
+
+	/**
 	 * Given an SMF 2.x language name, returns the locale code for SMF 3.0+.
 	 *
 	 * This is used to support upgrading from SMF 2.1 and below.
@@ -1023,79 +1132,46 @@ class Lang
 		return self::LANG_TO_LOCALE[$lang] ?? null;
 	}
 
+	/*************************
+	 * Internal static methods
+	 *************************/
+
 	/**
 	 * A backward compatibility method for loading language files with old names.
 	 * This is used to support backward compatibility with mods from SMF 2.1.
 	 * Do not rely on this method to exist in future versions!
 	 *
 	 * @deprecated 3.0 Only used to support compatibility with old name formats.
+	 *
 	 * @param array $attempts The attempts to be made; see self::load().
+	 * @param bool $force_reload Whether to load the file again if it's already
+	 *    loaded.
 	 * @return bool Whether we loaded anything or not.
 	 */
-	public static function loadOld(array $attempts): bool
+	private static function loadOld(array $attempts, bool $force_reload): bool
 	{
 		if (empty($attempts)) {
 			return false;
 		}
 
-		$locale_to_lang = array_flip(self::LANG_TO_LOCALE);
+		foreach ($attempts as $attempt) {
+			if (!\in_array($attempt[2], self::LANG_TO_LOCALE)) {
+				continue;
+			}
 
-		$found = false;
+			$found = self::attemptToLoadFile(
+				$attempt,
+				$attempt[0] . DIRECTORY_SEPARATOR . $attempt[1] . '.' . array_search($attempt[2], self::LANG_TO_LOCALE) . '.php',
+				$force_reload,
+			);
 
-		/**
-		 * $file = [
-		 *    0 => Directory
-		 *    1 => File
-		 *    2 => Locale
-		 * ]
-		 */
-		foreach ($attempts as $k => $file) {
-			$oldLanguage = $locale_to_lang[$file[2]] ?? false;
-
-			if ($oldLanguage !== false && file_exists($file[0] . '/' . $file[1] . '.' . $oldLanguage . '.php')) {
-				require Config::canonicalPath($file[0] . '/' . $file[1] . '.' . $oldLanguage . '.php');
-
-				// Note that we found it.
-				$found = true;
-
-				// Load the strings into our properties.
-				foreach (['txt', 'txtBirthdayEmails', 'tztxt', 'editortxt', 'helptxt'] as $var) {
-					if (!isset(${$var})) {
-						continue;
-					}
-
-					// Add the strings to the appropriate array.
-					self::${$var} = array_merge(self::${$var}, ${$var});
-
-					// Keep track of where these strings came from.
-					self::$loaded_keys[$var] = array_merge(
-						self::$loaded_keys[$var] ?? [],
-						array_combine(
-							array_keys(${$var}),
-							array_fill(0, \count(${$var}), ['file' => $file[1], 'lang' => $file[2]]),
-						),
-					);
-
-					unset(${$var});
-				}
-
-				// Keep track of what we're up to, soldier.
-				if (DebugUtils::isDebugEnabled()) {
-					DebugUtils::addDebugSource(
-						lang_key: 'language_files',
-						key: implode('|', $file),
-						value: (Config::$languagesdir == $file[0] ? basename($file[0]) : ltrim(str_replace(array_map('dirname', self::$dirs), '', $file[0]), '/')) . '/' . $file[1] . '.' . $oldLanguage . '.php',
-					);
-				}
+			if ($found) {
+				return true;
 			}
 		}
 
-		return $found;
+		return false;
 	}
-
-	/*************************
-	 * Internal static methods
-	 *************************/
 
 	/**
 	 * Helper for Lang::txtExists() and Lang::getTxt() that handles loading the
@@ -1182,6 +1258,125 @@ class Lang
 
 			return;
 		}
+	}
+
+	/**
+	 * Attempts to load a language file and read its contents into our strings.
+	 *
+	 * @param array $attempt Info about this attempt to load a language file.
+	 * @param string $path Full path to the language file.
+	 * @param bool $force_reload Whether to ovewrite strings from Modifications
+	 *    and ThemeStrings with strings from this file in the event of conflict.
+	 *    Default: false.
+	 * @return bool Whether the language file was loaded successfully.
+	 */
+	private static function attemptToLoadFile(array $attempt, string $path, bool $force_reload = false): bool
+	{
+		$path = Sapi::canonicalPath($path);
+
+		if (!is_file($path) || !is_readable($path)) {
+			return false;
+		}
+
+		require $path;
+
+		// Keep track of what we're up to, soldier.
+		if (DebugUtils::isDebugEnabled()) {
+			foreach (self::$dirs as $dir) {
+				if (str_starts_with($path, $dir)) {
+					$path = basename($dir) . substr($path, \strlen($dir));
+					break;
+				}
+			}
+
+			DebugUtils::addDebugSource(
+				lang_key: 'language_files',
+				key: implode('|', $attempt),
+				value: $path,
+			);
+		}
+
+		// Load the strings into our properties.
+		foreach (['txt', 'txtBirthdayEmails', 'tztxt', 'editortxt', 'helptxt'] as $var) {
+			if (!isset(${$var})) {
+				continue;
+			}
+
+			foreach (${$var} as $key => $value) {
+				// Never overwrite strings that were set via self::setTxt()
+				if ((self::$loaded_keys[$var][$key]['file'] ?? '') === 'setTxt') {
+					continue;
+				}
+
+				// Don't overwrite strings from Modifications or ThemeStrings
+				// unless $force_reload is true.
+				if (
+					!$force_reload
+					&& \array_key_exists($key, self::$loaded_keys[$var] ?? [])
+					&& self::$loaded_keys[$var][$key]['file'] !== $attempt[1]
+					&& (
+						// Modifications takes precedence over all others.
+						self::$loaded_keys[$var][$key]['file'] === 'Modifications'
+						// ThemeStrings takes precedence over all except Modifications.
+						|| (
+							self::$loaded_keys[$var][$key]['file'] === 'ThemeStrings'
+							&& $attempt[1] !== 'Modifications'
+						)
+					)
+				) {
+					continue;
+				}
+
+				// Add the string to the appropriate array.
+				self::${$var}[$key] = $value;
+
+				// Keep track of where this string came from.
+				self::$loaded_keys[$var][$key] = [
+					'file' => $attempt[1],
+					'lang' => $attempt[2],
+				];
+			}
+
+			unset(${$var});
+		}
+
+		// Did this file define the $forum_copyright?
+		if (!empty($forum_copyright)) {
+			self::$localized_copyright[$attempt[2]] = $forum_copyright;
+
+			self::$forum_copyright = self::$localized_copyright[$attempt[2]] ?? (self::$localized_copyright[Config::$language] ?? (self::$localized_copyright['en_US'] ?? ''));
+
+			unset($forum_copyright);
+		}
+
+		// setlocale is required for basename() & pathinfo() to work properly on the selected language
+		if (!empty(self::$txt['lang_locale'])) {
+			if (class_exists('\Locale')) {
+				\Locale::setDefault(self::$txt['lang_locale']);
+			}
+
+			if (str_contains(self::$txt['lang_locale'], '.')) {
+				$locale_variants = self::$txt['lang_locale'];
+			} else {
+				$locale_variants = array_unique(
+					[
+						self::$txt['lang_locale'] . '.UTF-8',
+						self::$txt['lang_locale'] . '.UTF8',
+						self::$txt['lang_locale'] . '.utf-8',
+						self::$txt['lang_locale'] . '.utf8',
+						self::$txt['lang_locale'],
+					],
+				);
+			}
+
+			setlocale(LC_CTYPE, $locale_variants);
+		}
+
+		if (isset(self::$txt['lang_rtl'])) {
+			Utils::$context['right_to_left'] = !empty(self::$txt['lang_rtl']);
+		}
+
+		return true;
 	}
 }
 

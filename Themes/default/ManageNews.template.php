@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
@@ -20,9 +21,10 @@ use SMF\Utils;
 function template_email_members()
 {
 	// Are we done sending the newsletter?
-	if (!empty(Utils::$context['newsletter_sent']))
+	if (!empty(Utils::$context['newsletter_sent'])) {
 		echo '
 	<div class="infobox">', Lang::getTxt('admin_news_newsletter_' . Utils::$context['newsletter_sent'], file: 'Admin'), '</div>';
+	}
 
 	echo '
 		<form action="', Config::$scripturl, '?action=admin;area=news;sa=mailingcompose" method="post" id="admin_newsletters" class="flow_hidden" accept-charset="UTF-8">
@@ -40,9 +42,10 @@ function template_email_members()
 					</dt>
 					<dd>';
 
-	foreach (Utils::$context['groups'] as $group)
+	foreach (Utils::$context['groups'] as $group) {
 		echo '
 						<label for="groups_', $group['id'], '"><input type="checkbox" name="groups[', $group['id'], ']" id="groups_', $group['id'], '" value="', $group['id'], '" checked> ', $group['name'], '</label> <em>(', $group['member_count'] ?? Lang::getTxt('not_applicable', file: 'General'), ')</em><br>';
+	}
 
 	echo '
 						<br>
@@ -51,9 +54,9 @@ function template_email_members()
 				</dl>
 				<div id="advanced_panel_header" class="title_bar">
 					<h3 class="titlebg">
-						<span id="advanced_panel_toggle" class="toggle_down floatright" style="display: none;"></span>
 						<a href="#" id="advanced_panel_link">', Lang::getTxt('advanced', file: 'Admin'), '</a>
 					</h3>
+					<span id="advanced_panel_toggle" class="toggle_down" style="display: none;"></span>
 				</div>
 				<div id="advanced_panel_div" class="padding">
 					<dl class="settings">
@@ -81,9 +84,10 @@ function template_email_members()
 						</dt>
 						<dd>';
 
-	foreach (Utils::$context['groups'] as $group)
+	foreach (Utils::$context['groups'] as $group) {
 		echo '
 							<label for="exclude_groups_', $group['id'], '"><input type="checkbox" name="exclude_groups[', $group['id'], ']" id="exclude_groups_', $group['id'], '" value="', $group['id'], '"> ', $group['name'], '</label> <em>(', $group['member_count'], ')</em><br>';
+	}
 
 	echo '
 							<br>
@@ -216,15 +220,16 @@ function template_email_members_compose()
 						<label', (isset(Utils::$context['post_error']['no_subject']) ? ' class="error"' : ''), ' for="subject" id="caption_subject">', Lang::getTxt('subject', file: 'General'), '</label>
 					</dt>
 					<dd id="pm_subject">
-						<input type="text" id="subject" name="subject" value="', Utils::$context['subject'], '" tabindex="', Utils::$context['tabindex']++, '" size="80" maxlength="84"', isset(Utils::$context['post_error']['no_subject']) ? ' class="error"' : '', '>
+						<input type="text" id="subject" name="subject" value="', Utils::$context['subject'], '" size="80" maxlength="84"', isset(Utils::$context['post_error']['no_subject']) ? ' class="error"' : '', '>
 					</dd>
 				</dl>
 				<div id="bbcBox_message"></div>';
 
 	// What about smileys?
-	if (!empty(Utils::$context['smileys']['postform']) || !empty(Utils::$context['smileys']['popup']))
+	if (!empty(Utils::$context['smileys']['postform']) || !empty(Utils::$context['smileys']['popup'])) {
 		echo '
 				<div id="smileyBox_message"></div>';
+	}
 
 	// Show BBC buttons, smileys and textbox.
 	echo '
@@ -244,9 +249,10 @@ function template_email_members_compose()
 			<input type="hidden" name="email_force" value="', Utils::$context['email_force'], '">
 			<input type="hidden" name="total_emails" value="', Utils::$context['total_emails'], '">';
 
-	foreach (Utils::$context['recipients'] as $key => $values)
+	foreach (Utils::$context['recipients'] as $key => $values) {
 		echo '
 			<input type="hidden" name="', $key, '" value="', implode(($key == 'emails' ? ';' : ','), $values), '">';
+	}
 
 	echo '
 			<script>';
@@ -386,7 +392,7 @@ function template_email_members_send()
 					<div class="bar" style="width: ', Utils::$context['percentage_done'], '%;"></div>
 				</div>
 				<hr>
-				<input type="submit" name="b" value="', Lang::getTxt('email_continue', file: 'Admin'), '" class="button">
+				<input type="submit" name="cont" value="', Lang::getTxt('email_continue', file: 'Admin'), '" class="button">
 				<input type="hidden" name="', Utils::$context['session_var'], '" value="', Utils::$context['session_id'], '">
 				<input type="hidden" name="subject" value="', Utils::$context['subject'], '">
 				<input type="hidden" name="message" value="', Utils::$context['message'], '">
@@ -398,31 +404,18 @@ function template_email_members_send()
 				<input type="hidden" name="parse_html" value="', Utils::$context['parse_html'], '">';
 
 	// All the things we must remember!
-	foreach (Utils::$context['recipients'] as $key => $values)
+	foreach (Utils::$context['recipients'] as $key => $values) {
 		echo '
 				<input type="hidden" name="', $key, '" value="', implode(($key == 'emails' ? ';' : ','), $values), '">';
+	}
 
 	echo '
 			</div><!-- .windowbg -->
 		</form>
 
-	<script>
-		var countdown = 2;
-		doAutoSubmit();
-
-		function doAutoSubmit()
-		{
-			if (countdown == 0)
-				document.forms.autoSubmit.submit();
-			else if (countdown == -1)
-				return;
-
-			document.forms.autoSubmit.b.value = "', Lang::getTxt('email_continue', file: 'Admin'), ' (" + countdown + ")";
-			countdown--;
-
-			setTimeout("doAutoSubmit();", 1000);
-		}
-	</script>';
+		<script>
+			doAutoSubmit(2, ', Utils::escapeJavaScript(Lang::getTxt('email_continue', file: 'Admin')), ');
+		</script>';
 }
 
 /**
@@ -430,9 +423,10 @@ function template_email_members_send()
  */
 function template_news_lists()
 {
-	if (!empty(Utils::$context['saved_successful']))
+	if (!empty(Utils::$context['saved_successful'])) {
 		echo '
 			<div class="infobox">', Lang::getTxt('settings_saved', file: 'Admin'), '</div>';
+	}
 
 	template_show_list('news_lists');
 }

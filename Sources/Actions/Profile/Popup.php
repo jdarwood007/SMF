@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -113,7 +113,7 @@ class Popup implements ActionInterface
 		// Finalize various string values.
 		array_walk_recursive(
 			$this->profile_items,
-			function (&$value, $key) {
+			function (&$value, string $key) {
 				if ($key === 'title') {
 					$value = Lang::txtExists($value, file: 'Profile') ? Lang::getTxt($value, file: 'Profile') : $value;
 				}

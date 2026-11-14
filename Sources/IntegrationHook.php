@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -48,6 +48,27 @@ class IntegrationHook
 	 * The results from executing this hook.
 	 */
 	public array $results = [];
+
+	/**************************
+	 * Public static properties
+	 **************************/
+
+	/**
+	 * @var bool
+	 *
+	 * Whether integration hooks are currently enabled.
+	 *
+	 * Always true except in special circumstances.
+	 */
+	public static bool $enabled = true;
+
+	/**
+	 * @var \Composer\Autoload\ClassLoader
+	 *
+	 * Autoloader instance.
+	 * This is used to support the integrate_autoload hook.
+	 */
+	public static \Composer\Autoload\ClassLoader $loader;
 
 	/*********************
 	 * Internal properties
@@ -103,7 +124,11 @@ class IntegrationHook
 	 */
 	public function __construct(string $name, ?bool $ignore_errors = null)
 	{
-		if (!class_exists('SMF\\Config', false) || !class_exists('SMF\\Utils', false)) {
+		if (
+			!self::$enabled
+			|| !class_exists(Config::class, false)
+			|| !class_exists(Utils::class, false)
+		) {
 			return;
 		}
 
@@ -153,7 +178,7 @@ class IntegrationHook
 	 */
 	public function execute(array $parameters = []): array
 	{
-		if (empty($this->callables)) {
+		if (!self::$enabled || empty($this->callables)) {
 			return $this->results;
 		}
 
@@ -183,8 +208,8 @@ class IntegrationHook
 						'$sourcedir' => Config::$sourcedir,
 					]);
 
-					if (str_contains($file, '$themedir') && class_exists('SMF\\Theme', false) && !empty(Theme::$current->settings['theme_dir'])) {
-						$file = strtr($file, [
+					if (str_contains($path, '$themedir') && class_exists(Theme::class, false) && !empty(Theme::$current->settings['theme_dir'])) {
+						$path = strtr($path, [
 							'$themedir' => Theme::$current->settings['theme_dir'],
 						]);
 					}
@@ -213,7 +238,7 @@ class IntegrationHook
 		$name = self::cleanHookName($name);
 		$hook = new self($name);
 
-		return $hook->execute($parameters);
+		$result = $hook->execute($parameters);
 	}
 
 	/**
@@ -268,6 +293,13 @@ class IntegrationHook
 			Db::$db->free_result($request);
 		} catch (Exception $e) {
 			return;
+		}
+
+		// Fire the autoloader.
+		self::call('autoload', [&$class_map]);
+
+		foreach ($class_map as $prefix => $dirname) {
+			self::$loader->addPsr4($prefix, self::$sourcedir . '/' . $dirname);
 		}
 	}
 

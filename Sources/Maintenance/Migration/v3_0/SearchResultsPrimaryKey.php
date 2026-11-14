@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -48,9 +48,17 @@ class SearchResultsPrimaryKey extends MigrationBase
 		$table = new Schema\v3_0\LogSearchResults();
 		$existing_structure = $table->getCurrentStructure();
 
-		$idx = $existing_structure['indexes']['primary'] ?? null;
+		foreach ($existing_structure['indexes'] as $idx) {
+			if ($idx['type'] === 'primary') {
+				break;
+			}
+		}
 
-		return $idx == null || array_intersect($idx['columns'], self::$columns) !== [];
+		return (
+			!isset($idx)
+			|| $idx['type'] !== 'primary'
+			|| $idx['columns'] !== self::$columns
+		);
 	}
 
 	/**
@@ -63,7 +71,10 @@ class SearchResultsPrimaryKey extends MigrationBase
 
 		$this->handleTimeout();
 
-		Db::$db->add_index('{db_prefix}' . $table->name, ['type' => 'primary', 'columns' => self::$columns]);
+		Db::$db->add_index(
+			'{db_prefix}' . $table->name,
+			['type' => 'primary', 'columns' => self::$columns],
+		);
 
 		return true;
 	}

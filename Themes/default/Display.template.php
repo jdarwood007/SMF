@@ -1,21 +1,22 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
 use SMF\Lang;
 use SMF\Theme;
 use SMF\Time;
-use SMF\Utils;
 use SMF\User;
+use SMF\Utils;
 
 /**
  * This template handles displaying a topic
@@ -23,18 +24,20 @@ use SMF\User;
 function template_main()
 {
 	// Let them know, if their report was a success!
-	if (Utils::$context['report_sent'])
+	if (Utils::$context['report_sent']) {
 		echo '
 		<div class="infobox">
 			', Lang::getTxt('report_sent', file: 'General'), '
 		</div>';
+	}
 
 	// Let them know why their message became unapproved.
-	if (Utils::$context['becomesUnapproved'])
+	if (Utils::$context['becomesUnapproved']) {
 		echo '
 		<div class="noticebox">
 			', Lang::getTxt('post_becomes_unapproved', file: 'General'), '
 		</div>';
+	}
 
 	// Show new topic info here?
 	echo '
@@ -48,12 +51,14 @@ function template_main()
 	echo '
 			<span class="nextlinks floatright">', Utils::$context['previous_next'], '</span>';
 
-	if (!empty(Theme::$current->settings['display_who_viewing']))
-	{
+	if (!empty(Theme::$current->settings['display_who_viewing'])) {
 		// Show just numbers...?
 		if (Theme::$current->settings['display_who_viewing'] == 1 || empty(Utils::$context['view_members_list'])) {
+			// Count the ones this member is allowed to see. Any hidden ones get
+			// their own mention below, so counting those here as well would say
+			// the same people twice.
 			$list_of_viewers = [
-				Lang::getTxt('number_of_members', [0], file: 'General'),
+				Lang::getTxt('number_of_members', [count(Utils::$context['view_members_list'])], file: 'General'),
 			];
 		}
 		// Or show the actual people viewing the topic?
@@ -73,13 +78,13 @@ function template_main()
 		echo '
 			<p>
 				', Lang::getTxt(
-					'who_viewing_topic',
-					[
-						'list_of_viewers' => Lang::sentenceList(array_values($list_of_viewers)),
-						'num_viewing' => count(Utils::$context['view_members_list'] ?? []) + (int) (Utils::$context['view_num_guests'] ?? 0) + (int) (Utils::$context['view_num_hidden'] ?? 0),
-					],
-					file: 'General',
-				), '
+			'who_viewing_topic',
+			[
+				'list_of_viewers' => Lang::sentenceList(array_values($list_of_viewers)),
+				'num_viewing' => count(Utils::$context['view_members_list'] ?? []) + (int) (Utils::$context['view_num_guests'] ?? 0) + (int) (Utils::$context['view_num_hidden'] ?? 0),
+			],
+			file: 'General',
+		), '
 			</p>';
 	}
 
@@ -89,8 +94,7 @@ function template_main()
 		', Utils::$context['first_new_message'] ? '<a id="new"></a>' : '';
 
 	// Is this topic also a poll?
-	if (Utils::$context['is_poll'])
-	{
+	if (Utils::$context['is_poll']) {
 		echo '
 		<div id="poll">
 			<div class="cat_bar">
@@ -102,22 +106,21 @@ function template_main()
 				<div id="poll_options">';
 
 		// Are they not allowed to vote but allowed to view the options?
-		if (Utils::$context['poll']['show_results'] || !Utils::$context['allow_vote'])
-		{
+		if (Utils::$context['poll']['show_results'] || !Utils::$context['allow_vote']) {
 			echo '
 					<dl class="options">';
 
 			// Show each option with its corresponding percentage bar.
-			foreach (Utils::$context['poll']['options'] as $option)
-			{
+			foreach (Utils::$context['poll']['options'] as $option) {
 				echo '
 						<dt class="', $option['voted_this'] ? ' voted' : '', '">', $option['option'], '</dt>
 						<dd class="statsbar generic_bar', $option['voted_this'] ? ' voted' : '', '">';
 
-				if (Utils::$context['allow_results_view'])
+				if (Utils::$context['allow_results_view']) {
 					echo '
 							', $option['bar_ndt'], '
 							<span class="percentage">', $option['votes'], ' (', $option['percent'], '%)</span>';
+				}
 
 				echo '
 						</dd>';
@@ -126,28 +129,30 @@ function template_main()
 			echo '
 					</dl>';
 
-			if (Utils::$context['allow_results_view'])
+			if (Utils::$context['allow_results_view']) {
 				echo '
 					<p>', Lang::getTxt('poll_total_voters', [Utils::$context['poll']['total_votes']], file: 'General'), '</p>';
+			}
 		}
 		// They are allowed to vote! Go to it!
-		else
-		{
+		else {
 			echo '
 					<form action="', Config::$scripturl, '?action=vote;topic=', Utils::$context['current_topic'], '.', Utils::$context['start'], '" method="post" accept-charset="UTF-8">';
 
 			// Show a warning if they are allowed more than one option.
-			if (Utils::$context['poll']['allowed_warning'])
+			if (Utils::$context['poll']['allowed_warning']) {
 				echo '
 						<p class="smallpadding">', Utils::$context['poll']['allowed_warning'], '</p>';
+			}
 
 			echo '
 						<ul class="options">';
 
 			// Show each option with its button - a radio likely.
-			foreach (Utils::$context['poll']['options'] as $option)
+			foreach (Utils::$context['poll']['options'] as $option) {
 				echo '
-							<li>', $option['vote_button'], ' <label for="', $option['id'], '">', $option['option'], '</label></li>';
+							<li>', $option['vote_button'], ' <label for="options-', $option['id'], '">', $option['option'], '</label></li>';
+			}
 
 			echo '
 						</ul>
@@ -159,9 +164,10 @@ function template_main()
 		}
 
 		// Is the clock ticking?
-		if (!empty(Utils::$context['poll']['expire_time']))
+		if (!empty(Utils::$context['poll']['expire_time'])) {
 			echo '
 					<p><strong>', Lang::getTxt(Utils::$context['poll']['is_expired'] ? 'poll_expired_on' : 'poll_expires_on', file: 'General'), ':</strong> ', Utils::$context['poll']['expire_time'], '</p>';
+		}
 
 		echo '
 				</div><!-- #poll_options -->
@@ -196,12 +202,13 @@ function template_main()
 			</div>';
 
 	// Mobile action - moderation buttons (top)
-	if (!empty(Utils::$context['normal_buttons']))
+	if (!empty(Utils::$context['normal_buttons'])) {
 		echo '
 		<div class="mobile_buttons floatright">
 			<a class="button mobile_act">', Lang::getTxt('mobile_action', file: 'General'), '</a>
 			', !empty(Utils::$context['mod_buttons']) ? '<a class="button mobile_mod">' . Lang::getTxt('mobile_moderation', file: 'General') . '</a>' : '', '
 		</div>';
+	}
 
 	echo '
 		</div>';
@@ -209,14 +216,15 @@ function template_main()
 	// Show the topic information - icon, subject, etc.
 	echo '
 		<div id="forumposts">
-			<form action="', Config::$scripturl, '?action=quickmod2;topic=', Utils::$context['current_topic'], '.', Utils::$context['start'], '" method="post" accept-charset="UTF-8" name="quickModForm" id="quickModForm" onsubmit="return oQuickModify.bInEditMode ? oQuickModify.modifySave(\'' . Utils::$context['session_id'] . '\', \'' . Utils::$context['session_var'] . '\') : false">';
+			<form action="', Config::$scripturl, '?action=quickmod2;topic=', Utils::$context['current_topic'], '.', Utils::$context['start'], '" method="post" accept-charset="UTF-8" name="quickModForm" id="quickModForm">';
 
-	Utils::$context['ignoredMsgs'] = array();
-	Utils::$context['removableMessageIDs'] = array();
+	Utils::$context['ignoredMsgs'] = [];
+	Utils::$context['removableMessageIDs'] = [];
 
 	// Get all the messages...
-	while ($message = Utils::$context['get_message']())
+	while ($message = Utils::$context['get_message']()) {
 		template_single_post($message);
+	}
 
 	echo '
 			</form>
@@ -233,12 +241,13 @@ function template_main()
 			</div>';
 
 	// Mobile action - moderation buttons (bottom)
-	if (!empty(Utils::$context['normal_buttons']))
+	if (!empty(Utils::$context['normal_buttons'])) {
 		echo '
 		<div class="mobile_buttons floatright">
 			<a class="button mobile_act">', Lang::getTxt('mobile_action', file: 'General'), '</a>
 			', !empty(Utils::$context['mod_buttons']) ? '<a class="button mobile_mod">' . Lang::getTxt('mobile_moderation', file: 'General') . '</a>' : '', '
 		</div>';
+	}
 
 	echo '
 		</div>';
@@ -249,7 +258,7 @@ function template_main()
 	// Moderation buttons
 	echo '
 		<div id="moderationbuttons">
-			', template_button_strip(Utils::$context['mod_buttons'], 'bottom', array('id' => 'moderationbuttons_strip')), '
+			', template_button_strip(Utils::$context['mod_buttons'], 'bottom', ['id' => 'moderationbuttons_strip']), '
 		</div>';
 
 	// Show the jumpto box, or actually...let Javascript do it.
@@ -257,8 +266,9 @@ function template_main()
 		<div id="display_jump_to"></div>';
 
 	// Show quickreply
-	if (Utils::$context['can_reply'])
+	if (Utils::$context['can_reply']) {
 		template_quickreply();
+	}
 
 	// User action pop on mobile screen (or actually small screen), this uses responsive css does not check mobile device.
 	echo '
@@ -273,7 +283,7 @@ function template_main()
 		</div>';
 
 	// Show the moderation button & pop (if there is anything to show)
-	if (!empty(Utils::$context['mod_buttons']))
+	if (!empty(Utils::$context['mod_buttons'])) {
 		echo '
 		<div id="mobile_moderation" class="popup_container">
 			<div class="popup_window description">
@@ -282,17 +292,17 @@ function template_main()
 					<a href="javascript:void(0);" class="main_icons hide_popup"></a>
 				</div>
 				<div id="moderationbuttons_mobile">
-					', template_button_strip(Utils::$context['mod_buttons'], 'bottom', array('id' => 'moderationbuttons_strip_mobile')), '
+					', template_button_strip(Utils::$context['mod_buttons'], 'bottom', ['id' => 'moderationbuttons_strip_mobile']), '
 				</div>
 			</div>
 		</div>';
+	}
 
 	echo '
 		<script>
 			window.addEventListener("DOMContentLoaded", function() {';
 
-	if (!empty(Theme::$current->options['display_quick_mod']) && Theme::$current->options['display_quick_mod'] == 1 && Utils::$context['can_remove_post'])
-	{
+	if (!empty(Theme::$current->options['display_quick_mod']) && Theme::$current->options['display_quick_mod'] == 1 && Utils::$context['can_remove_post']) {
 		echo '
 				const strips = [
 					{ id: "moderationbuttons", display: "moderationbuttons_strip", varName: "oInTopicModeration" },
@@ -327,30 +337,16 @@ function template_main()
 	}
 
 	echo '
-				var oQuickModify = new QuickModify({
+				new QuickModify({
 					sScriptUrl: smf_scripturl,
+					sFormName: \'quickModForm\',
 					sClassName: \'quick_edit\',
 					bShowModify: ', Config::$modSettings['show_modify'] ? 'true' : 'false', ',
 					iTopicId: ', Utils::$context['current_topic'], ',
-					sTemplateBodyEdit: ', Utils::escapeJavaScript('
-						<div id="quick_edit_body_container">
-							<div id="error_box" class="error"></div>
-							<textarea class="editor" name="message" rows="12" tabindex="' . Utils::$context['tabindex']++ . '">%body%</textarea><br>
-							<input type="hidden" name="' . Utils::$context['session_var'] . '" value="' . Utils::$context['session_id'] . '">
-							<input type="hidden" name="topic" value="' . Utils::$context['current_topic'] . '">
-							<input type="hidden" name="msg" value="%msg_id%">
-							<div class="righttext quickModifyMargin">
-								<input type="submit" name="post" value="' . Lang::getTxt('save', file: 'General') . '" tabindex="' . Utils::$context['tabindex']++ . '" onclick="return oQuickModify.modifySave(\'' . Utils::$context['session_id'] . '\', \'' . Utils::$context['session_var'] . '\');" accesskey="s" class="button">' . (Utils::$context['show_spellchecking'] ? ' <input type="button" value="' . Lang::getTxt('spell_check', file: 'General') . '" tabindex="' . Utils::$context['tabindex']++ . '" onclick="spellCheck(\'quickModForm\', \'message\');" class="button">' : '') . ' <input type="submit" name="cancel" value="' . Lang::getTxt('modify_cancel', file: 'General') . '" tabindex="' . Utils::$context['tabindex']++ . '" onclick="return oQuickModify.modifyCancel();" class="button">
-							</div>
-						</div>'), ',
-					sTemplateSubjectEdit: ', Utils::escapeJavaScript('<input type="text" name="subject" value="%subject%" size="80" maxlength="80" tabindex="' . Utils::$context['tabindex']++ . '">'), ',
-					sTemplateBodyNormal: ', Utils::escapeJavaScript('%body%'), ',
-					sTemplateSubjectNormal: ', Utils::escapeJavaScript('<a href="' . Config::$scripturl . '?topic=' . Utils::$context['current_topic'] . '.msg%msg_id%#msg%msg_id%" rel="nofollow">%subject%</a>'), ',
-					sTemplateTopSubject: ', Utils::escapeJavaScript('%subject%'), ',
-					sTemplateReasonEdit: ', Utils::escapeJavaScript(Lang::getTxt('reason_for_edit', file: 'General') . ': <input type="text" name="modify_reason" value="%modify_reason%" size="80" maxlength="80" tabindex="' . Utils::$context['tabindex']++ . '" class="quickModifyMargin">'), ',
-					sTemplateReasonNormal: ', Utils::escapeJavaScript('%modify_text'), ',
-					sErrorBorderStyle: ', Utils::escapeJavaScript('1px solid red'), (Utils::$context['can_reply']) ? ',
-					sFormRemoveAccessKeys: \'postmodify\'' : '', '
+					sSaveButtonText: ', Utils::escapeJavaScript(Lang::getTxt('save', file: 'General')), ',
+					sCancelButtonText: ', Utils::escapeJavaScript(Lang::getTxt('modify_cancel', file: 'General')), ',
+					sEditReasonText: ', Utils::escapeJavaScript(Lang::getTxt('reason_for_edit', file: 'General')) . ',
+					sErrorBorderStyle: ', Utils::escapeJavaScript('1px solid red'), '
 				});
 
 				new JumpTo({
@@ -377,9 +373,10 @@ function template_main()
 					sLabelIconList: "', Lang::getTxt('message_icon', file: 'General'), '"
 				});';
 
-	if (!empty(Utils::$context['ignoredMsgs']))
+	if (!empty(Utils::$context['ignoredMsgs'])) {
 		echo '
 				ignore_toggles([', implode(', ', Utils::$context['ignoredMsgs']), '], ', Utils::escapeJavaScript(Lang::getTxt('show_ignore_user_post', file: 'General')), ');';
+	}
 
 	echo '
 			});
@@ -395,12 +392,12 @@ function template_single_post($message)
 {
 	$ignoring = false;
 
-	if ($message['can_remove'])
+	if ($message['can_remove']) {
 		Utils::$context['removableMessageIDs'][] = $message['id'];
+	}
 
 	// Are we ignoring this message?
-	if (!empty($message['is_ignored']))
-	{
+	if (!empty($message['is_ignored'])) {
 		$ignoring = true;
 		Utils::$context['ignoredMsgs'][] = $message['id'];
 	}
@@ -427,15 +424,15 @@ function template_single_post($message)
 						<div class="poster">';
 
 	// Are there any custom fields above the member name?
-	if (!empty($message['custom_fields']['above_member']))
-	{
+	if (!empty($message['custom_fields']['above_member'])) {
 		echo '
 							<div class="custom_fields_above_member">
 								<ul class="nolist">';
 
-		foreach ($message['custom_fields']['above_member'] as $custom)
+		foreach ($message['custom_fields']['above_member'] as $custom) {
 			echo '
 									<li class="custom ', $custom['col_name'], '">', $custom['value'], '</li>';
+		}
 
 		echo '
 								</ul>
@@ -446,25 +443,30 @@ function template_single_post($message)
 							<h4>';
 
 	// Show online and offline buttons?
-	if (!empty(Config::$modSettings['onlineEnable']) && !$message['member']['is_guest'])
+	if (!empty(Config::$modSettings['onlineEnable']) && !$message['member']['is_guest']) {
 		echo '
 								', Utils::$context['can_send_pm'] ? '<a href="' . $message['member']['online']['href'] . '" title="' . $message['member']['online']['label'] . '">' : '', '<span class="' . ($message['member']['online']['is_online'] == 1 ? 'on' : 'off') . '" title="' . $message['member']['online']['text'] . '"></span>', Utils::$context['can_send_pm'] ? '</a>' : '';
+	}
 
 	// Custom fields BEFORE the username?
-	if (!empty($message['custom_fields']['before_member']))
-		foreach ($message['custom_fields']['before_member'] as $custom)
+	if (!empty($message['custom_fields']['before_member'])) {
+		foreach ($message['custom_fields']['before_member'] as $custom) {
 			echo '
 								<span class="custom ', $custom['col_name'], '">', $custom['value'], '</span>';
+		}
+	}
 
 	// Show a link to the member's profile.
 	echo '
 								', $message['member']['link'];
 
 	// Custom fields AFTER the username?
-	if (!empty($message['custom_fields']['after_member']))
-		foreach ($message['custom_fields']['after_member'] as $custom)
+	if (!empty($message['custom_fields']['after_member'])) {
+		foreach ($message['custom_fields']['after_member'] as $custom) {
 			echo '
 								<span class="custom ', $custom['col_name'], '">', $custom['value'], '</span>';
+		}
+	}
 
 	// Begin display of user info
 	echo '
@@ -472,60 +474,67 @@ function template_single_post($message)
 							<ul class="user_info">';
 
 	// Show the member's custom title, if they have one.
-	if (!empty($message['member']['title']))
+	if (!empty($message['member']['title'])) {
 		echo '
 								<li class="title">', $message['member']['title'], '</li>';
+	}
 
 	// Show the member's primary group (like 'Administrator') if they have one.
-	if (!empty($message['member']['group']))
+	if (!empty($message['member']['group'])) {
 		echo '
 								<li class="membergroup">', $message['member']['group'], '</li>';
+	}
 
 	// Show the user's avatar.
-	if (!empty(Config::$modSettings['show_user_images']) && empty(Theme::$current->options['show_no_avatars']) && !empty($message['member']['avatar']['image']))
+	if (!empty(Config::$modSettings['show_user_images']) && empty(Theme::$current->options['show_no_avatars']) && !empty($message['member']['avatar']['image'])) {
 		echo '
 								<li class="avatar">
 									<a href="', $message['member']['href'], '">', $message['member']['avatar']['image'], '</a>
 								</li>';
+	}
 
 	// Are there any custom fields below the avatar?
-	if (!empty($message['custom_fields']['below_avatar']))
-		foreach ($message['custom_fields']['below_avatar'] as $custom)
+	if (!empty($message['custom_fields']['below_avatar'])) {
+		foreach ($message['custom_fields']['below_avatar'] as $custom) {
 			echo '
 								<li class="custom ', $custom['col_name'], '">', $custom['value'], '</li>';
+		}
+	}
 
 	// Don't show these things for guests.
-	if (!$message['member']['is_guest'])
-	{
+	if (!$message['member']['is_guest']) {
 		// Show the post group icons
 		echo '
 								<li class="icons">', $message['member']['group_icons'], '</li>';
 
 		// Show the post group if and only if they have no other group or the option is on, and they are in a post group.
-		if ((empty(Config::$modSettings['hide_post_group']) || empty($message['member']['group'])) && !empty($message['member']['post_group']))
+		if ((empty(Config::$modSettings['hide_post_group']) || empty($message['member']['group'])) && !empty($message['member']['post_group'])) {
 			echo '
 								<li class="postgroup">', $message['member']['post_group'], '</li>';
+		}
 
 		// Show how many posts they have made.
-		if (!isset(Utils::$context['disabled_fields']['posts']))
+		if (!isset(Utils::$context['disabled_fields']['posts'])) {
 			echo '
 								<li class="postcount">', Lang::getTxt('member_postcount_num', [$message['member']['posts']], file: 'General'), '</li>';
+		}
 
 		// Show their personal text?
-		if (!empty(Config::$modSettings['show_blurb']) && !empty($message['member']['blurb']))
+		if (!empty(Config::$modSettings['show_blurb']) && !empty($message['member']['blurb'])) {
 			echo '
 								<li class="blurb">', $message['member']['blurb'], '</li>';
+		}
 
 		// Any custom fields to show as icons?
-		if (!empty($message['custom_fields']['icons']))
-		{
+		if (!empty($message['custom_fields']['icons'])) {
 			echo '
 								<li class="im_icons">
 									<ol>';
 
-			foreach ($message['custom_fields']['icons'] as $custom)
+			foreach ($message['custom_fields']['icons'] as $custom) {
 				echo '
 										<li class="custom ', $custom['col_name'], '">', $custom['value'], '</li>';
+			}
 
 			echo '
 									</ol>
@@ -533,26 +542,28 @@ function template_single_post($message)
 		}
 
 		// Show the website and email address buttons.
-		if ($message['member']['show_profile_buttons'])
-		{
+		if ($message['member']['show_profile_buttons']) {
 			echo '
 								<li class="profile">
 									<ol class="profile_icons">';
 
 			// Don't show an icon if they haven't specified a website.
-			if (!empty($message['member']['website']['url']) && !isset(Utils::$context['disabled_fields']['website']))
+			if (!empty($message['member']['website']['url']) && !isset(Utils::$context['disabled_fields']['website'])) {
 				echo '
-										<li><a href="', $message['member']['website']['url'], '" title="' . $message['member']['website']['title'] . '" target="_blank" rel="noopener">', (Theme::$current->settings['use_image_buttons'] ? '<span class="main_icons www centericon" title="' . $message['member']['website']['title'] . '"></span>' : Lang::getTxt('www', file: 'General')), '</a></li>';
+										<li><a href="', $message['member']['website']['url'], '" title="' . $message['member']['website']['title'] . '" target="_blank" rel="noopener"><span class="main_icons www centericon" title="' . $message['member']['website']['title'] . '"></span></a></li>';
+			}
 
 			// Since we know this person isn't a guest, you *can* message them.
-			if (Utils::$context['can_send_pm'])
+			if (Utils::$context['can_send_pm']) {
 				echo '
-										<li><a href="', Config::$scripturl, '?action=pm;sa=send;u=', $message['member']['id'], '" title="', Lang::getTxt($message['member']['online']['is_online'] ? 'pm_online' : 'pm_offline', file: 'General'), '">', Theme::$current->settings['use_image_buttons'] ? '<span class="main_icons im_' . ($message['member']['online']['is_online'] ? 'on' : 'off') . ' centericon" title="' . Lang::getTxt($message['member']['online']['is_online'] ? 'pm_online' : 'pm_offline', file: 'General') . '"></span> ' : Lang::getTxt($message['member']['online']['is_online'] ? 'pm_online' : 'pm_offline', file: 'General'), '</a></li>';
+										<li><a href="', Config::$scripturl, '?action=pm;sa=send;u=', $message['member']['id'], '" title="', Lang::getTxt($message['member']['online']['is_online'] ? 'pm_online' : 'pm_offline', file: 'General'), '"><span class="main_icons im_' . ($message['member']['online']['is_online'] ? 'on' : 'off') . ' centericon" title="' . Lang::getTxt($message['member']['online']['is_online'] ? 'pm_online' : 'pm_offline', file: 'General') . '"></span> </a></li>';
+			}
 
 			// Show the email if necessary
-			if (!empty($message['member']['email']) && $message['member']['show_email'])
+			if (!empty($message['member']['email']) && $message['member']['show_email']) {
 				echo '
-										<li class="email"><a href="mailto:' . $message['member']['email'] . '" rel="nofollow">', (Theme::$current->settings['use_image_buttons'] ? '<span class="main_icons mail centericon" title="' . Lang::getTxt('email', file: 'General') . '"></span>' : Lang::getTxt('email', file: 'General')), '</a></li>';
+										<li class="email"><a href="mailto:' . $message['member']['email'] . '" rel="nofollow"><span class="main_icons mail centericon" title="' . Lang::getTxt('email', file: 'General') . '"></span></a></li>';
+			}
 
 			echo '
 									</ol>
@@ -560,57 +571,67 @@ function template_single_post($message)
 		}
 
 		// Any custom fields for standard placement?
-		if (!empty($message['custom_fields']['standard']))
-			foreach ($message['custom_fields']['standard'] as $custom)
+		if (!empty($message['custom_fields']['standard'])) {
+			foreach ($message['custom_fields']['standard'] as $custom) {
 				echo '
 								<li class="custom ', $custom['col_name'], '">', $custom['title'], ': ', $custom['value'], '</li>';
+			}
+		}
 	}
 	// Otherwise, show the guest's email.
-	elseif (!empty($message['member']['email']) && $message['member']['show_email'])
+	elseif (!empty($message['member']['email']) && $message['member']['show_email']) {
 		echo '
 								<li class="email">
-									<a href="mailto:' . $message['member']['email'] . '" rel="nofollow">', (Theme::$current->settings['use_image_buttons'] ? '<span class="main_icons mail centericon" title="' . Lang::getTxt('email', file: 'General') . '"></span>' : Lang::getTxt('email', file: 'General')), '</a>
+									<a href="mailto:' . $message['member']['email'] . '" rel="nofollow"><span class="main_icons mail centericon" title="' . Lang::getTxt('email', file: 'General') . '"></span></a>
 								</li>';
+	}
 
 	// Show the IP to this user for this post - because you can moderate?
-	if (!empty(Utils::$context['can_moderate_forum']) && !empty($message['member']['ip']))
+	if (!empty(Utils::$context['can_moderate_forum']) && !empty($message['member']['ip'])) {
 		echo '
 								<li class="poster_ip">
 									<a href="', Config::$scripturl, '?action=', !empty($message['member']['is_guest']) ? 'trackip' : 'profile;area=tracking;sa=ip;u=' . $message['member']['id'], ';searchip=', $message['member']['ip'], '" data-hover="', $message['member']['ip'], '" class="show_on_hover"><span>', Lang::getTxt('show_ip', file: 'General'), '</span></a> <a href="', Config::$scripturl, '?action=helpadmin;help=see_admin_ip" onclick="return reqOverlayDiv(this.href);" class="help">(?)</a>
 								</li>';
+	}
 
 	// Or, should we show it because this is you?
-	elseif ($message['can_see_ip'])
+	elseif ($message['can_see_ip']) {
 		echo '
 								<li class="poster_ip">
 									<a href="', Config::$scripturl, '?action=helpadmin;help=see_member_ip" onclick="return reqOverlayDiv(this.href);" class="help show_on_hover" data-hover="', $message['member']['ip'], '"><span>', Lang::getTxt('show_ip', file: 'General'), '</span></a>
 								</li>';
+	}
 
 	// Okay, are you at least logged in? Then we can show something about why IPs are logged...
-	elseif (!User::$me->is_guest)
+	elseif (!User::$me->is_guest) {
 		echo '
 								<li class="poster_ip">
 									<a href="', Config::$scripturl, '?action=helpadmin;help=see_member_ip" onclick="return reqOverlayDiv(this.href);" class="help">', Lang::getTxt('logged', file: 'General'), '</a>
 								</li>';
+	}
 
 	// Otherwise, you see NOTHING!
-	else
-		echo '
+	else {
+	echo '
 								<li class="poster_ip">', Lang::getTxt('logged', file: 'General'), '</li>';
+	}
 
 	// Are we showing the warning status?
 	// Don't show these things for guests.
-	if (!$message['member']['is_guest'] && $message['member']['can_see_warning'])
+	if (!$message['member']['is_guest'] && $message['member']['can_see_warning']) {
 		echo '
 								<li class="warning">
 									', Utils::$context['can_issue_warning'] ? '<a href="' . Config::$scripturl . '?action=profile;area=issuewarning;u=' . $message['member']['id'] . '">' : '', '<span class="main_icons warning_', $message['member']['warning_status'], '"></span> ', Utils::$context['can_issue_warning'] ? '</a>' : '', '<span class="warn_', $message['member']['warning_status'], '">', Lang::getTxt('warn_' . $message['member']['warning_status'], file: 'General'), '</span>
 								</li>';
+	}
 
 	// Are there any custom fields to show at the bottom of the poster info?
-	if (!empty($message['custom_fields']['bottom_poster']))
-		foreach ($message['custom_fields']['bottom_poster'] as $custom)
+	if (!empty($message['custom_fields']['bottom_poster'])) {
+		foreach ($message['custom_fields']['bottom_poster'] as $custom) {
 			echo '
 								<li class="custom ', $custom['col_name'], '">', $custom['value'], '</li>';
+		}
+	}
 
 	// Poster info ends.
 	echo '
@@ -639,9 +660,10 @@ function template_single_post($message)
 	echo '
 									<' . (!empty(Config::$modSettings['show_modify']) && !empty($message['edit_history']) ? 'a href="" onclick="return false;"' : 'span') . ' class="smalltext modified floatright', !empty(Config::$modSettings['show_modify']) && !empty($message['modified']['last_edit_text']) ? ' mvisible' : '', '" id="modified_', $message['id'], '">';
 
-	if (!empty(Config::$modSettings['show_modify']) && !empty($message['modified']['last_edit_text']))
+	if (!empty(Config::$modSettings['show_modify']) && !empty($message['modified']['last_edit_text'])) {
 		echo
 										$message['modified']['last_edit_text'];
+	}
 
 	echo '
 									</' . (!empty(Config::$modSettings['show_modify']) && !empty($message['edit_history']) ? 'a' : 'span') . '>';
@@ -658,7 +680,7 @@ function template_single_post($message)
 			$last_edit_text = Lang::getTxt(
 				'edit_history_linktext' . ($diff->reason !== '' ? '_reason' : ''),
 				[
-					'time' => (new Time($diff->time1))->setTimezone(User::getTimezone())->format(),
+					'time' => (new Time($diff->time1))->setTimezone(User::$me->timezone)->format(),
 					'member' => $diff->name === '' ? '(' . Lang::getTxt('unknown') . ')' : $diff->name,
 					'reason' => $diff->reason,
 				],
@@ -681,22 +703,24 @@ function template_single_post($message)
 							</div><!-- .keyinfo -->';
 
 	// Ignoring this user? Hide the post.
-	if ($ignoring)
+	if ($ignoring) {
 		echo '
 							<div id="msg_', $message['id'], '_ignored_prompt" class="noticebox">
 								', Lang::getTxt('ignoring_user', file: 'General'), '
 								<a href="#" id="msg_', $message['id'], '_ignored_link" style="display: none;">', Lang::getTxt('show_ignore_user_post', file: 'General'), '</a>
 							</div>';
+	}
 
 	// Show the post itself, finally!
 	echo '
 							<div class="post">';
 
-	if (!$message['approved'] && $message['member']['id'] != 0 && $message['member']['id'] == User::$me->id)
+	if (!$message['approved'] && $message['member']['id'] != 0 && $message['member']['id'] == User::$me->id) {
 		echo '
 								<div class="noticebox">
 									', Lang::getTxt('post_awaiting_approval', file: 'General'), '
 								</div>';
+	}
 	echo '
 								<div class="inner" data-msgid="', $message['id'], '" id="msg_', $message['id'], '"', $ignoring ? ' style="display:none;"' : '', '>
 									', Utils::adjustHeadingLevels($message['body'], 4), '
@@ -704,19 +728,18 @@ function template_single_post($message)
 							</div><!-- .post -->';
 
 	// Assuming there are attachments...
-	if (!empty($message['attachment']))
-	{
+	if (!empty($message['attachment'])) {
 		$last_approved_state = 1;
 		// Don't output the div unless we actually have something to show...
 		$div_output = false;
 
-		foreach ($message['attachment'] as $attachment)
-		{
+		foreach ($message['attachment'] as $attachment) {
 			// Do we want this attachment to not be showed here?
-			if ($attachment['is_approved'] && !empty(Config::$modSettings['dont_show_attach_under_post']) && !empty(Utils::$context['show_attach_under_post'][$attachment['id']]))
+			if ($attachment['is_approved'] && !empty(Config::$modSettings['dont_show_attach_under_post']) && !empty(Utils::$context['show_attach_under_post'][$attachment['id']])) {
 				continue;
-			elseif (!$div_output)
-			{
+			}
+
+			if (!$div_output) {
 				$div_output = true;
 
 				echo '
@@ -724,17 +747,17 @@ function template_single_post($message)
 			}
 
 			// Show a special box for unapproved attachments...
-			if ($attachment['is_approved'] != $last_approved_state)
-			{
+			if ($attachment['is_approved'] != $last_approved_state) {
 				$last_approved_state = 0;
 				echo '
 								<fieldset>
 									<legend>
 										', Lang::getTxt('attach_awaiting_approve', file: 'General');
 
-				if (Utils::$context['can_approve'])
+				if (Utils::$context['can_approve']) {
 					echo '
 										&nbsp;[<a href="', Config::$scripturl, '?action=attachapprove;sa=all;mid=', $message['id'], ';', Utils::$context['session_var'], '=', Utils::$context['session_id'], '">', Lang::getTxt('approve_all', file: 'General'), '</a>]';
+				}
 
 				echo '
 									</legend>';
@@ -743,17 +766,17 @@ function template_single_post($message)
 			echo '
 									<div class="attached">';
 
-			if ($attachment['is_image'] && !empty(Config::$modSettings['attachmentShowImages']))
-			{
+			if ($attachment['is_image'] && !empty(Config::$modSettings['attachmentShowImages'])) {
 				echo '
 										<div class="attachments_top">';
 
-				if ($attachment['thumbnail']['has_thumb'])
+				if ($attachment['thumbnail']['has_thumb']) {
 					echo '
 											<a href="', $attachment['href'], ';image" id="link_', $attachment['id'], '" onclick="', $attachment['thumbnail']['javascript'], '"><img src="', $attachment['thumbnail']['href'], '" alt="" id="thumb_', $attachment['id'], '" class="atc_img"></a>';
-				else
-					echo '
+				} else {
+				echo '
 											<img src="' . $attachment['href'] . ';image" alt="" loading="lazy" class="atc_img">';
+				}
 
 				echo '
 										</div><!-- .attachments_top -->';
@@ -763,9 +786,10 @@ function template_single_post($message)
 										<div class="attachments_bot">
 											<a href="' . $attachment['href'] . '"><img src="' . Theme::$current->settings['images_url'] . '/icons/clip.png" class="centericon" alt="*">&nbsp;' . $attachment['name'] . '</a> ';
 
-			if (!$attachment['is_approved'] && Utils::$context['can_approve'])
+			if (!$attachment['is_approved'] && Utils::$context['can_approve']) {
 				echo '
 											[<a href="', Config::$scripturl, '?action=attachapprove;sa=approve;aid=', $attachment['id'], ';', Utils::$context['session_var'], '=', Utils::$context['session_id'], '">', Lang::getTxt('approve', file: 'General'), '</a>] [<a href="', Config::$scripturl, '?action=attachapprove;sa=reject;aid=', $attachment['id'], ';', Utils::$context['session_var'], '=', Utils::$context['session_id'], '">', Lang::getTxt('delete', file: 'General'), '</a>] ';
+			}
 			echo '
 											<br>', $attachment['formatted_size'], ($attachment['is_image'] ? ', ' . $attachment['real_width'] . 'x' . $attachment['real_height'] . '<br>' . Lang::getTxt('attach_viewed', [$attachment['downloads']], file: 'General') : '<br>' . Lang::getTxt('attach_downloaded', [$attachment['downloads']], file: 'General')), '
 										</div><!-- .attachments_bot -->';
@@ -775,41 +799,39 @@ function template_single_post($message)
 		}
 
 		// If we had unapproved attachments clean up.
-		if ($last_approved_state == 0)
+		if ($last_approved_state == 0) {
 			echo '
 								</fieldset>';
+		}
 
 		// Only do this if we output a div above - otherwise it'll break things
-		if ($div_output)
+		if ($div_output) {
 			echo '
 							</div><!-- #msg_[id]_footer -->';
+		}
 	}
 
 	echo '
 							<div class="under_message">';
 
 	// What about likes?
-	if (!empty(Config::$modSettings['enable_likes']))
-	{
+	if (!empty(Config::$modSettings['enable_likes'])) {
 		echo '
 								<ul class="floatleft">';
 
-		if (!empty($message['likes']['can_like']))
-		{
+		if (!empty($message['likes']['can_like'])) {
 			echo '
 									<li class="smflikebutton" id="msg_', $message['id'], '_likes"', $ignoring ? ' style="display:none;"' : '', '>
 										<a href="', Config::$scripturl, '?action=likes;ltype=msg;sa=like;like=', $message['id'], ';', Utils::$context['session_var'], '=', Utils::$context['session_id'], '" class="msg_like"><span class="main_icons ', $message['likes']['you'] ? 'unlike' : 'like', '"></span> ', Lang::getTxt($message['likes']['you'] ? 'unlike' : 'like', file: 'General'), '</a>
 									</li>';
 		}
 
-		if (!empty($message['likes']['count']))
-		{
+		if (!empty($message['likes']['count'])) {
 			Utils::$context['some_likes'] = true;
 			$count = $message['likes']['count'];
 			$base = 'likes_count';
 
-			if ($message['likes']['you'])
-			{
+			if ($message['likes']['you']) {
 				$base = 'you_' . $base;
 				$count--;
 			}
@@ -817,7 +839,8 @@ function template_single_post($message)
 			$like_text = Lang::getTxt($base, ['url' => Config::$scripturl . '?action=likes;sa=view;ltype=msg;like=' . $message['id'] . ';' . Utils::$context['session_var'] . '=' . Utils::$context['session_id'], 'num' => $count], file: 'General');
 
 			// Remove link if no cookies; session reference won't work
-			if (empty($_COOKIE)) {
+			// Also, don't show link to guests
+			if (empty($_COOKIE) || User::$me->is_guest) {
 				$like_text = preg_replace('~</?a\b[^>]*>~', '', $like_text);
 			}
 
@@ -840,15 +863,15 @@ function template_single_post($message)
 						<div class="moderatorbar">';
 
 	// Are there any custom profile fields for above the signature?
-	if (!empty($message['custom_fields']['above_signature']))
-	{
+	if (!empty($message['custom_fields']['above_signature'])) {
 		echo '
 							<div class="custom_fields_above_signature">
 								<ul class="nolist">';
 
-		foreach ($message['custom_fields']['above_signature'] as $custom)
+		foreach ($message['custom_fields']['above_signature'] as $custom) {
 			echo '
 									<li class="custom ', $custom['col_name'], '">', $custom['value'], '</li>';
+		}
 
 		echo '
 								</ul>
@@ -856,22 +879,23 @@ function template_single_post($message)
 	}
 
 	// Show the member's signature?
-	if (!empty($message['member']['signature']) && empty(Theme::$current->options['show_no_signatures']) && Utils::$context['signature_enabled'])
+	if (!empty($message['member']['signature']) && empty(Theme::$current->options['show_no_signatures']) && Utils::$context['signature_enabled']) {
 		echo '
 							<div class="signature" id="msg_', $message['id'], '_signature"', $ignoring ? ' style="display:none;"' : '', '>
 								', $message['member']['signature'], '
 							</div>';
+	}
 
 	// Are there any custom profile fields for below the signature?
-	if (!empty($message['custom_fields']['below_signature']))
-	{
+	if (!empty($message['custom_fields']['below_signature'])) {
 		echo '
 							<div class="custom_fields_below_signature">
 								<ul class="nolist">';
 
-		foreach ($message['custom_fields']['below_signature'] as $custom)
+		foreach ($message['custom_fields']['below_signature'] as $custom) {
 			echo '
 									<li class="custom ', $custom['col_name'], '">', $custom['value'], '</li>';
+		}
 
 		echo '
 								</ul>
@@ -902,19 +926,22 @@ function template_quickreply()
 				<div class="roundframe">';
 
 	// Is the topic locked?
-	if (Utils::$context['is_locked'])
+	if (Utils::$context['is_locked']) {
 		echo '
 					<p class="alert smalltext">', Lang::getTxt('quick_reply_warning', file: 'General'), '</p>';
+	}
 
 	// Show a warning if the topic is old
-	if (!empty(Utils::$context['oldTopicError']))
+	if (!empty(Utils::$context['oldTopicError'])) {
 		echo '
 					<p class="alert smalltext">', Lang::getTxt('error_old_topic', [Config::$modSettings['oldTopicDays']], file: 'General'), '</p>';
+	}
 
 	// Does the post need approval?
-	if (!Utils::$context['can_reply_approved'])
+	if (!Utils::$context['can_reply_approved']) {
 		echo '
 					<p><em>', Lang::getTxt('wait_for_approval', file: 'General'), '</em></p>';
+	}
 
 	echo '
 					<form action="', Config::$scripturl, '?board=', Utils::$context['current_board'], ';action=post2" method="post" accept-charset="UTF-8" name="postmodify" id="postmodify" onsubmit="submitonce(this);">
@@ -930,25 +957,23 @@ function template_quickreply()
 						<input type="hidden" name="seqnum" value="', Utils::$context['form_sequence_number'], '">';
 
 	// Guests just need more.
-	if (User::$me->is_guest)
-	{
+	if (User::$me->is_guest) {
 		echo '
 						<dl id="post_header">
 							<dt>
 								', Lang::getTxt('name', file: 'General'), '
 							</dt>
 							<dd>
-								<input type="text" name="guestname" size="25" value="', Utils::$context['name'], '" tabindex="', Utils::$context['tabindex']++, '" required>
+								<input type="text" name="guestname" size="25" value="', Utils::$context['name'], '" required>
 							</dd>';
 
-		if (empty(Config::$modSettings['guest_post_no_email']))
-		{
+		if (empty(Config::$modSettings['guest_post_no_email'])) {
 			echo '
 							<dt>
 								', Lang::getTxt('email', file: 'General'), '
 							</dt>
 							<dd>
-								<input type="email" name="email" size="25" value="', Utils::$context['email'], '" tabindex="', Utils::$context['tabindex']++, '" required>
+								<input type="email" name="email" size="25" value="', Utils::$context['email'], '" required>
 							</dd>';
 		}
 
@@ -959,12 +984,13 @@ function template_quickreply()
 	template_control_richedit('quickReply', true, true);
 
 	// Is visual verification enabled?
-	if (Utils::$context['require_verification'])
+	if (Utils::$context['require_verification']) {
 		echo '
 						<div class="post_verification">
 							<strong>', Lang::getTxt('verification', file: 'General'), '</strong>
 							', template_control_verification(Utils::$context['visual_verification_id'], 'all'), '
 						</div>';
+	}
 
 	// Finally, the submit buttons.
 	echo '
@@ -978,25 +1004,12 @@ function template_quickreply()
 		</div><!-- #quickreply -->
 		<br class="clear">';
 
-	// Draft autosave available and the user has it enabled?
-	if (!empty(Utils::$context['drafts_autosave']))
-		echo '
-		<script>
-			var oDraftAutoSave = new smf_DraftAutoSave({
-				sLastNote: \'draft_lastautosave\',
-				sLastID: \'id_draft\',', !empty(Utils::$context['post_box_name']) ? '
-				sSceditorID: \'' . Utils::$context['post_box_name'] . '\',' : '', '
-				sType: \'', 'quick', '\',
-				iBoard: ', (empty(Utils::$context['current_board']) ? 0 : Utils::$context['current_board']), ',
-				iFreq: ', (empty(Config::$modSettings['masterAutoSaveDraftsDelay']) ? 60000 : Config::$modSettings['masterAutoSaveDraftsDelay'] * 1000), '
-			});
-		</script>';
-
-	if (Utils::$context['show_spellchecking'])
+	if (Utils::$context['show_spellchecking']) {
 		echo '
 		<form action="', Config::$scripturl, '?action=spellcheck" method="post" accept-charset="UTF-8" name="spell_form" id="spell_form" target="spellWindow">
 			<input type="hidden" name="spellstring" value="">
 		</form>';
+	}
 
 	echo '
 		<script>
@@ -1016,6 +1029,5 @@ function template_quickreply()
 				});
 			});
 			var oEditorID = "', Utils::$context['post_box_name'], '";
-			var oEditorObject = oEditorHandle_', Utils::$context['post_box_name'], ';
 		</script>';
 }

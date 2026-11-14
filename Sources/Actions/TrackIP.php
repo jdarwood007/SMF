@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -34,7 +34,7 @@ use SMF\User;
 use SMF\Utils;
 
 /**
- * Rename here and in the exportStatic call at the end of the file.
+ * Class TrackIP
  */
 class TrackIP implements ActionInterface, Routable
 {
@@ -80,7 +80,7 @@ class TrackIP implements ActionInterface, Routable
 		} else {
 			Utils::$context['base_url'] = Config::$scripturl . '?action=profile;area=tracking;sa=ip;u=' . $this->memID;
 
-			Utils::$context['ip'] = IP::ip2range(User::$loaded[$this->memID]->ip);
+			Utils::$context['ip'] = IP::ip2range(Profile::$member->ip);
 		}
 
 		Utils::$context['sub_template'] = 'trackIP';
@@ -230,14 +230,14 @@ class TrackIP implements ActionInterface, Routable
 			'base_href' => Utils::$context['base_url'] . ';searchip=' . Utils::$context['ip'],
 			'default_sort_col' => 'date2',
 			'get_items' => [
-				'function' => '\\SMF\\Actions\\Profile\\Tracking::list_getUserErrors',
+				'function' => \SMF\Actions\Profile\Tracking::class . '::list_getUserErrors',
 				'params' => [
 					'le.ip >= ' . $ip_string[0] . ' and le.ip <= ' . $ip_string[1],
 					$fields,
 				],
 			],
 			'get_count' => [
-				'function' => '\\SMF\\Actions\\Profile\\Tracking::list_getUserErrorCount',
+				'function' => \SMF\Actions\Profile\Tracking::class . '::list_getUserErrorCount',
 				'params' => [
 					'ip >= ' . $ip_string[0] . ' and ip <= ' . $ip_string[1],
 					$fields,
@@ -429,7 +429,7 @@ class TrackIP implements ActionInterface, Routable
 			$this->memID = User::$me->id;
 		} else {
 			if (!isset(Profile::$member)) {
-				Profile::load();
+				Profile::loadMember();
 			}
 
 			$this->memID = Profile::$member->id;

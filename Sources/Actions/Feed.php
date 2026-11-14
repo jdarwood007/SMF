@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -34,6 +34,7 @@ use SMF\QueryString;
 use SMF\Routable;
 use SMF\Theme;
 use SMF\Time;
+use SMF\TimeZone;
 use SMF\Url;
 use SMF\User;
 use SMF\Utils;
@@ -306,7 +307,7 @@ class Feed implements ActionInterface, Routable
 			'source' => Config::$scripturl,
 			'rights' => '© ' . date('Y') . ' ' . Utils::$context['forum_name'],
 			'icon' => !empty(Theme::$current->settings['og_image']) ? Theme::$current->settings['og_image'] : Config::$boardurl . '/favicon.ico',
-			'language' => !empty(Lang::getTxt('lang_locale', file: 'General')) ? str_replace('_', '-', substr(Lang::getTxt('lang_locale', file: 'General'), 0, strcspn(Lang::getTxt('lang_locale', file: 'General'), '.'))) : 'en',
+			'language' => str_replace('_', '-', substr(Lang::getLocale(), 0, strcspn(Lang::getLocale(), '.'))),
 			'self' => Config::$scripturl,
 		];
 
@@ -581,7 +582,7 @@ class Feed implements ActionInterface, Routable
 
 		while ($row = Db::$db->fetch_assoc($request)) {
 			// If any control characters slipped in somehow, kill the evil things
-			$row = filter_var($row, FILTER_CALLBACK, ['options' => '\\SMF\\Utils::cleanXml']);
+			$row = filter_var($row, FILTER_CALLBACK, ['options' => Utils::class . '::cleanXml']);
 
 			// Create a UUID for each member
 			$uuid = (string) (new Uuid(5, 'member=' . $row['id_member']));
@@ -684,7 +685,7 @@ class Feed implements ActionInterface, Routable
 						[
 							'tag' => 'time',
 							'attributes' => ['label' => Lang::getTxt('date_registered', file: 'General'), 'UTC' => Time::gmstrftime('%F %T', (int) $row['date_registered'])],
-							'content' => Utils::htmlspecialchars(strip_tags(Time::create('@' . $row['date_registered'], new \DateTimeZone(Config::$modSettings['default_timezone']))->format(null, false))),
+							'content' => Utils::htmlspecialchars(strip_tags(Time::create('@' . $row['date_registered'], TimeZone::create(Config::$modSettings['default_timezone']))->format(null, false))),
 						],
 						[
 							'tag' => 'id',
@@ -744,7 +745,7 @@ class Feed implements ActionInterface, Routable
 				ORDER BY t.id_first_msg {raw:ascdesc}
 				LIMIT {int:limit}',
 				[
-					'current_board' => Board::$info->id,
+					'current_board' => isset(Board::$info) ? Board::$info->id : 0,
 					'is_approved' => 1,
 					'limit' => $this->limit,
 					'optimize_msg' => $optimize_msg,
@@ -771,7 +772,7 @@ class Feed implements ActionInterface, Routable
 
 		while ($row = Db::$db->fetch_assoc($request)) {
 			// If any control characters slipped in somehow, kill the evil things
-			$row = filter_var($row, FILTER_CALLBACK, ['options' => '\\SMF\\Utils::cleanXml']);
+			$row = filter_var($row, FILTER_CALLBACK, ['options' => Utils::class . '::cleanXml']);
 
 			// Old SMF versions autolinked during output rather than input,
 			// so maintain expected behaviour for those old messages.
@@ -1212,7 +1213,7 @@ class Feed implements ActionInterface, Routable
 
 		while ($row = Db::$db->fetch_assoc($request)) {
 			// If any control characters slipped in somehow, kill the evil things
-			$row = filter_var($row, FILTER_CALLBACK, ['options' => '\\SMF\\Utils::cleanXml']);
+			$row = filter_var($row, FILTER_CALLBACK, ['options' => Utils::class . '::cleanXml']);
 
 			// Old SMF versions autolinked during output rather than input,
 			// so maintain expected behaviour for those old messages.
@@ -1480,7 +1481,7 @@ class Feed implements ActionInterface, Routable
 						[
 							'tag' => 'time',
 							'attributes' => ['label' => Lang::getTxt('date', file: 'General'), 'UTC' => Time::gmstrftime('%F %T', (int) $row['poster_time'])],
-							'content' => Utils::htmlspecialchars(strip_tags(Time::create('@' . $row['poster_time'], new \DateTimeZone(Config::$modSettings['default_timezone']))->format(null, false))),
+							'content' => Utils::htmlspecialchars(strip_tags(Time::create('@' . $row['poster_time'], TimeZone::create(Config::$modSettings['default_timezone']))->format(null, false))),
 						],
 						[
 							'tag' => 'id',
@@ -1618,7 +1619,11 @@ class Feed implements ActionInterface, Routable
 		$profile = User::$loaded[$this->member]->format($this->format == 'smf');
 
 		// If any control characters slipped in somehow, kill the evil things
-		$profile = filter_var($profile, FILTER_CALLBACK, ['options' => '\\SMF\\Utils::cleanXml']);
+		$profile = filter_var($profile, FILTER_CALLBACK, ['options' => Utils::class . '::cleanXml']);
+
+		// Are they hidden?
+		$member_is_hidden = empty($profile['show_online']);
+		$show_last_login = allowedTo('moderate_forum') || !$member_is_hidden;
 
 		// Create a UUID for this member
 		$uuid = (string) (new Uuid(5, 'member=' . $profile['id']));
@@ -1732,7 +1737,7 @@ class Feed implements ActionInterface, Routable
 					],
 					[
 						'tag' => 'updated',
-						'content' => Time::gmstrftime('%Y-%m-%dT%H:%M:%SZ', (int) $profile['last_login_timestamp']),
+						'content' => $show_last_login ? Time::gmstrftime('%Y-%m-%dT%H:%M:%SZ', (int) $profile['last_login_timestamp']) : '',
 					],
 					[
 						'tag' => 'id',
@@ -1778,13 +1783,13 @@ class Feed implements ActionInterface, Routable
 				],
 				[
 					'tag' => 'last-login',
-					'attributes' => ['label' => Lang::getTxt('lastLoggedIn', file: 'Profile'), 'UTC' => Time::gmstrftime('%F %T', (int) $profile['last_login_timestamp'])],
-					'content' => Time::create('@' . $profile['last_login_timestamp'], new \DateTimeZone(Config::$modSettings['default_timezone']))->format(null, false),
+					'attributes' => ['label' => Lang::getTxt('lastLoggedIn', file: 'Profile'), 'UTC' => $show_last_login ? Time::gmstrftime('%F %T', (int) $profile['last_login_timestamp']) : ''],
+					'content' => $show_last_login ? Time::create('@' . $profile['last_login_timestamp'], TimeZone::create(Config::$modSettings['default_timezone']))->format(null, false) : '',
 				],
 				[
 					'tag' => 'registered',
 					'attributes' => ['label' => Lang::getTxt('date_registered', file: 'General'), 'UTC' => Time::gmstrftime('%F %T', (int) $profile['registered_timestamp'])],
-					'content' => Time::create('@' . $profile['registered_timestamp'], new \DateTimeZone(Config::$modSettings['default_timezone']))->format(null, false),
+					'content' => Time::create('@' . $profile['registered_timestamp'], TimeZone::create(Config::$modSettings['default_timezone']))->format(null, false),
 				],
 				[
 					'tag' => 'avatar',
@@ -1978,7 +1983,7 @@ class Feed implements ActionInterface, Routable
 			$row['poster_ip'] = new IP($row['poster_ip']);
 
 			// If any control characters slipped in somehow, kill the evil things
-			$row = filter_var($row, FILTER_CALLBACK, ['options' => '\\SMF\\Utils::cleanXml']);
+			$row = filter_var($row, FILTER_CALLBACK, ['options' => Utils::class . '::cleanXml']);
 
 			// Old SMF versions autolinked during output rather than input,
 			// so maintain expected behaviour for those old messages.
@@ -2430,7 +2435,7 @@ class Feed implements ActionInterface, Routable
 			$this->start_after = (int) $row['id_pm'];
 
 			// If any control characters slipped in somehow, kill the evil things
-			$row = filter_var($row, FILTER_CALLBACK, ['options' => '\\SMF\\Utils::cleanXml']);
+			$row = filter_var($row, FILTER_CALLBACK, ['options' => Utils::class . '::cleanXml']);
 
 			// Old SMF versions autolinked during output rather than input,
 			// so maintain expected behaviour for those old messages.

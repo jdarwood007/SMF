@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Belize
  */
-class Belize extends \SMF\Calendar\VTimeZone
+class Belize extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Belize extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Belize';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -50,7 +68,7 @@ class Belize extends \SMF\Calendar\VTimeZone
 		1 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19181006T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19411005T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19411005T060000Z',
 			'TZNAME' => 'UTC-0530',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0530',
@@ -58,7 +76,7 @@ class Belize extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19190209T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=2SA;UNTIL=19420215T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=2SA;UNTIL=19420215T053000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0530',
 			'TZOFFSETTO' => '-0600',
@@ -87,7 +105,7 @@ class Belize extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19471005T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19671008T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19671008T060000Z',
 			'TZNAME' => 'UTC-0530',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0530',
@@ -95,7 +113,7 @@ class Belize extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19480215T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=2SA;UNTIL=19680211T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=2SA;UNTIL=19680211T053000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0530',
 			'TZOFFSETTO' => '-0600',

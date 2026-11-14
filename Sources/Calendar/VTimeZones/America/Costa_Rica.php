@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Costa_Rica
  */
-class Costa_Rica extends \SMF\Calendar\VTimeZone
+class Costa_Rica extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Costa_Rica extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Costa_Rica';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'America_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -50,7 +68,7 @@ class Costa_Rica extends \SMF\Calendar\VTimeZone
 		1 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19790225T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=-1SU;UNTIL=19800224T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=-1SU;UNTIL=19800224T060000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',
@@ -58,7 +76,7 @@ class Costa_Rica extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19790603T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYDAY=1SU;UNTIL=19800601T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=6;BYDAY=1SU;UNTIL=19800601T050000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0600',
@@ -66,7 +84,7 @@ class Costa_Rica extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19910119T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYDAY=3SA;UNTIL=19920118T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYDAY=3SA;UNTIL=19920118T060000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '-0600',
 			'TZOFFSETTO' => '-0500',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -308,7 +308,7 @@ class EventOccurrence implements \ArrayAccess
 				} elseif (!($value instanceof TimeInterval)) {
 					$value = TimeInterval::createFromDateInterval($value);
 				}
-				$this->custom['duration'] = $value;
+				$this->internal_data['duration'] = $value;
 				break;
 
 			case 'end':
@@ -319,7 +319,7 @@ class EventOccurrence implements \ArrayAccess
 						break;
 					}
 				}
-				$this->custom['duration'] = $this->start->diff($value);
+				$this->internal_data['duration'] = $this->start->diff($value);
 				break;
 
 			case 'end_datetime':
@@ -338,7 +338,7 @@ class EventOccurrence implements \ArrayAccess
 			case 'end_timestamp':
 			case 'end_iso_gmdate':
 				$end->{substr($prop, 4)} = $value;
-				$this->custom['duration'] = $this->start->diff($end);
+				$this->internal_data['duration'] = $this->start->diff($end);
 				break;
 
 			// These properties are read-only.
@@ -370,7 +370,7 @@ class EventOccurrence implements \ArrayAccess
 	public function __get(string $prop): mixed
 	{
 		if (str_starts_with($prop, 'end')) {
-			$end = (clone $this->start)->add($this->custom['duration'] ?? $this->getParentEvent()->duration);
+			$end = (clone $this->start)->add($this->internal_data['duration'] ?? $this->getParentEvent()->duration);
 		}
 
 		switch ($prop) {
@@ -433,7 +433,7 @@ class EventOccurrence implements \ArrayAccess
 				return $end->{substr($prop, 4)};
 
 			case 'age':
-				if ($this->getParentEvent()->type === Event::TYPE_BIRTHDAY && $this->getParentEvent()->start->format('Y') === 1004) {
+				if ($this->getParentEvent()->type === Event::TYPE_BIRTHDAY && $this->getParentEvent()->start->format('Y') === '1004') {
 					return null;
 				}
 
@@ -457,7 +457,7 @@ class EventOccurrence implements \ArrayAccess
 			case 'duration':
 			case 'title':
 			case 'location':
-				return $this->custom[$prop] ?? $this->getParentEvent()->{$prop};
+				return $this->internal_data[$prop] ?? $this->getParentEvent()->{$prop};
 
 			// These always inherit from the parent event.
 			case 'uid':
@@ -566,7 +566,7 @@ class EventOccurrence implements \ArrayAccess
 	 */
 	public function fixTimezone(): void
 	{
-		$all_timezones = TimeZone::list($this->start->date);
+		$all_timezones = TimeZone::list($this->start->timestamp, flat: true);
 
 		if (!isset($all_timezones[$this->start->timezone])) {
 			$later = strtotime('@' . $this->start->timestamp . ' + 1 year');
@@ -575,11 +575,6 @@ class EventOccurrence implements \ArrayAccess
 			$found = false;
 
 			foreach ($all_timezones as $possible_tzid => $dummy) {
-				// Ignore the "-----" option
-				if (empty($possible_tzid)) {
-					continue;
-				}
-
 				$possible_tzinfo = (new \DateTimeZone($possible_tzid))->getTransitions($this->start->timestamp, $later);
 
 				if ($tzinfo === $possible_tzinfo) {
@@ -591,7 +586,7 @@ class EventOccurrence implements \ArrayAccess
 
 			// Hm. That's weird. Well, just prepend it to the list and let the user deal with it.
 			if (!$found) {
-				$all_timezones = [$this->start->timezone => '[UTC' . $this->start->format('P') . '] - ' . $this->start->timezone] + $all_timezones;
+				Utils::$context['all_timezones'] = ['' => [$this->start->timezone => '[UTC' . $this->start->format('P') . '] - ' . $this->start->timezone]] + Utils::$context['all_timezones'];
 			}
 		}
 	}
@@ -633,7 +628,7 @@ class EventOccurrence implements \ArrayAccess
 
 		$occurrence = $event->getOccurrence($id);
 
-		$offset = TimeInterval::createFromDateInterval(date_diff($occurrence->unadjusted_start, $eventOptions['start']));
+		$offset = $occurrence->unadjusted_start->diff($eventOptions['start']);
 
 		$occurrence->adjustment = new EventAdjustment(
 			$id,

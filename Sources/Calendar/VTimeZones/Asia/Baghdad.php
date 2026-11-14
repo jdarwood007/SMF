@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Baghdad
  */
-class Baghdad extends \SMF\Calendar\VTimeZone
+class Baghdad extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Baghdad';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Arabian',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19821001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19841001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19840930T200000Z',
 			'TZNAME' => 'UTC+03',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0300',
@@ -72,7 +90,7 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19840401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19850401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19850331T210000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0400',
@@ -80,7 +98,7 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19850929T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19900930T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19900929T210000Z',
 			'TZNAME' => 'UTC+03',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0300',
@@ -88,7 +106,7 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19860330T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19900325T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19900324T220000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0400',
@@ -96,7 +114,7 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19910401T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=20070401T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=20070401T000000Z',
 			'TZNAME' => 'UTC+04',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0400',
@@ -104,7 +122,7 @@ class Baghdad extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19911001T040000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=20071001T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=20070930T230000Z',
 			'TZNAME' => 'UTC+03',
 			'TZOFFSETFROM' => '+0400',
 			'TZOFFSETTO' => '+0300',

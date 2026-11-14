@@ -5,7 +5,7 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
  * @version 3.0 Alpha 3
@@ -14,30 +14,36 @@ $finder = (new PhpCsFixer\Finder())
 	->in(__DIR__)
 	->in(__DIR__ . '/Languages')
 	->in(__DIR__ . '/Sources/Unicode')
+	// Include files that are otherwise ignored.
+	->append([
+		new SplFileInfo(__FILE__),
+		new SplFileInfo(__DIR__ . '/.github/phpcs/HeaderCommentWithFilterFixer.php'),
+		new SplFileInfo(__DIR__ . '/.github/phpcs/SectionComments.php'),
+	])
 	// Don't touch libraries.
 	->exclude([
 		'cache',
 		'other',
 		'Packages',
 		'Smileys',
-		'Sources/minify',
-		'Sources/ReCaptcha',
-		'Sources/ZxcvbnPhp',
-		'Themes',
+		'vendor',
 	])
 	// Skip ssi_example.php.
 	->notName(['ssi_examples.php'])
 	// Skip anything being ignored in .gitignore.
 	->ignoreVCSIgnored(true);
 
-require_once('.github/phpcs/SectionComments.php');
+require_once '.github/phpcs/HeaderCommentWithFilterFixer.php';
+
+require_once '.github/phpcs/SectionComments.php';
 
 return (new PhpCsFixer\Config())
-    ->registerCustomFixers([
-        new SMF\Fixer\ClassNotation\SectionComments(),
-    ])
+	->registerCustomFixers([
+		new SMF\Fixer\Comment\HeaderCommentWithFilterFixer(),
+		new SMF\Fixer\ClassNotation\SectionComments(),
+	])
 	->setRules([
-		'@PER-CS2.0' => true,
+		'@PER-CS2x0' => true,
 
 		// PSR12 overrides.
 		'no_break_comment' => false,  // A bit buggy with comments.
@@ -70,6 +76,7 @@ return (new PhpCsFixer\Config())
 		'ordered_class_elements' => [
 			'order' => [
 				'use_trait',
+				'case',
 				'constant_public',
 				'constant_protected',
 				'constant_private',
@@ -84,7 +91,7 @@ return (new PhpCsFixer\Config())
 				'method_protected',
 				'method_private',
 				'method_protected_static',
-				'method_private_static'
+				'method_private_static',
 			],
 			'sort_algorithm' => 'none',
 		],
@@ -92,7 +99,27 @@ return (new PhpCsFixer\Config())
 			'null_adjustment' => 'always_last',
 			'sort_algorithm' => 'none',
 		],
-        'SMF/section_comments' => true,
+
+		// Comment.
+		'SMF/header_comment_with_filter' => [
+			'header' => <<<'HEADER'
+				Simple Machines Forum (SMF)
+
+				@package SMF
+				@author Simple Machines https://www.simplemachines.org
+				@copyright 2026 Simple Machines and individual contributors
+				@license https://www.simplemachines.org/about/smf/license.php BSD
+
+				@version 3.0 Alpha 5-dev
+				HEADER,
+			'validator' => '~(?P<EXTRA>.*)??Simple Machines Forum \(SMF\)\R\R@package SMF\R@author Simple Machines https?://www\.simplemachines\.org\R@copyright \d{4} Simple Machines and individual contributors\R@license https?://www\.simplemachines\.org/about/smf/license\.php BSD\R\R@version .*~',
+			'comment_type' => 'PHPDoc',
+			'location' => 'after_open',
+			'separate' => 'both',
+			'files_pattern' => '/Sources[\\\\\/]/',
+			'files_regex_exclude' => '/index\.php/',
+		],
+		'SMF/section_comments' => true,
 
 		// Control structure.
 		'include' => true,
@@ -232,5 +259,5 @@ return (new PhpCsFixer\Config())
 		],
 	])
 	->setIndent("\t")
-	->setParallelConfig(PhpCsFixer\Runner\Parallel\ParallelConfigFactory::detect())
+	->setParallelConfig(PhpCsFixer\Runner\Parallel\ParallelConfigFactory::detect(40))
 	->setFinder($finder);

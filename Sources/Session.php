@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,7 @@ namespace SMF;
 
 use SMF\Cache\CacheApi;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 
 /**
  *  Implementation of PHP's session API.
@@ -26,8 +27,30 @@ use SMF\Db\DatabaseApi as Db;
  * 	- it uses the databaseSession_lifetime setting for garbage collection.
  * 	- the custom session handler is set by Session::load().
  */
-class Session implements \SessionHandlerInterface
+class Session extends \SessionHandler implements \SessionHandlerInterface, \SessionIdInterface, \SessionUpdateTimestampHandlerInterface
 {
+	/*********************
+	 * Internal properties
+	 *********************/
+
+	/**
+	 * @var string
+	 *
+	 * Holds our session data, used for multiple reads/validations to reduce database impact.
+	 */
+	private ?string $data = null;
+
+	/****************************
+	 * Internal static properties
+	 ****************************/
+
+	/**
+	 * @var string[]
+	 *
+	 * Any action that is not dependent on data within the session may be added to this array.
+	 */
+	private static array $no_writes = ['dlattach'];
+
 	/****************
 	 * Public methods
 	 ****************/
@@ -35,6 +58,7 @@ class Session implements \SessionHandlerInterface
 	/**
 	 * Initializes the session.
 	 *
+	 * @interface SessionHandlerInterface
 	 * @param string $path The path to save the session to.
 	 * @param string $name The name of the session.
 	 * @return bool Always returns true.
@@ -47,6 +71,7 @@ class Session implements \SessionHandlerInterface
 	/**
 	 * Closes the session.
 	 *
+	 * @interface SessionHandlerInterface
 	 * @return bool Always returns true.
 	 */
 	public function close(): bool
@@ -61,46 +86,62 @@ class Session implements \SessionHandlerInterface
 	 * doing so causes errors on some versions of PHP when the user logs out.
 	 * Returning an empty string works for all versions.
 	 *
-	 * @param string $session_id The session ID.
+	 * @interface SessionHandlerInterface
+	 * @param string $id The session ID.
 	 * @return string The session data.
 	 */
-	public function read(string $session_id): string
+	public function read(string $id): string
 	{
-		if (preg_match('~^[A-Za-z0-9,-]{16,64}$~', $session_id) == 0) {
+		if (!$this->isValidSessionID($id)) {
 			return '';
 		}
 
-		// Look for it in the database.
-		$result = Db::$db->query(
-			'SELECT data
-			FROM {db_prefix}sessions
-			WHERE session_id = {string:session_id}
-			LIMIT 1',
-			[
-				'session_id' => $session_id,
-			],
-		);
-		list($sess_data) = Db::$db->fetch_row($result);
-		Db::$db->free_result($result);
+		if ($this->data === null) {
+			// Look for it in the database.
+			$result = Db::$db->query(
+				'SELECT data
+				FROM {db_prefix}sessions
+				WHERE session_id = {string:session_id}
+				LIMIT 1',
+				[
+					'session_id' => $id,
+				],
+			);
 
-		return $sess_data != null ? $sess_data : '';
+			// Make sure we actually have something first...
+			if (Db::$db->num_rows($result) != 0) {
+				list($sess_data) = Db::$db->fetch_row($result);
+				Db::$db->free_result($result);
+
+				$this->data = $sess_data;
+			}
+		}
+
+		return $this->data != null ? $this->data : '';
 	}
 
 	/**
 	 * Writes session data.
 	 *
-	 * @param string $session_id The session ID.
+	 * @interface SessionHandlerInterface
+	 * @param string $id The session ID.
 	 * @param string $data The data to write to the session.
 	 * @return bool Whether the info was successfully written.
 	 */
-	public function write(string $session_id, string $data): bool
+	public function write(string $id, string $data): bool
 	{
 		// Don't bother writing the session if cookies are disabled
 		if (empty($_COOKIE)) {
 			return true;
 		}
 
-		if (preg_match('~^[A-Za-z0-9,-]{16,64}$~', $session_id) == 0) {
+		// Don't bother writing the session for users just browsing
+		// If verification is required, always write the session
+		if ((empty($_REQUEST['action']) || \in_array($_REQUEST['action'], static::$no_writes, true)) && !empty(Config::$scripturl) && empty(Utils::$context['require_verification']) && !empty(Config::$modSettings['allow_guest_access'])) {
+			return true;
+		}
+
+		if (!$this->isValidSessionID($id)) {
 			return false;
 		}
 
@@ -110,7 +151,7 @@ class Session implements \SessionHandlerInterface
 
 		// If an insert fails due to a duplicate, replace the existing session...
 		Db::$db->insert(
-			'replace',
+			InsertType::Replace,
 			'{db_prefix}sessions',
 			[
 				'session_id' => 'string',
@@ -119,7 +160,7 @@ class Session implements \SessionHandlerInterface
 			],
 			[
 				[
-					$session_id,
+					$id,
 					$data,
 					time(),
 				],
@@ -127,18 +168,21 @@ class Session implements \SessionHandlerInterface
 			['session_id'],
 		);
 
+		$this->data = $data;
+
 		return (Db::$db->affected_rows() == 0 ? false : true);
 	}
 
 	/**
 	 * Destroys a session.
 	 *
-	 * @param string $session_id The session ID.
+	 * @interface SessionHandlerInterface
+	 * @param string $id The session ID.
 	 * @return bool Whether the session was successfully destroyed.
 	 */
-	public function destroy(string $session_id): bool
+	public function destroy(string $id): bool
 	{
-		if (preg_match('~^[A-Za-z0-9,-]{16,64}$~', $session_id) == 0) {
+		if (!$this->isValidSessionID($id)) {
 			return false;
 		}
 
@@ -147,7 +191,7 @@ class Session implements \SessionHandlerInterface
 			'DELETE FROM {db_prefix}sessions
 			WHERE session_id = {string:session_id}',
 			[
-				'session_id' => $session_id,
+				'session_id' => $id,
 			],
 		);
 
@@ -157,6 +201,7 @@ class Session implements \SessionHandlerInterface
 	/**
 	 * Cleans up old sessions.
 	 *
+	 * @interface SessionHandlerInterface
 	 * @param int $max_lifetime Sessions that have not updated for the last
 	 *    $max_lifetime seconds will be removed.
 	 * @return int|false The number of deleted sessions, or false on failure.
@@ -169,7 +214,7 @@ class Session implements \SessionHandlerInterface
 		}
 
 		// Clean up after yerself ;).
-		$session_update = Db::$db->query(
+		Db::$db->query(
 			'DELETE FROM {db_prefix}sessions
 			WHERE last_update < {int:last_update}',
 			[
@@ -181,6 +226,52 @@ class Session implements \SessionHandlerInterface
 
 		return $num_deleted == 0 ? false : $num_deleted;
 	}
+
+	/**
+	 *  Validates a given session ID. A session ID is valid, if a session with that ID already exists.
+	 *  This function is automatically executed when a session is to be started, a session ID is supplied
+	 *  and session.use_strict_mode is enabled.
+	 *
+	 * @interface SessionUpdateTimestampHandlerInterface
+	 * @param string $id The session ID
+	 * @return bool Whether session actually exists or not.
+	 */
+	public function validateId(string $id): bool
+	{
+		if (!$this->isValidSessionID($id)) {
+			return false;
+		}
+
+		if ($this->data === null) {
+			$this->read($id);
+		}
+
+		return $this->data !== '';
+	}
+
+	 /**
+	  *  Updates the last modification timestamp of the session.
+	  *  This function is automatically executed when a session is updated.
+	  *
+	  * @interface SessionUpdateTimestampHandlerInterface
+	  * @param string $id The session ID
+	  * @param string $data The data to write to the session
+	  * @return bool Whether we updated the timestamp or not.
+	  */
+	 public function updateTimestamp(string $id, string $data): bool
+	 {
+		if (!$this->isValidSessionID($id)) {
+			return false;
+		}
+
+		// Unless data has changed, lets not force this.
+		if (strcmp($this->data, $data) === 0) {
+			return true;
+		}
+
+		// Just call the write.
+		return $this->write($id, $data);
+	 }
 
 	/***********************
 	 * Public static methods
@@ -195,6 +286,8 @@ class Session implements \SessionHandlerInterface
 		@ini_set('session.use_cookies', '1');
 		@ini_set('url_rewriter.tags', '');
 		@ini_set('arg_separator.output', '&amp;');
+		@ini_set('session.lazy_write', '1');
+		@ini_set('session.cookie_secure', !empty(Config::$modSettings['secureCookies']));
 
 		// Allows mods to change/add PHP settings
 		IntegrationHook::call('integrate_load_session');
@@ -259,5 +352,21 @@ class Session implements \SessionHandlerInterface
 		}
 
 		User::$sc = $_SESSION['session_value'];
+	}
+
+	/******************
+	 * Internal methods
+	 ******************/
+
+	/**
+	 * Validates a given string conforms to our testing for a valid session id.
+	 *
+	 * @internal
+	 * @param string $id The session ID
+	 * @return bool Whether the string is valid format or not
+	 */
+	private function isValidSessionID(string $id): bool
+	{
+		return preg_match('~^[A-Za-z0-9,-]{16,64}$~', $id) === 1;
 	}
 }

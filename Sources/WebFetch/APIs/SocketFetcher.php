@@ -5,16 +5,17 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\WebFetch\APIs;
 
+use SMF\IP;
 use SMF\Lang;
 use SMF\Url;
 use SMF\WebFetch\WebFetchApi;
@@ -164,13 +165,16 @@ class SocketFetcher extends WebFetchApi
 	 */
 	public function request(string|Url $url, array|string $post_data = []): object
 	{
-		if (!$url instanceof Url) {
+		if (!($url instanceof Url)) {
 			$url = new Url($url, true);
-			$url->toAscii();
 		}
 
+		$url->normalize()->toAscii();
+
 		// Umm, this shouldn't happen?
-		if (empty($url->scheme) || !\in_array($url->scheme, ['http', 'https'])) {
+		if (!$url->isFetchSafe(['http', 'https'])) {
+			$this->closeConnection();
+
 			trigger_error(Lang::getTxt('fetch_web_data_bad_url', [__METHOD__], file: 'Errors'), E_USER_NOTICE);
 
 			return $this;
@@ -206,6 +210,22 @@ class SocketFetcher extends WebFetchApi
 		// Uh-oh...
 		if (!\is_resource($this->fp)) {
 			$this->closeConnection();
+
+			return $this;
+		}
+
+		// Double check that we connected to the expected IP and port.
+		// If the connection was successful, name will be "<IP address>:<port>"
+		$socket_name = @stream_socket_get_name($this->fp, true);
+
+		if (
+			!\is_string($socket_name)
+			|| !str_ends_with($socket_name, ':' . $this->port)
+			|| !$url->resolvesTo(new IP(trim(substr($socket_name, 0, -\strlen(':' . $this->port)), '[]')))
+		) {
+			$this->closeConnection();
+
+			trigger_error(Lang::getTxt('fetch_web_data_bad_url', [__METHOD__], file: 'Errors'), E_USER_NOTICE);
 
 			return $this;
 		}
@@ -261,7 +281,7 @@ class SocketFetcher extends WebFetchApi
 			}
 
 			// Close if it moved to a different host.
-			if ($location->$host !== $url->host) {
+			if ($location->host !== $url->host) {
 				$this->closeConnection();
 			}
 
@@ -370,6 +390,12 @@ class SocketFetcher extends WebFetchApi
 	public function result(?string $area = null): mixed
 	{
 		$max_result = \count($this->response) - 1;
+
+		// Nothing was recorded, because the request was refused before we ever
+		// got as far as making it.
+		if ($max_result < 0) {
+			return null;
+		}
 
 		// Just return a specified area or the entire result?
 		if (\is_null($area)) {

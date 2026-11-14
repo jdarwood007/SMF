@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -84,11 +84,11 @@ class ProxyServer
 	protected $cachedsize;
 
 	/**
-	 * @var string
+	 * @var ?string
 	 *
 	 * Body of object cached.
 	 */
-	protected $cachedbody;
+	protected ?string $cachedbody;
 
 	/****************
 	 * Public methods
@@ -116,7 +116,7 @@ class ProxyServer
 	 */
 	public function checkRequest(): bool
 	{
-		if (!$this->enabled) {
+		if (!$this->enabled || $this->secret === 'smfisawesome') {
 			return false;
 		}
 
@@ -134,15 +134,21 @@ class ProxyServer
 
 		$request = new Url($_GET['request']);
 
-		// Basic sanity check.
-		if (!$request->isValid()) {
+		if (
+			// Basic sanity check.
+			!$request->isValid()
+			// Don't proxy our own resources.
+			|| $request->host === Url::create(Config::$boardurl)->host
+			// SSRF protection: don't proxy localhost, private or reserved IPs, etc.
+			|| !$request->isFetchSafe(['http', 'https'])
+		) {
 			return false;
 		}
 
 		// Ensure any non-ASCII characters in the URL are encoded correctly
 		$request = \strval($request->toAscii());
 
-		if (hash_hmac('sha1', $request, $this->secret) != $_GET['hash']) {
+		if (!hash_equals(hash_hmac('sha1', $request, $this->secret), $_GET['hash'])) {
 			return false;
 		}
 

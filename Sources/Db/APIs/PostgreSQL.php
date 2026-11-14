@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,6 +18,8 @@ namespace SMF\Db\APIs;
 use SMF\Config;
 use SMF\Db\DatabaseApi;
 use SMF\Db\DatabaseApiInterface;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Debug\DebugUtils;
 use SMF\ErrorHandler;
 use SMF\IP;
@@ -63,7 +65,22 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 	/**
 	 *
 	 */
-	public bool $supports_pcre = true;
+	public bool $regex_icu = false;
+
+	/**
+	 *
+	 */
+	public bool $regex_pcre = false;
+
+	/**
+	 *
+	 */
+	public bool $regex_tcl = true;
+
+	/**
+	 *
+	 */
+	public bool $regex_posix = true;
 
 	/*********************
 	 * Internal properties
@@ -100,7 +117,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 	protected $language_ftx;
 
 	/**
-	 * @var object
+	 * @var \PgSql\Result|false
 	 *
 	 * Result of most recent query (a PgSql\Result object).
 	 */
@@ -135,6 +152,13 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 	 */
 	protected $connect_errno;
 
+	/**
+	 * @var array
+	 *
+	 * Cache for list_indexes() method.
+	 */
+	private array $index_cache = [];
+
 	/****************
 	 * Public methods
 	 ****************/
@@ -151,6 +175,9 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$replacements = [
 			'profile_board_stats' => [
 				'~COUNT\(\*\) \/ MAX\(b.num_posts\)~' => 'CAST(COUNT(*) AS DECIMAL) / CAST(b.num_posts AS DECIMAL)',
+			],
+			'ban_like' => [
+				'/\bLIKE\b/' => 'ILIKE',
 			],
 		];
 
@@ -177,12 +204,14 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 		// Comments that are allowed in a query are preg_removed.
 		$allowed_comments_from = [
+			'~\'\X*?\'~s',
 			'~\s+~s',
 			'~/\*!40001 SQL_NO_CACHE \*/~',
 			'~/\*!40000 USE INDEX \([A-Za-z\_]+?\) \*/~',
 			'~/\*!40100 ON DUPLICATE KEY UPDATE id_msg = \d+ \*/~',
 		];
 		$allowed_comments_to = [
+			' %s ',
 			' ',
 			'',
 			'',
@@ -216,19 +245,9 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 		// First, we clean strings out of the query, reduce whitespace, lowercase, and trim - so we can check it over.
 		if (!$this->disableQueryCheck) {
-			$clean = preg_split('/(?<![\'\\\\])\'(?![\'])/', $db_string);
-
-			for ($i = 0; $i < \count($clean); $i++) {
-				if ($i % 2 === 1) {
-					$clean[$i] = ' %s ';
-				}
-			}
-
-			$clean = trim(strtolower(preg_replace(
-				$allowed_comments_from,
-				$allowed_comments_to,
-				implode('', $clean),
-			)));
+			// Clear out escaped single quotes first, to make it simpler to ID & remove string literals
+			$clean = str_replace('\'\'', ' ', $db_string);
+			$clean = trim(strtolower(preg_replace($allowed_comments_from, $allowed_comments_to, $clean)));
 
 			if (
 				// Empty string?
@@ -286,6 +305,31 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			self::$cache[self::$count]['t'] = microtime(true) - $st;
 		}
 
+		if ($this->last_result === false && empty($db_values['db_error_skip'])) {
+			list($file, $line) = $this->error_backtrace('', '', 'return', __FILE__, __LINE__);
+			$query_error = $this->error();
+
+			// Nothing's defined yet... just die with it.
+			if (empty(Utils::$context) || empty(Lang::$txt) || \defined('SMF_INSTALLING')) {
+				die($query_error);
+			}
+
+			// Show an error message, if possible.
+			Utils::$context['error_title'] = Lang::getTxt('database_error', file: 'General');
+			$error_message = Lang::getTxt('try_again', file: 'General');
+
+			if (isset(User::$me) && User::$me->allowedTo('admin_forum')) {
+				$error_message = nl2br($query_error) . '<br>' . Lang::getTxt('file', file: 'General') . ': ' . $file . '<br>' . Lang::getTxt('line', file: 'General') . ': ' . $line;
+
+				if (DebugUtils::isDebugEnabled()) {
+					$error_message .= '<br><br>' . nl2br($db_string);
+				}
+			}
+
+			ErrorHandler::log(Lang::getTxt('database_error', file: 'General') . ': ' . $query_error . (!empty(Config::$modSettings['enableErrorQueryLogging']) ? "\n\n{$db_string}" : ''), 'database', $file, $line);
+			ErrorHandler::fatal($error_message, false);
+		}
+
 		return $this->last_result;
 	}
 
@@ -298,11 +342,23 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		if (str_contains($db_string, '{')) {
 			// Do the quoting and escaping
 			$db_string = preg_replace_callback(
-				'~{([a-z_]+)(?::([a-zA-Z0-9_-]+))?}~',
+				[
+					// The literal type can have arbitrary content.
+					'~{(literal):([^}]*)}~',
+					// The column_ci type names a column inline rather than by key,
+					// so that the column a comparison is case folding is visible
+					// in the query itself. Only a column name, optionally
+					// qualified by a table alias, is accepted.
+					'~{(column_ci):([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)?)}~',
+					// Everything else needs to be a key in $db_values.
+					'~{([a-z_]+)(?::([a-zA-Z0-9_-]+))?}~',
+				],
 				fn($matches) => $this->replacement__callback($matches, $db_values, $connection ?? $this->connection),
 				$db_string,
 			);
 		}
+
+		$db_string = $this->backcompatQuoteFixes($db_string);
 
 		return $db_string;
 	}
@@ -352,7 +408,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 	/**
 	 *
 	 */
-	public function insert(string $method, string $table, array $columns, array $data, array $keys, int $returnmode = DatabaseApi::INSERT_RETURN_MODE_OFF, ?object $connection = null): int|array|null
+	public function insert(string|InsertType $method, string $table, array $columns, array $data, array $keys, int|ReturnMode $returnmode = ReturnMode::Off, ?object $connection = null): int|array|null
 	{
 		$connection = $connection ?? $this->connection;
 
@@ -363,8 +419,17 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			return null;
 		}
 
-		// Force method to lower case
-		$method = strtolower($method);
+		// Convert to the InsertType.
+		if (\is_string($method)) {
+			// Force method to lower case
+			$method = InsertType::tryFrom(strtolower($method)) ?? InsertType::Insert;
+		}
+
+		// Convert to the ReturnMode.
+		if (\is_int($returnmode)) {
+			// Force method to lower case
+			$returnmode = ReturnMode::tryFrom($returnmode) ?? ReturnMode::Off;
+		}
 
 		// Ensure that $data is a multidimensional array.
 		if (array_filter($data, fn($dataRow) => \is_array($dataRow)) !== $data) {
@@ -387,7 +452,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$table = str_replace('{db_prefix}', $this->prefix, $table);
 
 		// Sanity check for replace is key part of the columns array
-		if ($method == 'replace') {
+		if ($method == InsertType::Replace) {
 			if (empty($keys)) {
 				$this->error_backtrace(
 					'When using the replace mode, the key column is a required entry.',
@@ -410,32 +475,49 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		}
 
 		// PostgreSQL doesn't support replace: we implement a MySQL-compatible behavior instead
-		if ($method == 'replace' || $method == 'ignore') {
-			$key_str = '';
-			$col_str = '';
+		if ($method == InsertType::Replace || $method == InsertType::Ignore) {
+			// The columns in an ON CONFLICT statement must exactly match the columns
+			// of some primary or unique index.
+			$possibly_conflicting_columns = [];
+			$column_names = array_keys($columns);
 
-			$count = 0;
-			$count_pk = 0;
+			foreach ($this->list_indexes($table, true) as $index) {
+				if (
+					// Skip if not a primary or unique index.
+					!\in_array($index['type'], ['primary', 'unique'])
+					// Skip if some of the columns in this index are not being inserted into.
+					|| array_intersect($index['columns'], $column_names) !== $index['columns']
+					// Prefer the primary index over others.
+					|| ($index['type'] !== 'primary' && !empty($possibly_conflicting_columns))
+				) {
+					continue;
+				}
 
-			foreach ($columns as $columnName => $type) {
-				// Check pk field.
-				if (\in_array($columnName, $keys)) {
-					$key_str .= ($count_pk > 0 ? ',' : '');
-					$key_str .= $columnName;
-					$count_pk++;
-				}
-				// Normal field.
-				elseif ($method == 'replace') {
-					$col_str .= ($count > 0 ? ',' : '');
-					$col_str .= $columnName . ' = EXCLUDED.' . $columnName;
-					$count++;
-				}
+				$possibly_conflicting_columns = $index['columns'];
 			}
 
-			if ($method == 'replace') {
-				$replace = ' ON CONFLICT (' . $key_str . ') DO UPDATE SET ' . $col_str;
-			} else {
-				$replace = ' ON CONFLICT (' . $key_str . ') DO NOTHING';
+			if (!empty($possibly_conflicting_columns)) {
+				$key_str = implode(',', $possibly_conflicting_columns);
+				$col_str = '';
+				$count = 0;
+
+				// Make a list of the non-pk fields.
+				foreach ($columns as $column_name => $type) {
+					if (
+						!\in_array($column_name, $possibly_conflicting_columns)
+						&& $method == InsertType::Replace
+					) {
+						$col_str .= ($count > 0 ? ',' : '');
+						$col_str .= $column_name . ' = EXCLUDED.' . $column_name;
+						$count++;
+					}
+				}
+
+				if ($method == InsertType::Replace && !empty($col_str)) {
+					$replace = ' ON CONFLICT (' . $key_str . ') DO UPDATE SET ' . $col_str;
+				} else {
+					$replace = ' ON CONFLICT (' . $key_str . ') DO NOTHING';
+				}
 			}
 		}
 
@@ -443,11 +525,14 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$with_returning = false;
 
 		// Let's build the returning string. (MySQL allows this only in normal mode)
-		if (!empty($keys) && (\count($keys) > 0) && $returnmode > DatabaseApi::INSERT_RETURN_MODE_OFF) {
+		if (!empty($keys) && (\count($keys) > 0) && $returnmode !== ReturnMode::Off) {
 			// We only take the first key.
 			$returning = ' RETURNING ' . $keys[0];
 			$with_returning = true;
 		}
+
+		// Apply any adjustments needed for backward compatibility.
+		[$columns, $data, $keys] = $this->backcompatInsertFixes($table, $columns, $data, $keys);
 
 		if (!empty($data)) {
 			// Create the mold for a single row insert.
@@ -471,13 +556,13 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 			foreach ($data as $dataRow) {
 				if (\count($indexed_columns) !== \count($dataRow)) {
-						$this->error_backtrace(
-							'Invalid insert query.  Requested columns does not match the number keys on inserted data.',
-							'',
-							E_USER_ERROR,
-							__FILE__,
-							__LINE__,
-						);
+					$this->error_backtrace(
+						'Invalid insert query.  Requested column count does not match the number of keys on inserted data.',
+						'',
+						E_USER_ERROR,
+						__FILE__,
+						__LINE__,
+					);
 				}
 
 				$insertRows[] = $this->quote($insertData, array_combine($indexed_columns, $dataRow), $connection);
@@ -491,20 +576,20 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 					', $insertRows) . $replace . $returning,
 				[
 					'security_override' => true,
-					'db_error_skip' => $method == 'ignore' || $table === $this->prefix . 'log_errors',
+					'db_error_skip' => $method == InsertType::Ignore || $table === $this->prefix . 'log_errors',
 				],
 				$connection,
 			);
 
 			if ($with_returning && $request !== false) {
-				if ($returnmode === DatabaseApi::INSERT_RETURN_MODE_MULTI) {
+				if ($returnmode === ReturnMode::MultiRow) {
 					$return_var = [];
 				}
 
 				while (($row = $this->fetch_row($request)) && $with_returning) {
 					if (is_numeric($row[0])) { // try to emulate mysql limitation
 						switch ($returnmode) {
-							case DatabaseApi::INSERT_RETURN_MODE_MULTI:
+							case ReturnMode::MultiRow:
 								$return_var[] = (int) $row[0];
 								break;
 
@@ -581,7 +666,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		// PostgreSQL doesn't like prefixes on the columns to be set.
 		$set = preg_replace('~\b' . $table['alias'] . '\.\b~', '', $set);
 
-		return $this->query(
+		$result = $this->query(
 			'UPDATE ' . $table['name'] . ' AS ' . $table['alias'] . '
 			SET ' . $set . '
 			FROM ' . implode(', ', $from) . (!empty($where) ? '
@@ -589,6 +674,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			$db_values,
 			$connection,
 		);
+
+		return $result !== false;
 	}
 
 	/**
@@ -690,12 +777,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 	/**
 	 *
 	 */
-	public function error(object $connection): string
+	public function error(?object $connection = null): string
 	{
-		if ($connection === null && $this->connection === null) {
-			return '';
-		}
-
 		if (!(($connection ?? $this->connection) instanceof \PgSql\Connection)) {
 			return '';
 		}
@@ -767,7 +850,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		}
 
 		// If we are in a transaction, abort.
-		if (!empty($inTransaction)) {
+		if (!empty($this->inTransaction)) {
 			$this->transaction('rollback');
 		}
 
@@ -999,8 +1082,34 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		// Drop it if it exists.
 		$schema_create = 'DROP TABLE IF EXISTS ' . $table_name . ';' . "\n\n";
 
+		// A table that is not written to the write-ahead log says so in the way
+		// it is made, and sessions, log_online and log_floodcontrol are all built
+		// that way. Rebuilding one from this without saying so would quietly give
+		// it a durability it was never meant to pay for.
+		$unlogged = '';
+
+		$persistence = $this->query(
+			'SELECT c.relpersistence
+			FROM pg_class AS c
+				INNER JOIN pg_namespace AS n ON (n.oid = c.relnamespace)
+			WHERE c.relname = {string:table}
+				AND n.nspname = {string:schema}',
+			[
+				'table' => $table_name,
+				'schema' => 'public',
+			],
+		);
+
+		$row = $this->fetch_assoc($persistence);
+
+		if (\is_array($row) && $row['relpersistence'] === 'u') {
+			$unlogged = 'UNLOGGED ';
+		}
+
+		$this->free_result($persistence);
+
 		// Start the create table...
-		$schema_create .= 'CREATE TABLE ' . $table_name . ' (' . "\n";
+		$schema_create .= 'CREATE ' . $unlogged . 'TABLE ' . $table_name . ' (' . "\n";
 		$index_create = '';
 		$seq_create = '';
 
@@ -1029,8 +1138,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			// Make the CREATE for this column.
 			$schema_create .= ' "' . $row['column_name'] . '" ' . $row['data_type'] . ($row['is_nullable'] != 'YES' ? ' NOT NULL' : '');
 
-			// Add a default...?
-			if (trim($row['column_default']) != '') {
+			// Add a default...? A column without one reads as null here.
+			if (trim($row['column_default'] ?? '') != '') {
 				$schema_create .= ' default ' . $row['column_default'] . '';
 
 				// Auto increment?
@@ -1330,7 +1439,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		}
 
 		// Now add the thing!
-		$this->query(
+		$result = $this->query(
 			'ALTER TABLE ' . $short_table_name . '
 			ADD COLUMN ' . $column_info['name'] . ' ' . $type . $generated,
 			[
@@ -1350,7 +1459,9 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			return $this->change_column($table_name, $column_info['name'], $column_info);
 		}
 
-		return true;
+		unset($this->index_cache[$short_table_name]);
+
+		return $result !== false;
 	}
 
 	/**
@@ -1367,8 +1478,6 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		}
 
 		// MySQL you can do a "column_name (length)", postgresql does not allow this.  Strip it.
-		$cols = $this->list_columns($table_name, true);
-
 		foreach ($index_info['columns'] as &$c) {
 			if (\is_array($c)) {
 				$c = $c['name'] . (isset($c['opclass']) ? ' ' . $c['opclass'] : '');
@@ -1424,6 +1533,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 				],
 			);
 		}
+
+		unset($this->index_cache[$parsed_table_name]);
 
 		// Query returns a result or true if successful, false otherwise.
 		return $result !== false;
@@ -1563,7 +1674,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 		// Default values and such are inapplicable to generated columns.
 		if (isset($column_info['generation_expression'])) {
-			$column_info['drop_default'] = true;
+			$column_info['drop_default'] = !isset($old_info['generation_expression']);
 			unset($column_info['default'], $column_info['not_null'], $column_info['auto']);
 		}
 
@@ -1646,6 +1757,16 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 				);
 			}
 
+			if (isset($old_info['generation_expression'])) {
+				$this->query(
+					'ALTER TABLE ' . $short_table_name . '
+					ALTER COLUMN ' . $column_info['name'] . ' DROP EXPRESSION',
+					[
+						'security_override' => true,
+					],
+				);
+			}
+
 			$this->query(
 				'ALTER TABLE ' . $short_table_name . '
 				DROP COLUMN ' . $column_info['name'],
@@ -1687,11 +1808,23 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 					'security_override' => true,
 				],
 			);
+
+			// In PostgreSQL SET DEFAULT does not backfill existing rows, so do it manually.
+			if ($default !== 'NULL' && !empty($column_info['not_null'])) {
+				$this->query(
+					'UPDATE ' . $short_table_name . '
+					SET ' . $column_info['name'] . ' = ' . $default . '
+					WHERE ' . $column_info['name'] . ' IS NULL',
+					[
+						'security_override' => true,
+					],
+				);
+			}
 		}
 
 		// Is it null - or otherwise?
 		// Just go ahead & honor the setting.  Type changes above introduce defaults that we might need to override here...
-		if ($column_info['not_null']) {
+		if (!empty($column_info['not_null'])) {
 			$action = 'SET NOT NULL';
 		} else {
 			$action = 'DROP NOT NULL';
@@ -1704,6 +1837,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 				'security_override' => true,
 			],
 		);
+
+		unset($this->index_cache[$short_table_name]);
 
 		return true;
 	}
@@ -1728,6 +1863,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 				],
 			);
 		}
+
+		unset($this->index_cache[$parsed_table_name]);
 
 		return $result !== false;
 	}
@@ -1779,6 +1916,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			}
 		}
 
+		unset($this->index_cache[$short_table_name]);
+
 		// If we've got this far - good news - no table exists. We can build our own!
 		if (!$db_trans) {
 			$this->transaction('begin');
@@ -1820,7 +1959,12 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 				}
 				$default = 'default nextval(\'' . $short_table_name . '_seq\')';
 			} elseif (isset($column['default']) && $column['default'] !== null) {
-				$default = 'default \'' . $this->escape_string($column['default']) . '\'';
+				// Numbers don't need quotes.
+				if (is_numeric($column['default'])) {
+					$default = 'default ' . $column['default'];
+				} else {
+					$default = 'default \'' . $this->escape_string($column['default']) . '\'';
+				}
 			} else {
 				$default = '';
 			}
@@ -1877,7 +2021,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$table_query .= ')';
 
 		// Create the table!
-		$this->query(
+		$result = $this->query(
 			$table_query,
 			[
 				'security_override' => true,
@@ -1932,7 +2076,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			$this->drop_table($table_name . '_old');
 		}
 
-		return true;
+		return $result !== false;
 	}
 
 	/**
@@ -1957,6 +2101,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$tables = $this->list_tables($database);
 
 		if (\in_array($full_table_name, $tables)) {
+			unset($this->index_cache[$short_table_name]);
+
 			// We can then drop the table.
 			$this->transaction('begin');
 
@@ -1967,7 +2113,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			$sequence_query = 'DROP SEQUENCE IF EXISTS ' . $short_table_name . '_seq';
 
 			// drop them
-			$this->query(
+			$result = $this->query(
 				$table_query,
 				[
 					'security_override' => true,
@@ -1982,7 +2128,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 			$this->transaction('commit');
 
-			return true;
+			return $result !== false;
 		}
 
 		// Otherwise do 'nout.
@@ -2026,14 +2172,16 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			return false;
 		}
 
-		$this->query(
+		unset($this->index_cache[$short_old_name]);
+
+		$result = $this->query(
 			'ALTER TABLE ' . $short_old_name . ' RENAME TO ' . $short_new_name,
 			[
 				'security_override' => true,
 			],
 		);
 
-		return true;
+		return $result !== false;
 	}
 
 	/**
@@ -2124,6 +2272,10 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$real_table_name = preg_match('~^(`?)(.+?)\\1\\.(.*?)$~', $parsed_table_name, $match) === 1 ? $match[3] : $parsed_table_name;
 		$database = !empty($match[2]) ? $match[2] : $this->name;
 
+		if (isset($this->index_cache[$parsed_table_name][$detail ? 'detail' : 'simple'])) {
+			return $this->index_cache[$parsed_table_name][$detail ? 'detail' : 'simple'];
+		}
+
 		$result = $this->query(
 			'SELECT CASE WHEN i.indisprimary THEN 1 ELSE 0 END AS is_primary,
 				CASE WHEN i.indisunique THEN 1 ELSE 0 END AS is_unique,
@@ -2152,15 +2304,12 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			}
 
 			foreach ($columns as $k => $v) {
-				$columns[$k] = trim($v);
+				// Remove the opclass suffix, if present.
+				$columns[$k] = preg_replace('/\s+\w+_ops$/', '', trim($v));
 			}
 
-			// Fix up the name to be consistent cross databases
-			if (str_ends_with($row['name'], '_pkey') && $row['is_primary'] == 1) {
-				$row['name'] = 'PRIMARY';
-			} else {
-				$row['name'] = str_replace($real_table_name . '_', '', $row['name']);
-			}
+			// We only want the basic column name.
+			$row['name'] = str_replace($real_table_name . '_', '', $row['name']);
 
 			if (!$detail) {
 				$indexes[] = $row['name'];
@@ -2172,7 +2321,15 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 				];
 			}
 		}
+
 		$this->free_result($result);
+
+		if ($detail) {
+			$this->index_cache[$parsed_table_name]['detail'] = $indexes;
+			$this->index_cache[$parsed_table_name]['simple'] = array_keys($indexes);
+		} else {
+			$this->index_cache[$parsed_table_name]['simple'] = $indexes;
+		}
 
 		return $indexes;
 	}
@@ -2183,6 +2340,8 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 	public function remove_column(string $table_name, string $column_name, array $parameters = [], string $error = 'fatal'): bool
 	{
 		$short_table_name = str_replace('{db_prefix}', $this->prefix, $table_name);
+
+		unset($this->index_cache[$short_table_name]);
 
 		// Does it exist?
 		$columns = $this->list_columns($table_name, true);
@@ -2199,7 +2358,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 					);
 				}
 
-				$this->query(
+				$result = $this->query(
 					'ALTER TABLE ' . $short_table_name . '
 					DROP COLUMN ' . $column_name,
 					[
@@ -2207,7 +2366,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 					],
 				);
 
-				return true;
+				return $result !== false;
 			}
 		}
 
@@ -2223,39 +2382,43 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 		$parsed_table_name = str_replace('{db_prefix}', $this->prefix, $table_name);
 		$real_table_name = preg_match('~^(`?)(.+?)\\1\\.(.*?)$~', $parsed_table_name, $match) === 1 ? $match[3] : $parsed_table_name;
 
+		unset($this->index_cache[$parsed_table_name]);
+
+		// The list_indexes() method will report the name of the primary key as
+		// 'primary' on MySQL and 'pkey' on PostgreSQL. If we were handed the
+		// name for the wrong database engine, fix it.
+		if ($index_name === 'primary') {
+			$index_name = 'pkey';
+		}
+
 		// Better exist!
 		$indexes = $this->list_indexes($table_name, true);
 
-		// Do not add the table name to the index if it is already there.
-		if ($index_name != 'primary' && str_contains($index_name, $real_table_name)) {
-			$index_name = str_replace($real_table_name . '_', '', $index_name);
-		}
+		// The list_indexes() method removes the table name from the names of
+		// the indexes, so make sure to do the same to $index_name.
+		$index_name = str_replace($real_table_name . '_', '', $index_name);
 
 		foreach ($indexes as $index) {
-			// If the name is primary we want the primary key!
-			if ($index['type'] == 'primary' && $index_name == 'primary') {
-				// Dropping primary key?
-				$this->query(
-					'ALTER TABLE ' . $real_table_name . '
-					DROP CONSTRAINT ' . $index['name'],
-					[
-						'security_override' => true,
-					],
-				);
+			if ($index['name'] === $index_name) {
+				if ($index['type'] == 'primary') {
+					$result = $this->query(
+						'ALTER TABLE ' . $real_table_name . '
+						DROP CONSTRAINT ' . $real_table_name . '_' . $index['name'],
+						[
+							'security_override' => true,
+						],
+					);
+				} else {
+					$result = $this->query(
+						'DROP INDEX ' . $real_table_name . '_' . $index['name'],
+						[
+							'security_override' => true,
+						],
+					);
 
-				return true;
-			}
+				}
 
-			if ($index['name'] == $index_name) {
-				// Drop the bugger...
-				$this->query(
-					'DROP INDEX ' . $real_table_name . '_' . $index_name,
-					[
-						'security_override' => true,
-					],
-				);
-
-				return true;
+				return $result !== false;
 			}
 		}
 
@@ -2344,7 +2507,7 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			$row = $this->fetch_assoc($result);
 
 			if ($row['standard_conforming_strings'] !== 'on') {
-				throw new \Exception(Lang::$txt['error_pg_scs']);
+				throw new \Exception(Lang::getTxt('error_pg_scs', file: 'Maintenance'));
 			}
 			$this->free_result($result);
 		}
@@ -2563,6 +2726,12 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			return '\'' . pg_escape_string($this->connection, $matches[2]) . '\'';
 		}
 
+		// PostgreSQL compares strings exactly, so a case insensitive comparison
+		// folds the column and pairs it with a value folded the same way.
+		if ($matches[1] === 'column_ci') {
+			return 'LOWER(' . $matches[2] . ')';
+		}
+
 		if (!\array_key_exists($matches[2], $db_values)) {
 			$this->error_backtrace('The database value you\'re trying to insert does not exist: ' . Utils::htmlspecialchars($matches[2]), '', E_USER_ERROR, __FILE__, __LINE__);
 		}
@@ -2588,6 +2757,10 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 			case 'string':
 			case 'text':
 				return \sprintf('\'%1$s\'', pg_escape_string($this->connection, (string) $replacement));
+
+			// Folded to match a column that {column_ci:} has folded.
+			case 'string_ci':
+				return \sprintf('LOWER(\'%1$s\')', pg_escape_string($this->connection, (string) $replacement));
 
 			case 'array_int':
 				if (\is_array($replacement)) {
@@ -2617,7 +2790,59 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 					}
 
 					foreach ($replacement as $key => $value) {
-						$replacement[$key] = \sprintf('\'%1$s\'', pg_escape_string($this->connection, $value));
+						$replacement[$key] = \sprintf('\'%1$s\'', pg_escape_string($this->connection, (string) $value));
+					}
+
+					return implode(', ', $replacement);
+				}
+
+				$this->error_backtrace('Wrong value type sent to the database. Array of strings expected. (' . $matches[2] . ')', '', E_USER_ERROR, __FILE__, __LINE__);
+
+				break;
+
+			// Each of these folded to match a column that {column_ci:} has folded.
+			case 'array_string_ci':
+				if (\is_array($replacement)) {
+					if (empty($replacement)) {
+						$this->error_backtrace('Database error, given array of string values is empty. (' . $matches[2] . ')', '', E_USER_ERROR, __FILE__, __LINE__);
+					}
+
+					foreach ($replacement as $key => $value) {
+						$replacement[$key] = \sprintf('LOWER(\'%1$s\')', pg_escape_string($this->connection, (string) $value));
+					}
+
+					return implode(', ', $replacement);
+				}
+
+				$this->error_backtrace('Wrong value type sent to the database. Array of strings expected. (' . $matches[2] . ')', '', E_USER_ERROR, __FILE__, __LINE__);
+
+				break;
+
+			case 'array_uuid':
+				if (\is_array($replacement)) {
+					if (empty($replacement)) {
+						$this->error_backtrace('Database error, given array of UUID values is empty. (' . $matches[2] . ')', '', E_USER_ERROR, __FILE__, __LINE__);
+					}
+
+					foreach ($replacement as $key => $value) {
+						if ($value instanceof Uuid) {
+							$replacement[$key] = \sprintf('\'%1$s\'::uuid', (string) $value);
+							continue;
+						}
+
+						$uuid = @Uuid::createFromString($value, false);
+
+						if (
+							str_replace(['{', '-', '}'], '', strtolower($value)) === str_replace('-', '', (string) $uuid)
+							|| $value === $uuid->getBinary()
+							|| $value === $uuid->getShortForm(false)
+							|| $value === $uuid->getShortForm(true)
+						) {
+							$replacement[$key] = \sprintf('\'%1$s\'::uuid', (string) $uuid);
+							continue;
+						}
+
+						$this->error_backtrace('Wrong value type sent to the database. UUID expected. (' . $matches[2] . ')', '', E_USER_ERROR, __FILE__, __LINE__);
 					}
 
 					return implode(', ', $replacement);
@@ -2676,7 +2901,12 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 				$uuid = @Uuid::createFromString($replacement, false);
 
-				if (\in_array($replacement, [(string) $uuid, $uuid->getShortForm(), $uuid->getBinary()])) {
+				if (
+					str_replace(['{', '-', '}'], '', strtolower($replacement)) === str_replace('-', '', (string) $uuid)
+					|| $replacement === $uuid->getBinary()
+					|| $replacement === $uuid->getShortForm(false)
+					|| $replacement === $uuid->getShortForm(true)
+				) {
 					return \sprintf('\'%1$s\'::uuid', (string) $uuid);
 				}
 
@@ -2731,6 +2961,110 @@ class PostgreSQL extends DatabaseApi implements DatabaseApiInterface
 
 		// We reached a impossible location, but static anlaysis doesnt know that.
 		throw new \Exception();
+	}
+
+	/**
+	 * Helper for $this->quote() that makes any changes to the query string that
+	 * might be required for backward compatibility support.
+	 *
+	 * Assumes $db_string has already been processed by replacement_callback().
+	 *
+	 * Does nothing while the forum is being installed or upgraded. Those tools
+	 * run no mod code, since Maintenance turns the hooks off, and they meet the
+	 * database in shapes that these fixes would misread.
+	 *
+	 * @param string $db_string The database query string.
+	 * @return string Possibly modified version of $db_string.
+	 */
+	protected function backcompatQuoteFixes(string $db_string): string
+	{
+		if (empty(Config::$backward_compatibility) || \defined('SMF_INSTALLING')) {
+			return $db_string;
+		}
+
+		// Prior to SMF 3.0, the boards table contained a 'count_posts' column
+		// that used inverted logic (i.e. 0 = true, 1 = false). That column was
+		// replaced in 3.0 with a 'posts_count' column that uses normal logic
+		// (i.e. 0 = false, 1 = true). This code detects references to the old
+		// column and replaces them with references to the new column.
+		if (
+			str_contains($db_string, 'count_posts')
+			&& preg_match('/\b' . preg_quote(Config::$db_prefix) . 'boards\b(?:\s+AS\s+(\w+))?/i', $db_string, $matches)
+		) {
+			$old_col = (!empty($matches[1]) ? '(?:' . $matches[1] . '\.)?' : '') . 'count_posts';
+			$new_col = (!empty($matches[1]) ? $matches[1] . '.' : '') . 'posts_count';
+
+			$db_string = preg_replace_callback_array(
+				[
+					'/(\bSELECT\b(?:.(?!\bFROM\b))*)((?<![\w.])' . $old_col . '\b)/s' => fn($m) => $m[1] . $new_col . ', (1 - ' . $new_col . ') AS ' . md5('count_posts'),
+					'/(?<![\w.])' . $old_col . '\s*(!=|<(?:=|>)?|=|>=?)\s*([01])\b/' => function ($m) use ($new_col) {
+						$m[1] = match ($m[1]) {
+							'>' => '<',
+							'>=' => '<=',
+							'<' => '>',
+							'<=' => '>=',
+							default => $m[1],
+						};
+
+						return $new_col . ' ' . $m[1] . ' ' . ((int) !$m[2]);
+					},
+					'/(?<![\w.])' . $old_col . '\b/' => fn($m) => $new_col,
+					'/' . md5('count_posts') . '/' => fn($m) => 'count_posts',
+				],
+				$db_string,
+			);
+		}
+
+		return $db_string;
+	}
+
+	/**
+	 * Helper for $this->insert() that makes any changes to the columns, data,
+	 * and/or keys that might be required for backward compatibility support.
+	 *
+	 * Does nothing while the forum is being installed or upgraded, for the
+	 * reasons given on $this->backcompatQuoteFixes().
+	 *
+	 * @param string $table The table.
+	 * @param array $columns Array of the columns we're inserting the data into.
+	 *    Should contain 'column' => 'datatype' pairs.
+	 * @param array $data Rows of data to insert. Each element of $data must
+	 *    be an array of values corresponding to $columns.
+	 * @param array $keys The keys for the table.
+	 * @return array Updated versions $columns, $data, and $keys.
+	 */
+	protected function backcompatInsertFixes(string $table, array $columns, array $data, array $keys): array
+	{
+		if (empty(Config::$backward_compatibility) || \defined('SMF_INSTALLING')) {
+			return [$columns, $data, $keys];
+		}
+
+		// Prior to SMF 3.0, the boards table contained a 'count_posts' column
+		// that used inverted logic (i.e. 0 = true, 1 = false). That column was
+		// replaced in 3.0 with a 'posts_count' column that uses normal logic
+		// (i.e. 0 = false, 1 = true). This code detects references to the old
+		// column and replaces them with references to the new column.
+		if ($table === $this->prefix . 'boards') {
+			if (isset($columns['count_posts'])) {
+				$pos = array_search('count_posts', array_keys($columns));
+
+				foreach ($data as $row_num => $row) {
+					$data[$row_num][$pos] = (int) !$row[$pos];
+				}
+
+				$columns = array_merge(
+					\array_slice($columns, 0, $pos),
+					['posts_count' => 'int'],
+					\array_slice($columns, $pos + 1),
+				);
+			}
+
+			if (\in_array('count_posts', $keys)) {
+				$keys[array_search('count_posts', $keys)] = 'posts_count';
+			}
+		}
+
+		return [$columns, $data, $keys];
 	}
 
 	/**

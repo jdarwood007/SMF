@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -45,7 +45,7 @@ class LogErrors extends Table
 			),
 			'log_time' => new Column(
 				name: 'log_time',
-				type: 'int',
+				type: 'bigint',
 				unsigned: true,
 				not_null: true,
 				default: 0,
@@ -61,6 +61,7 @@ class LogErrors extends Table
 				name: 'ip',
 				type: 'inet',
 				size: 16,
+				default: null,
 			),
 			'url' => new Column(
 				name: 'url',
@@ -141,7 +142,5 @@ class LogErrors extends Table
 				],
 			),
 		];
-
-		parent::__construct();
 	}
 }

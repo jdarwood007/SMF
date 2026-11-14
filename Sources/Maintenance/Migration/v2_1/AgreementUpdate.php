@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -110,7 +110,7 @@ class AgreementUpdate extends MigrationBase
 			$this->handleTimeout($start);
 
 			$extras = [];
-			$request = Db::$db->query(
+			$request = $this->query(
 				'SELECT id_action, extra
 					FROM {db_prefix}log_actions
 					WHERE id_member = {int:blank_id}
@@ -145,7 +145,7 @@ class AgreementUpdate extends MigrationBase
 				}
 
 				if (!empty($extra['applicator'])) {
-					$request = Db::$db->query(
+					$request = $this->query(
 						'UPDATE {db_prefix}log_actions
 							SET id_member = {int:id_member}
 							WHERE id_action = {int:id_action}',

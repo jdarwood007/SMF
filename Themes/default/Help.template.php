@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
@@ -20,7 +21,19 @@ use SMF\Utils;
  */
 function template_popup()
 {
-	// Since this is a popup of its own we need to start the html, etc.
+	// reqOverlayDiv() asks for this with ';ajax' on the end and shows whatever
+	// comes back inside an overlay on the page it was called from. There is no
+	// window to close in that case, and no use for a document of its own.
+	if (isset($_REQUEST['ajax'])) {
+		echo '
+		<div class="windowbg description">
+			', Utils::$context['help_text'], '
+		</div>';
+
+		return;
+	}
+
+	// Otherwise this really is a window of its own, so it needs the html.
 	echo '<!DOCTYPE html>
 <html', Utils::$context['right_to_left'] ? ' dir="rtl"' : '', '>
 	<head>
@@ -55,9 +68,10 @@ function template_manual()
 					<p>', Lang::getTxt('manual_introduction', file: 'Manual'), '</p>
 					<ul>';
 
-	foreach (Utils::$context['manual_sections'] as $section_id => $wiki_id)
+	foreach (Utils::$context['manual_sections'] as $section_id => $wiki_id) {
 		echo '
 						<li><a href="', Utils::$context['wiki_url'], '/', Utils::$context['wiki_prefix'], $wiki_id, (Lang::getTxt('lang_dictionary', file: 'General') != 'en' ? '/' . Lang::getTxt('lang_dictionary', file: 'General') : ''), '" target="_blank" rel="noopener">', Lang::getTxt('manual_section_' . $section_id . '_title', file: 'Manual'), '</a> - ', Lang::getTxt('manual_section_' . $section_id . '_desc', file: 'Manual'), '</li>';
+	}
 
 	echo '
 					</ul>

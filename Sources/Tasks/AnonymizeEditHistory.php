@@ -5,18 +5,18 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Tasks;
 
+use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
-use SMF\Lang;
 use SMF\Utils;
 use SMF\Uuid;
 
@@ -52,11 +52,10 @@ class AnonymizeEditHistory extends BackgroundTask
 	public function execute(): bool
 	{
 		// Set the anonymous name.
-		$anonymous_name = Utils::strtolower(Lang::$txt['user']) . '_' . substr(Uuid::create(5, 'member=' . $this->_details['id'])->getShortForm(true), 0, 8);
+		$anonymous_name = 'u_' . substr(Uuid::create(5, 'member=' . $this->_details['id'] . ';' . Config::getAuthSecret())->getShortForm(true), 0, 8);
 
-		if (Db::$title === POSTGRE_TITLE) {
+		if (Db::$db->title === POSTGRE_TITLE) {
 			$request = Db::$db->query(
-				'',
 				'SELECT id_msg, edit_history
 				FROM {db_prefix}messages
 				WHERE edit_history @? {string:jsonpath}
@@ -69,7 +68,6 @@ class AnonymizeEditHistory extends BackgroundTask
 			);
 		} else {
 			$request = Db::$db->query(
-				'',
 				'SELECT id_msg, edit_history
 				FROM {db_prefix}messages
 				WHERE {int:member} MEMBER OF (edit_history->{string:path})
@@ -98,7 +96,6 @@ class AnonymizeEditHistory extends BackgroundTask
 			$row['edit_history'] = json_encode($row['edit_history']);
 
 			Db::$db->query(
-				'',
 				'UPDATE {db_prefix}messages
 				SET edit_history = {string:edit_history}
 				WHERE id_msg = {int:id_msg}',

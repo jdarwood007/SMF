@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Simple Machines Forum (SMF)
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Config;
@@ -48,12 +49,12 @@ function template_browse()
 function template_mailtest()
 {
 	// The results.
-	if (!empty(Utils::$context['result']))
-	{
-		if (Utils::$context['result'] == 'failure')
+	if (!empty(Utils::$context['result'])) {
+		if (Utils::$context['result'] == 'failure') {
 			$result_txt = Lang::getTxt('mailtest_result_failure', ['url' => Config::$scripturl . '?action=admin;area=logs;sa=errorlog;desc'], file: 'ManageMail');
-		else
-			$result_txt = Lang::getTxt('mailtest_result_success', file: 'ManageMail');
+		} else {
+		$result_txt = Lang::getTxt('mailtest_result_success', file: 'ManageMail');
+		}
 
 		echo '
 					<div class="', Utils::$context['result'] == 'success' ? 'infobox' : 'errorbox', '">', $result_txt, '</div>';
@@ -66,10 +67,10 @@ function template_mailtest()
 		</div>
 		<div class="windowbg">
 				<dl id="post_header">
-					<dt><span id="caption_subject">', Lang::getTxt('subject', file: 'General'), '</span></dt>
-					<dd><input type="text" name="subject" tabindex="1" size="80" maxlength="80"></dd>
+					<dt><label for="subject" id="caption_subject">', Lang::getTxt('subject', file: 'General'), '</label></dt>
+					<dd><input type="text" name="subject" id="subject" size="80" maxlength="80"></dd>
 				</dl>
-				<textarea class="editor" name="message" rows="5" cols="200" tabindex="2"></textarea>
+				<textarea class="editor" name="message" rows="5" cols="200"></textarea>
 				<dl id="post_footer">
 					<dd><input type="submit" value="', Lang::getTxt('send_message', file: 'General'), '" class="button"></dd>
 				</dl>

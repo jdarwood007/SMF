@@ -5,15 +5,16 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF\MailAgent\APIs;
 
 use SMF\Config;
+use SMF\EmailAddress;
 use SMF\ErrorHandler;
 use SMF\Lang;
 use SMF\MailAgent\MailAgent;
@@ -112,7 +113,7 @@ class SMTP extends MailAgent implements MailAgentInterface
 			return false;
 		}
 
-		$helo = getHostname();
+		$helo = $this->getHostname();
 
 		if (Config::$modSettings['smtp_username'] != '' && Config::$modSettings['smtp_password'] != '') {
 			// EHLO could be understood to mean encrypted hello...
@@ -163,6 +164,14 @@ class SMTP extends MailAgent implements MailAgentInterface
 	 */
 	public function send(string $to, string $subject, string $message, string $headers): bool
 	{
+		if (($address = new EmailAddress($to))->isValid()) {
+			$to = $address->sendable();
+		} else {
+			ErrorHandler::log(Lang::getTxt('mail_send_unable', [$to], file: 'General'));
+
+			return false;
+		}
+
 		if (empty($this->socket)) {
 			return false;
 		}
@@ -189,7 +198,7 @@ class SMTP extends MailAgent implements MailAgentInterface
 			return false;
 		}
 
-		fputs($this->socket, 'Subject: ' . $subject . "\r\n");
+		fputs($this->socket, 'Subject: ' . $this->stripControlChars($subject) . "\r\n");
 
 		if (\strlen($to) > 0) {
 			fputs($this->socket, 'To: <' . $to . '>' . "\r\n");
@@ -235,9 +244,38 @@ class SMTP extends MailAgent implements MailAgentInterface
 		$config_vars[] = ['password', 'smtp_password'];
 	}
 
+	/**
+	 * Only exists to provide backwards compatbility.
+	 *
+	 * @internal
+	 * @deprecated Only exists backwards compatbility.
+	 * @param string $message The message to send
+	 * @param resource $socket Socket to send on
+	 * @param string $code The expected response code
+	 * @param string $response The response from the SMTP server
+	 * @return bool Whether it responded as such.
+	 */
+	public function compatServerParse(string $message, $socket, string $code, ?string &$response = null): bool
+	{
+		$this->socket = $socket;
+
+		return $this->serverParse($message, $code, $response);
+	}
+
 	/******************
 	 * Internal methods
 	 ******************/
+
+	/**
+	 * Removes Excess tags
+	 * @param string $raw
+	 * @param array $tags
+	 * @return string
+	 */
+	protected function stripControlChars(string $raw, array $tags = ["\r" => '', "\n" => '']): string
+	{
+		return strtr($raw, $tags);
+	}
 
 	/**
 	 * Parse a message to the SMTP server.
@@ -338,7 +376,7 @@ class SMTP extends MailAgent implements MailAgentInterface
 		}
 
 		if (!\function_exists('idn_to_ascii')) {
-			require_once Config::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
+			require_once Sapi::canonicalPath(Config::$sourcedir . '/Subs-Compat.php');
 		}
 
 		$helo = idn_to_ascii($helo, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -20,6 +20,8 @@ use SMF\Actions\Notify;
 use SMF\Cache\CacheApi;
 use SMF\Calendar\Event;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Search\SearchApi;
 
 /**
@@ -88,10 +90,29 @@ class Topic implements \ArrayAccess, Routable
 	public int $id_member_started;
 
 	/**
+	 * @var bool
+	 *
+	 * Whether this topic was started by the current user.
+	 *
+	 * For the sake of compatibility with \ArrayAccess it is possible to write
+	 * to this property, but doing so is pointless because the value will be
+	 * overwritten the next time the property is read.
+	 */
+	public bool $started_by_me {
+		// @todo Once \ArrayAccess compatibility is no longer required, change this hook to
+		// `get => !empty($this->id_member_started) && $this->id_member_started === User::$me?->id;`
+		&get {
+			$this->started_by_me = !empty($this->id_member_started) && $this->id_member_started === User::$me?->id;
+
+			return $this->started_by_me;
+		}
+	}
+
+	/**
 	 * @var int
 	 *
-	 * ID number of the user who reply this topic.
-	 * This will be 0 for topics replied by guests.
+	 * ID number of the user who most recently replied to this topic.
+	 * This will be 0 if a guest made the most recent reply.
 	 */
 	public int $id_member_updated;
 
@@ -416,8 +437,8 @@ class Topic implements \ArrayAccess, Routable
 	{
 		// Ensure the hooks have what they expect.
 		foreach (['msgOptions', 'topicOptions', 'posterOptions'] as $key) {
-			if (!isset($this->custom[$key])) {
-				$this->custom[$key] = [];
+			if (!isset($this->internal_data[$key])) {
+				$this->internal_data[$key] = [];
 			}
 		}
 
@@ -462,25 +483,25 @@ class Topic implements \ArrayAccess, Routable
 
 			// If mods added extra columns to the table and those column values
 			// are reflected in this object's custom properties, save them too.
-			if (!empty($this->custom)) {
-				foreach (Db::$db->getTypeIndicators('{db_prefix}topics', $this->custom) as $key => $type) {
-					if (isset($this->custom[$key]) && !\is_array($this->custom[$key])) {
+			if (!empty($this->internal_data)) {
+				foreach (Db::$db->getTypeIndicators('{db_prefix}topics', $this->internal_data) as $key => $type) {
+					if (isset($this->internal_data[$key]) && !\is_array($this->internal_data[$key])) {
 						$columns[$key] = $type;
-						$params[] = $this->custom[$key];
+						$params[] = $this->internal_data[$key];
 					}
 				}
 			}
 
 			// Give mods an opportunity for fine-tuned control over the values to be saved.
-			IntegrationHook::call('integrate_before_create_topic', [&$this->custom['msgOptions'], &$this->custom['topicOptions'], &$this->custom['posterOptions'], &$columns, &$params]);
+			IntegrationHook::call('integrate_before_create_topic', [&$this->internal_data['msgOptions'], &$this->internal_data['topicOptions'], &$this->internal_data['posterOptions'], &$columns, &$params]);
 
 			$this->id = (int) Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}topics',
 				$columns,
 				[$params],
 				['id_topic'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			self::$loaded[$this->id] = $this;
@@ -538,17 +559,17 @@ class Topic implements \ArrayAccess, Routable
 
 			// If mods added extra columns to the table and those column values
 			// are reflected in this object's custom properties, save them too.
-			if (!empty($this->custom)) {
-				foreach (Db::$db->getTypeIndicators('{db_prefix}topics', $this->custom) as $key => $type) {
-					if (isset($this->custom[$key]) && !\is_array($this->custom[$key])) {
+			if (!empty($this->internal_data)) {
+				foreach (Db::$db->getTypeIndicators('{db_prefix}topics', $this->internal_data) as $key => $type) {
+					if (isset($this->internal_data[$key]) && !\is_array($this->internal_data[$key])) {
 						$set[] = $key . ' = {' . $type . ':' . $key . '}';
-						$params[$key] = $this->custom[$key];
+						$params[$key] = $this->internal_data[$key];
 					}
 				}
 			}
 
 			// Give mods an opportunity for fine-tuned control over the values to be saved.
-			IntegrationHook::call('integrate_modify_topic', [&$set, &$params, &$this->custom['msgOptions'], &$this->custom['topicOptions'], &$this->custom['posterOptions']]);
+			IntegrationHook::call('integrate_modify_topic', [&$set, &$params, &$this->internal_data['msgOptions'], &$this->internal_data['topicOptions'], &$this->internal_data['posterOptions']]);
 
 			Db::$db->query(
 				'UPDATE {db_prefix}topics
@@ -595,7 +616,7 @@ class Topic implements \ArrayAccess, Routable
 		}
 
 		foreach (self::$anyown_permissions as $contextual => $perm) {
-			$this->permissions[$contextual] = User::$me->allowedTo($perm . '_any') || (User::$me->started && User::$me->allowedTo($perm . '_own'));
+			$this->permissions[$contextual] = User::$me->allowedTo($perm . '_any') || ($this->started_by_me && User::$me->allowedTo($perm . '_own'));
 		}
 
 		if (!User::$me->is_admin && $this->permissions['can_move'] && !Config::$modSettings['topic_move_any']) {
@@ -608,12 +629,12 @@ class Topic implements \ArrayAccess, Routable
 
 		// If a topic is locked, you can't remove it unless it's yours and you locked it or you can lock_any
 		if ($this->is_locked) {
-			$this->permissions['can_delete'] &= (($this->is_locked == 1 && User::$me->started) || User::$me->allowedTo('lock_any'));
+			$this->permissions['can_delete'] &= (($this->is_locked == 1 && $this->started_by_me) || User::$me->allowedTo('lock_any'));
 		}
 
 		// Cleanup all the permissions with extra stuff...
 		$this->permissions['can_mark_notify'] = !User::$me->is_guest;
-		$this->permissions['calendar_post'] &= !empty(Config::$modSettings['cal_enabled']) && (User::$me->allowedTo('modify_any') || (User::$me->allowedTo('modify_own') && User::$me->started));
+		$this->permissions['calendar_post'] &= !empty(Config::$modSettings['cal_enabled']) && (User::$me->allowedTo('modify_any') || (User::$me->allowedTo('modify_own') && $this->started_by_me));
 		$this->permissions['can_add_poll'] &= Config::$modSettings['pollMode'] == '1' && $this->id_poll <= 0;
 		$this->permissions['can_remove_poll'] &= Config::$modSettings['pollMode'] == '1' && $this->id_poll > 0;
 		$this->permissions['can_reply'] &= empty($this->is_locked) || User::$me->allowedTo('moderate_board');
@@ -631,7 +652,7 @@ class Topic implements \ArrayAccess, Routable
 		$this->permissions['can_print'] = empty(Config::$modSettings['disable_print_topic']);
 
 		// Start this off for quick moderation - it will be or'd for each post.
-		$this->permissions['can_remove_post'] = User::$me->allowedTo('delete_any') || (User::$me->allowedTo('delete_replies') && User::$me->started);
+		$this->permissions['can_remove_post'] = User::$me->allowedTo('delete_any') || (User::$me->allowedTo('delete_replies') && $this->started_by_me);
 
 		// Can restore topic?  That's if the topic is in the recycle board and has a previous restore state.
 		$this->permissions['can_restore_topic'] &= !empty(Board::$info->recycle) && !empty($this->id_previous_board);
@@ -642,7 +663,7 @@ class Topic implements \ArrayAccess, Routable
 		$this->permissions['drafts_autosave'] = !empty($this->permissions['drafts_save']) && !empty(Config::$modSettings['drafts_autosave_enabled']) && !empty(Theme::$current->options['drafts_autosave_enabled']);
 
 		// They can't link an existing topic to the calendar unless they can modify the first post...
-		$this->permissions['calendar_post'] &= User::$me->allowedTo('modify_any') || (User::$me->allowedTo('modify_own') && User::$me->started);
+		$this->permissions['calendar_post'] &= User::$me->allowedTo('modify_any') || (User::$me->allowedTo('modify_own') && $this->started_by_me);
 
 		// For convenience, return the permissions array.
 		return $this->permissions;
@@ -761,7 +782,7 @@ class Topic implements \ArrayAccess, Routable
 		// If there was no existing record, insert one.
 		if (Db::$db->affected_rows() == 0) {
 			Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}log_topics',
 				[
 					'id_topic' => 'int',
@@ -846,9 +867,9 @@ class Topic implements \ArrayAccess, Routable
 			'id_previous_topic' => 0,
 		]);
 
-		$topic->custom['msgOptions'] = &$msgOptions;
-		$topic->custom['topicOptions'] = &$topicOptions;
-		$topic->custom['posterOptions'] = &$posterOptions;
+		$topic->internal_data['msgOptions'] = &$msgOptions;
+		$topic->internal_data['topicOptions'] = &$topicOptions;
+		$topic->internal_data['posterOptions'] = &$posterOptions;
 
 		// Save.
 		$topic->save();
@@ -858,12 +879,12 @@ class Topic implements \ArrayAccess, Routable
 			return false;
 		}
 
-		$topic->custom['topicOptions']['id'] = $topic->id;
+		$topic->internal_data['topicOptions']['id'] = $topic->id;
 
 		// Increase the number of topics on the board.
 		$board = current(Board::load($topic->id_board));
 
-		if ($topic->custom['msgOptions']['approved']) {
+		if ($topic->internal_data['msgOptions']['approved']) {
 			$board->num_topics++;
 		} else {
 			$board->unapproved_topics++;
@@ -874,12 +895,12 @@ class Topic implements \ArrayAccess, Routable
 		// There's been a new topic today.
 		Logging::trackStats(['topics' => '+']);
 		Logging::updateStats('topic', true);
-		Logging::updateStats('subject', $topic->custom['topicOptions']['id'], $topic->custom['msgOptions']['subject']);
+		Logging::updateStats('subject', $topic->internal_data['topicOptions']['id'], $topic->internal_data['msgOptions']['subject']);
 
 		// What if we want to export new topics out to a CMS?
-		IntegrationHook::call('integrate_create_topic', [$topic->custom['msgOptions'], $topic->custom['topicOptions'], $topic->custom['posterOptions']]);
+		IntegrationHook::call('integrate_create_topic', [$topic->internal_data['msgOptions'], $topic->internal_data['topicOptions'], $topic->internal_data['posterOptions']]);
 
-		if (!empty($topic->custom['topicOptions']['mark_as_read']) && !User::$me->is_guest) {
+		if (!empty($topic->internal_data['topicOptions']['mark_as_read']) && !User::$me->is_guest) {
 			$topic->markAsRead(User::$me->id, $topic->id_last_msg);
 		}
 
@@ -900,24 +921,24 @@ class Topic implements \ArrayAccess, Routable
 	{
 		$topic = self::load($topicOptions['id']);
 
-		$topic->custom['msgOptions'] = &$msgOptions;
-		$topic->custom['topicOptions'] = &$topicOptions;
-		$topic->custom['posterOptions'] = &$posterOptions;
+		$topic->internal_data['msgOptions'] = &$msgOptions;
+		$topic->internal_data['topicOptions'] = &$topicOptions;
+		$topic->internal_data['posterOptions'] = &$posterOptions;
 
-		if (!empty($topic->custom['msgOptions']['approved'])) {
-			$topic->id_member_updated = (int) $topic->custom['posterOptions']['id'];
-			$topic->id_last_msg = (int) $topic->custom['msgOptions']['id'];
+		if (!empty($topic->internal_data['msgOptions']['approved'])) {
+			$topic->id_member_updated = (int) $topic->internal_data['posterOptions']['id'];
+			$topic->id_last_msg = (int) $topic->internal_data['msgOptions']['id'];
 			$topic->num_replies++;
 		} else {
 			$topic->unapproved_posts++;
 		}
 
-		if (isset($topic->custom['topicOptions']['lock_mode'])) {
-			$topic->is_locked = (int) $topic->custom['topicOptions']['lock_mode'];
+		if (isset($topic->internal_data['topicOptions']['lock_mode'])) {
+			$topic->is_locked = (int) $topic->internal_data['topicOptions']['lock_mode'];
 		}
 
-		if (isset($topic->custom['topicOptions']['sticky_mode'])) {
-			$topic->is_sticky = (int) $topic->custom['topicOptions']['sticky_mode'];
+		if (isset($topic->internal_data['topicOptions']['sticky_mode'])) {
+			$topic->is_sticky = (int) $topic->internal_data['topicOptions']['sticky_mode'];
 		}
 
 		$topic->save();
@@ -925,11 +946,11 @@ class Topic implements \ArrayAccess, Routable
 		// Reload to verify that it saved correctly.
 		$topic->loadTopicInfo();
 
-		if ($topic->id_last_msg !== (int) $topic->custom['msgOptions']['id']) {
+		if ($topic->id_last_msg !== (int) $topic->internal_data['msgOptions']['id']) {
 			return false;
 		}
 
-		if (!empty($topic->custom['topicOptions']['mark_as_read']) && !User::$me->is_guest) {
+		if (!empty($topic->internal_data['topicOptions']['mark_as_read']) && !User::$me->is_guest) {
 			$topic->markAsRead(User::$me->id, $topic->id_last_msg);
 		}
 
@@ -1207,7 +1228,7 @@ class Topic implements \ArrayAccess, Routable
 			// Prevent queries from getting too big. Taking some steam off.
 			if (\count($log_topics) > 500) {
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}log_topics',
 					['id_topic' => 'int', 'id_member' => 'int', 'id_msg' => 'int', 'unwatched' => 'int'],
 					$log_topics,
@@ -1223,7 +1244,7 @@ class Topic implements \ArrayAccess, Routable
 		if (!empty($log_topics)) {
 			// Insert that information into the database!
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}log_topics',
 				['id_topic' => 'int', 'id_member' => 'int', 'id_msg' => 'int', 'unwatched' => 'int'],
 				$log_topics,
@@ -1418,7 +1439,7 @@ class Topic implements \ArrayAccess, Routable
 
 		if (!empty($isSeen) && !User::$me->is_guest) {
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}log_boards',
 				[
 					'id_board' => 'int',
@@ -1489,29 +1510,41 @@ class Topic implements \ArrayAccess, Routable
 
 		// Decrease the post counts.
 		if ($decreasePostCount) {
-			$requestMembers = Db::$db->query(
+			$adjustments = [];
+
+			$request = Db::$db->query(
 				'SELECT m.id_member, COUNT(*) AS posts
 				FROM {db_prefix}messages AS m
 					INNER JOIN {db_prefix}boards AS b ON (b.id_board = m.id_board)
 				WHERE m.id_topic IN ({array_int:topics})' . (!empty($recycle_board) ? '
 					AND m.id_board != {int:recycled_board}' : '') . '
-					AND b.count_posts = {int:do_count_posts}
+					AND b.posts_count = {int:do_count_posts}
 					AND m.approved = {int:is_approved}
 				GROUP BY m.id_member',
 				[
-					'do_count_posts' => 0,
+					'do_count_posts' => 1,
 					'recycled_board' => $recycle_board,
 					'topics' => $topics,
 					'is_approved' => 1,
 				],
 			);
 
-			if (Db::$db->num_rows($requestMembers) > 0) {
-				while ($rowMembers = Db::$db->fetch_assoc($requestMembers)) {
-					User::updateMemberData((int) $rowMembers['id_member'], ['posts' => 'posts - ' . $rowMembers['posts']]);
+			if (Db::$db->num_rows($request) > 0) {
+				while ($row = Db::$db->fetch_assoc($request)) {
+					$adjustments[(int) $row['id_member']] = $row['posts'];
 				}
 			}
-			Db::$db->free_result($requestMembers);
+
+			Db::$db->free_result($request);
+
+			$members = User::load(array_keys($adjustments), dataset: UserDataset::Minimal);
+
+			foreach ($members as $member) {
+				$member->posts -= $adjustments[$member->id];
+				$member->posts = max(0, $member->posts);
+			}
+
+			User::saveBatch($members);
 		}
 
 		// Recycle topics that aren't in the recycle board...
@@ -1556,7 +1589,7 @@ class Topic implements \ArrayAccess, Routable
 				self::move($recycleTopics, (int) Config::$modSettings['recycle_board']);
 
 				// Close reports that are being recycled.
-				require_once Config::canonicalPath(Config::$sourcedir . '/Actions/Moderation/Main.php');
+				require_once Sapi::canonicalPath(Config::$sourcedir . '/Actions/Moderation/Main.php');
 
 				Db::$db->query(
 					'UPDATE {db_prefix}log_reported
@@ -1846,20 +1879,28 @@ class Topic implements \ArrayAccess, Routable
 
 			Slug::setRequested(rtrim($matches[1], '-'), 'topic', (int) $params['topic']);
 
-			// Either an action suffix or a start value.
-			if (!empty($route)) {
-				if (isset(QueryString::$route_parsers[reset($route)])) {
-					$params = array_merge(
-						$params,
-						\call_user_func(
-							[QueryString::$route_parsers[reset($route)], 'parseRoute'],
-							$route,
-							$params,
-						),
-					);
-				} elseif (!isset($params['start'])) {
-					$params['start'] = array_shift($route);
+			// What's left can be a start value, an action suffix, or both.
+			// E.g.: 'topics/1', 'topics/1/post', and 'topics/1/20/post'.
+			// Note that we must ask QueryString::getRouteParser() rather than
+			// simply looking in QueryString::$route_parsers, because the
+			// parsers for actions are only added to that list on demand.
+			if (!empty($route) && QueryString::getRouteParser((string) reset($route)) === null) {
+				$start = array_shift($route);
+
+				if (!isset($params['start'])) {
+					$params['start'] = $start;
 				}
+			}
+
+			if (!empty($route) && ($parser = QueryString::getRouteParser((string) reset($route))) !== null) {
+				$params = array_merge(
+					$params,
+					\call_user_func(
+						[$parser, 'parseRoute'],
+						$route,
+						$params,
+					),
+				);
 			}
 		}
 
@@ -1973,11 +2014,6 @@ class Topic implements \ArrayAccess, Routable
 			$this->total_visible_posts = $this->num_replies + ($this->is_approved ? 1 : 0);
 		} else {
 			$this->total_visible_posts = $this->num_replies + $this->unapproved_posts + ($this->is_approved ? 1 : 0);
-		}
-
-		// Did this user start the topic or not?
-		if (isset(User::$me)) {
-			User::$me->started = User::$me->id == $this->id_member_started && !User::$me->is_guest;
 		}
 	}
 }

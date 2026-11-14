@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -20,6 +20,7 @@ use SMF\ActionRouter;
 use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\EmailAddress;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
@@ -108,8 +109,10 @@ class Activate implements ActionInterface, Routable
 			return;
 		}
 
+		// We know who, but not the code. This is the link the activation
+		// emails give for typing the code in by hand.
 		if (empty($this->subaction)) {
-			$this->showResendRequest();
+			$this->showRetryInvalidCode();
 
 			return;
 		}
@@ -138,7 +141,7 @@ class Activate implements ActionInterface, Routable
 			'FORGOTPASSWORDLINK' => Config::$scripturl . '?action=reminder',
 		];
 
-		$emaildata = Mail::loadEmailTemplate('resend_activate_message', $replacements, empty($this->member->language) || empty(Config::$modSettings['userLanguage']) ? Lang::$default : $this->member->language);
+		$emaildata = Mail::loadEmailTemplate('resend_activate_message', $replacements, empty($this->member->language) || empty(Config::$modSettings['userLanguage']) ? Config::$language : $this->member->language);
 
 		Mail::send($this->member->email, $emaildata['subject'], $emaildata['body'], null, 'resendact', $emaildata['is_html'], 0);
 
@@ -165,13 +168,15 @@ class Activate implements ActionInterface, Routable
 		IntegrationHook::call('integrate_activate', [$this->member->username]);
 
 		// Validation complete - update the database!
-		User::updateMemberData($this->member->id, ['is_activated' => User::ACTIVATED, 'validation_code' => '']);
+		$prev_is_activated = $this->member->is_activated;
+		$this->member->is_activated = User::ACTIVATED;
+		$this->member->save();
 
 		// Also do a proper member stat re-evaluation.
 		Logging::updateStats('member', false);
 
 		// Notify the admin about new activations, but not re-activations.
-		if (empty($this->member->is_activated)) {
+		if ($prev_is_activated === User::NOT_ACTIVATED) {
 			Mail::adminNotify('activation', $this->member->id, $this->member->username);
 		}
 
@@ -249,6 +254,13 @@ class Activate implements ActionInterface, Routable
 		// Load the member.
 		$this->loadMember();
 
+		// Nobody by that name or id. execute() shows the form that asks for
+		// one, but only if it gets that far: the check below reads $this->member
+		// first, and loadMember() leaves it unassigned when it finds nothing.
+		if (!isset($this->member)) {
+			return;
+		}
+
 		// Already activated, so redirect to the login screen.
 		if (!\in_array((int) $this->member->is_activated, [User::NOT_ACTIVATED, User::UNVALIDATED])) {
 			Utils::redirectexit('action=login');
@@ -300,21 +312,20 @@ class Activate implements ActionInterface, Routable
 				ErrorHandler::fatalLang('no_access', false);
 			}
 
-			if (!filter_var($_POST['new_email'], FILTER_VALIDATE_EMAIL)) {
+			$email = new EmailAddress($_POST['new_email'], true);
+
+			if (!$email->isValid()) {
 				ErrorHandler::fatal(Lang::getTxt('valid_email_needed', ['email' => Utils::htmlspecialchars($_POST['new_email'])], file: 'Login'), false);
 			}
-
-			// Make sure their email isn't banned.
-			User::isBannedEmail($_POST['new_email'], 'cannot_register', Lang::getTxt('ban_register_prohibited', file: 'Login'));
 
 			// Ummm... don't even dare try to take someone else's email!!
 			$request = Db::$db->query(
 				'SELECT id_member
 				FROM {db_prefix}members
-				WHERE email_address = {string:email_address}
+				WHERE email_address_ci = {string:email_address}
 				LIMIT 1',
 				[
-					'email_address' => $_POST['new_email'],
+					'email_address' => $email->casefolded(),
 				],
 			);
 
@@ -323,9 +334,18 @@ class Activate implements ActionInterface, Routable
 			}
 			Db::$db->free_result($request);
 
-			User::updateMemberData($this->member->id, ['email_address' => $_POST['new_email']]);
-			$this->member->email = $_POST['new_email'];
+			// Set the new email address.
+			$this->member->email = (string) $email;
 
+			// Make sure their email isn't banned.
+			$bans = Security::checkBans($this->member, true);
+
+			if (!empty($bans['cannot_register'])) {
+				ErrorHandler::fatal(Lang::getTxt('ban_register_prohibited', file: 'Login'), false, 403);
+			}
+
+			// Save the changes.
+			$this->member->save();
 			$this->email_change = true;
 		}
 	}
@@ -361,14 +381,15 @@ class Activate implements ActionInterface, Routable
 	 */
 	protected function showRetryInvalidCode(): void
 	{
-		if (!empty($this->member->is_activated)) {
+		// Members revalidating a changed email address are UNVALIDATED.
+		if (!\in_array($this->member->is_activated, [User::NOT_ACTIVATED, User::UNVALIDATED], true)) {
 			ErrorHandler::fatalLang('already_activated', false);
 		} elseif ($this->member->validation_code == '') {
 			ErrorHandler::fatal(Lang::getTxt('registration_not_approved', ['url' => Config::$scripturl . '?action=activate;user=' . $this->member->username], file: 'Profile'), false);
 		}
 
 		Utils::$context['sub_template'] = 'retry_activate';
-		Utils::$context['page_title'] = Lang::getTxt('invalid_activation_code', file: 'Login');
+		Utils::$context['page_title'] = Lang::getTxt(empty($_REQUEST['code']) ? 'activate_account' : 'invalid_activation_code', file: 'Login');
 		Utils::$context['member_id'] = $this->member->id;
 	}
 }

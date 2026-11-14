@@ -7,10 +7,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -20,17 +20,17 @@ namespace SMF\Actions\Admin;
 use SMF\ActionInterface;
 use SMF\Actions\MessageIndex;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\ItemList;
 use SMF\Lang;
 use SMF\Logging;
 use SMF\Menu;
-use SMF\Msg;
 use SMF\PackageManager\PackageUtils;
 use SMF\Parser;
 use SMF\SecurityToken;
@@ -45,7 +45,6 @@ use SMF\WebFetch\WebFetchApi;
 class Smileys implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -742,7 +741,7 @@ class Smileys implements ActionInterface
 
 			// Add the new smiley to the main smileys table
 			$new_id_smiley = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}smileys',
 				[
 					'code' => 'string-30',
@@ -759,7 +758,7 @@ class Smileys implements ActionInterface
 					],
 				],
 				['id_smiley'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			// Add the filename info to the smiley_files table
@@ -770,7 +769,7 @@ class Smileys implements ActionInterface
 			}
 
 			Db::$db->insert(
-				'ignore',
+				InsertType::Ignore,
 				'{db_prefix}smiley_files',
 				[
 					'id_smiley' => 'int', 'smiley_set' => 'string-48', 'filename' => 'string-48',
@@ -1024,7 +1023,7 @@ class Smileys implements ActionInterface
 					}
 
 					Db::$db->insert(
-						'replace',
+						InsertType::Replace,
 						'{db_prefix}smiley_files',
 						[
 							'id_smiley' => 'int', 'smiley_set' => 'string-48', 'filename' => 'string-48',
@@ -1652,8 +1651,7 @@ class Smileys implements ActionInterface
 				}
 
 				if (!empty($action['parse_bbc'])) {
-					Msg::preparsecode(Utils::$context[$type]);
-					Utils::$context[$type] = Parser::transform(Utils::$context[$type]);
+					Utils::$context[$type] = Parser::transform(Parser::sanitize(Utils::$context[$type]));
 				} else {
 					Utils::$context[$type] = nl2br(Utils::$context[$type]);
 				}
@@ -1722,7 +1720,7 @@ class Smileys implements ActionInterface
 			$credits_tag = (empty($credits_tag)) ? '' : Utils::jsonEncode($credits_tag);
 
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_packages',
 				[
 					'filename' => 'string',
@@ -1904,7 +1902,7 @@ class Smileys implements ActionInterface
 				}
 
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}message_icons',
 					['id_icon' => 'int', 'id_board' => 'int', 'title' => 'string-80', 'filename' => 'string-80', 'icon_order' => 'int'],
 					$iconInsert,
@@ -1913,7 +1911,7 @@ class Smileys implements ActionInterface
 
 				if (!empty($iconInsert_new)) {
 					Db::$db->insert(
-						'insert',
+						InsertType::Insert,
 						'{db_prefix}message_icons',
 						['id_board' => 'int', 'title' => 'string-80', 'filename' => 'string-80', 'icon_order' => 'int'],
 						$iconInsert_new,
@@ -2455,7 +2453,7 @@ class Smileys implements ActionInterface
 
 		// Remove anything that isn't actually new from our list of files
 		foreach ($to_unset as $key => $ids) {
-			if (array_reduce($ids, function ($carry, $item) { return $carry * $item; }, true) == true) {
+			if (array_reduce($ids, fn($carry, $item) => $carry * $item, true) == true) {
 				unset($smiley_files[$key]);
 			}
 		}
@@ -2531,14 +2529,14 @@ class Smileys implements ActionInterface
 		// Add the info for any new smileys to the database
 		foreach ($new_smileys as $new_smiley) {
 			$new_id_smiley = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}smileys',
 				[
 					'code' => 'string-30', 'description' => 'string-80', 'smiley_row' => 'int', 'smiley_order' => 'int',
 				],
 				[$new_smiley['info']],
 				['id_smiley'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			// We'll also need to add filename info to the smiley_files table
@@ -2550,7 +2548,7 @@ class Smileys implements ActionInterface
 		// Finally, update the smiley_files table with all our new files
 		if (!empty($inserts)) {
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}smiley_files',
 				[
 					'id_smiley' => 'int', 'smiley_set' => 'string-48', 'filename' => 'string-48',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -295,12 +295,6 @@ class Recent implements ActionInterface, Routable
 		}
 		// Requested some boards.
 		elseif (!empty($_REQUEST['boards'])) {
-			$_REQUEST['boards'] = explode(',', $_REQUEST['boards']);
-
-			foreach ($_REQUEST['boards'] as $i => $b) {
-				$_REQUEST['boards'][$i] = (int) $b;
-			}
-
 			$request = Db::$db->query(
 				'SELECT b.id_board, b.num_posts, b.name
 				FROM {db_prefix}boards AS b
@@ -514,7 +508,7 @@ class Recent implements ActionInterface, Routable
 
 		$counter = Utils::$context['start'] + 1;
 
-		/** @var \SMF\Msg $msg */
+		/** @var Msg $msg */
 		foreach (Msg::get($this->messages, $query_customizations) as $msg) {
 			Utils::$context['posts'][$msg->id] = $msg->format($counter++, [
 				'do_permissions' => false,

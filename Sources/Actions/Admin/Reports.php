@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,7 +17,6 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Board;
 use SMF\Category;
 use SMF\Config;
@@ -41,7 +40,6 @@ use SMF\Utils;
 class Reports implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -263,7 +261,7 @@ class Reports implements ActionInterface
 			'redirect' => Lang::getTxt('board_redirect', file: 'Reports'),
 			'num_topics' => Lang::getTxt('board_num_topics', file: 'Reports'),
 			'num_posts' => Lang::getTxt('board_num_posts', file: 'Reports'),
-			'count_posts' => Lang::getTxt('board_count_posts', file: 'Reports'),
+			'posts_count' => Lang::getTxt('board_count_posts', file: 'Reports'),
 			'theme' => Lang::getTxt('board_theme', file: 'Reports'),
 			'override_theme' => Lang::getTxt('board_override_theme', file: 'Reports'),
 			'profile' => Lang::getTxt('board_profile', file: 'Reports'),
@@ -304,7 +302,7 @@ class Reports implements ActionInterface
 				'redirect' => $board->redirect,
 				'num_posts' => $board->posts,
 				'num_topics' => $board->topics,
-				'count_posts' => Lang::getTxt(empty($board->count_posts) ? 'yes' : 'no', file: 'General'),
+				'posts_count' => Lang::getTxt($board->posts_count ? 'yes' : 'no', file: 'General'),
 				'theme' => Utils::$context['themes'][$board->theme] ?? Lang::getTxt('none', file: 'General'),
 				'profile' => Utils::$context['profiles'][$board->profile]['name'],
 				'override_theme' => Lang::getTxt($board->override_theme ? 'yes' : 'no', file: 'General'),

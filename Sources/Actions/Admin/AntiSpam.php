@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,10 +17,10 @@ namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Menu;
@@ -34,7 +34,6 @@ use SMF\Utils;
 class AntiSpam implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/****************
 	 * Public methods
@@ -84,18 +83,18 @@ class AntiSpam implements ActionInterface
 		}
 		Db::$db->free_result($request);
 
-		if (empty(Utils::$context['qa_by_lang'][strtr(Lang::$default, ['-utf8' => ''])]) && !empty(Utils::$context['question_answers'])) {
+		if (empty(Utils::$context['qa_by_lang'][strtr(Config::$language, ['-utf8' => ''])]) && !empty(Utils::$context['question_answers'])) {
 			if (empty(Utils::$context['settings_insert_above'])) {
 				Utils::$context['settings_insert_above'] = '';
 			}
 
-			Utils::$context['settings_insert_above'] .= '<div class="noticebox">' . Lang::getTxt('question_not_defined', Utils::$context['languages'][Lang::$default], file: 'ManageSettings') . '</div>';
+			Utils::$context['settings_insert_above'] .= '<div class="noticebox">' . Lang::getTxt('question_not_defined', Utils::$context['languages'][Config::$language], file: 'ManageSettings') . '</div>';
 		}
 
 		// Thirdly, push some JavaScript for the form to make it work.
 		$nextrow = !empty(Utils::$context['question_answers']) ? max(array_keys(Utils::$context['question_answers'])) + 1 : 1;
 		$setup_verification_add_answer = Utils::escapeJavaScript(Lang::getTxt('setup_verification_add_answer', file: 'ManageSettings'));
-		$default_lang = strtr(Lang::$default, ['-utf8' => '']);
+		$default_lang = strtr(Config::$language, ['-utf8' => '']);
 
 		Theme::addInlineJavaScript(<<<END
 				var nextrow = {$nextrow};
@@ -263,7 +262,7 @@ class AntiSpam implements ActionInterface
 
 			if (!empty($changes['insert'])) {
 				Db::$db->insert(
-					'insert',
+					InsertType::Insert,
 					'{db_prefix}qanda',
 					['lngfile' => 'string-50', 'question' => 'string-255', 'answers' => 'string-65534'],
 					$changes['insert'],

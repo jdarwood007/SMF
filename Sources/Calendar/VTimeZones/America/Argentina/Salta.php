@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America\Argentina;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Argentina/Salta
  */
-class Salta extends \SMF\Calendar\VTimeZone
+class Salta extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,26 @@ class Salta extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Argentina/Salta';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Argentina',
+		],
+		1 => [
+			'ts' => '1991-10-20T04:00:00+0000',
+			'metazone' => 'Argentina',
+		],
+	];
 
 	/**
 	 * @var array
@@ -71,7 +93,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19320301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19400301T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19400301T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -79,7 +101,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19321101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19391101T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19391101T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -150,7 +172,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19640301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19660301T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19660301T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -158,7 +180,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19641015T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=15;UNTIL=19661015T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=15;UNTIL=19661015T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -173,7 +195,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19671001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19681006T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SU;UNTIL=19681006T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -181,7 +203,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19680407T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19690406T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19690406T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -217,7 +239,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19890305T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19930307T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19930307T020000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',
@@ -225,7 +247,7 @@ class Salta extends \SMF\Calendar\VTimeZone
 		25 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19891015T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19921018T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19921018T030000Z',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
@@ -239,29 +261,37 @@ class Salta extends \SMF\Calendar\VTimeZone
 		],
 		27 => [
 			'type' => 'DAYLIGHT',
+			'DTSTART' => '19891015T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19921018T040000Z',
+			'TZNAME' => 'UTC-02',
+			'TZOFFSETFROM' => '-0400',
+			'TZOFFSETTO' => '-0200',
+		],
+		28 => [
+			'type' => 'DAYLIGHT',
 			'DTSTART' => '19991003T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0300',
 		],
-		28 => [
+		29 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20000303T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0300',
 		],
-		29 => [
+		30 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20071230T000000',
 			'TZNAME' => 'UTC-02',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0200',
 		],
-		30 => [
+		31 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20080316T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=20090315T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=20090315T020000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0200',
 			'TZOFFSETTO' => '-0300',

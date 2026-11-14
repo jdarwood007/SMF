@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Pacific;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Pacific/Fiji
  */
-class Fiji extends \SMF\Calendar\VTimeZone
+class Fiji extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Fiji extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Pacific/Fiji';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Fiji',
+		],
+	];
 
 	/**
 	 * @var array
@@ -50,7 +68,7 @@ class Fiji extends \SMF\Calendar\VTimeZone
 		1 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19981101T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=19991107T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=19991106T140000Z',
 			'TZNAME' => 'UTC+13',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1300',
@@ -58,7 +76,7 @@ class Fiji extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19990228T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=-1SU;UNTIL=20000227T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=-1SU;UNTIL=20000226T140000Z',
 			'TZNAME' => 'UTC+12',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',
@@ -80,7 +98,7 @@ class Fiji extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20101024T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=21,22,23,24,25,26,27;UNTIL=20131027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=21,22,23,24,25,26,27;UNTIL=20131026T140000Z',
 			'TZNAME' => 'UTC+13',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1300',
@@ -95,7 +113,7 @@ class Fiji extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20120122T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYDAY=SU;BYMONTHDAY=18,19,20,21,22,23,24;UNTIL=20130120T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYDAY=SU;BYMONTHDAY=18,19,20,21,22,23,24;UNTIL=20130119T140000Z',
 			'TZNAME' => 'UTC+12',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',
@@ -110,7 +128,7 @@ class Fiji extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20141102T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=20181104T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=20181103T140000Z',
 			'TZNAME' => 'UTC+13',
 			'TZOFFSETFROM' => '+1200',
 			'TZOFFSETTO' => '+1300',
@@ -118,7 +136,7 @@ class Fiji extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20150118T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYDAY=SU;BYMONTHDAY=12,13,14,15,16,17,18;UNTIL=20210117T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=1;BYDAY=SU;BYMONTHDAY=12,13,14,15,16,17,18;UNTIL=20210116T140000Z',
 			'TZNAME' => 'UTC+12',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1200',

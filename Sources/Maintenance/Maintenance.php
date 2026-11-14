@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,7 @@ namespace SMF\Maintenance;
 
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Maintenance\Tools\ToolsInterface;
 use SMF\Sapi;
@@ -36,7 +37,7 @@ class Maintenance
 	/**
 	 * The lowest PHP version we support.
 	 */
-	public const PHP_MIN_VERSION = '8.0.1';
+	public const PHP_MIN_VERSION = '8.4.27';
 
 	/**
 	 * Tool Types.
@@ -50,13 +51,6 @@ class Maintenance
 	/**************************
 	 * Public static properties
 	 **************************/
-
-	/**
-	 * @var array
-	 *
-	 * General variables we pass between the logic and template.
-	 */
-	public static array $context = [];
 
 	/**
 	 * @var array
@@ -120,14 +114,14 @@ class Maintenance
 	public static string $query_string = '';
 
 	/**
-	 * @var \SMF\Maintenance\Tools\ToolsInterface|\SMF\Maintenance\Tools\Upgrade|\SMF\Maintenance\Tools\Install
+	 * @var ToolsInterface|\SMF\Maintenance\Tools\Upgrade|\SMF\Maintenance\Tools\Install
 	 *
 	 * Object containing the tool we are working with.
 	 */
 	public static ToolsInterface $tool;
 
 	/**
-	 * @var \SMF\Themes\default\MaintenanceTemplate
+	 * @var MaintenanceTemplate
 	 *
 	 * Object containing the tools template we are working with.
 	 *
@@ -228,11 +222,14 @@ class Maintenance
 	public function __construct()
 	{
 		Security::frameOptionsHeader('SAMEORIGIN');
-		self::$theme_dir = \dirname(SMF_SETTINGS_FILE) . '/Themes/default';
+		self::$theme_dir = self::getBaseDir() . '/Themes/default';
 
 		// This might be overwritten by the tool, but we need a default value.
-		self::$context['started'] = (int) TIME_START;
+		Utils::$context['started'] = (int) TIME_START;
 		self::$script_start = (int) TIME_START;
+
+		// No integration hooks allowed during maintenance.
+		IntegrationHook::$enabled = false;
 	}
 
 	/**
@@ -280,10 +277,10 @@ class Maintenance
 			self::$tool->setStep($step);
 
 			// The current weight of this step in terms of overall progress.
-			self::$context['step_weight'] = $step->getProgress();
+			Utils::$context['step_weight'] = $step->getProgress();
 
 			// Make sure we reset the skip button.
-			self::$context['skip'] = false;
+			Utils::$context['skip'] = false;
 
 			// What should we call for this step?
 			if (($callable = Utils::getCallable($step->getFunction(), true)) === false) {
@@ -301,7 +298,7 @@ class Maintenance
 			self::setCurrentStart(0);
 
 			// No warnings pass on.
-			self::$context['warning'] = '';
+			Utils::$context['warning'] = '';
 
 			self::$overall_percent += (int) $step->getProgress();
 		}
@@ -377,7 +374,7 @@ class Maintenance
 	 */
 	public static function getBaseDir(): string
 	{
-		if (class_exists('\\SMF\\Config')) {
+		if (class_exists(Config::class)) {
 			if (!isset(Config::$boarddir)) {
 				Config::load();
 			}
@@ -393,7 +390,7 @@ class Maintenance
 		} else {
 			$settingsText = trim(file_get_contents(SMF_SETTINGS_FILE));
 
-			if (substr($settingsText, 0, 5) == '<' . '?php') {
+			if (strncasecmp($settingsText, '<' . '?php', 5) === 0) {
 				$settingsText = substr($settingsText, 5);
 			}
 
@@ -427,6 +424,217 @@ class Maintenance
 		}
 
 		return $boarddir ?? \dirname(__DIR__);
+	}
+
+	/**
+	 * Checks the files listed in manifest.php and returns a list of any that are
+	 * missing or have incorrect content.
+	 *
+	 * @param string $start_version The version of SMF we are starting from.
+	 *    For upgrades, this should be the version of SMF that was in use before
+	 *    the upgrade began. For new installs, this should be SMF_VERSION.
+	 * @param bool $check_content Whether to validate the content of the files.
+	 * @return array A list of missing or corrupt files.
+	 */
+	final public static function checkManifest(string $start_version, bool $check_content): array
+	{
+		$boarddir = self::getBaseDir();
+
+		$missing_or_corrupt_files = [];
+
+		// Does the manifest file exist?
+		if (!is_file(__DIR__ . DIRECTORY_SEPARATOR . 'manifest.php')) {
+			// Development versions normally don't include a manifest.
+			// This is by design and receives special handling here.
+			if (str_ends_with(SMF_VERSION, '-dev')) {
+				// Just check the migrations and cleanups and call it done.
+				foreach (Tools\Upgrade::VERSION_MAP as $version => $ns) {
+					if (
+						version_compare(
+							Utils::standardizeVersionString($start_version),
+							$version,
+							'>',
+						)
+					) {
+						continue;
+					}
+
+					foreach (Tools\Upgrade::MIGRATIONS[$ns] as $class) {
+						if (!class_exists($class)) {
+							$missing_or_corrupt_files[] = preg_replace(
+								['/^SMF\b/', '/\\\\/', '/$/'],
+								['Sources', DIRECTORY_SEPARATOR, '.php'],
+								$class,
+							);
+						}
+					}
+
+					foreach (Tools\Upgrade::CLEANUPS[$ns] as $class) {
+						if (!class_exists($class)) {
+							$missing_or_corrupt_files[] = preg_replace(
+								['/^SMF\b/', '/\\\\/', '/$/'],
+								['Sources', DIRECTORY_SEPARATOR, '.php'],
+								$class,
+							);
+						}
+					}
+				}
+
+				return $missing_or_corrupt_files;
+			}
+
+			// We can't do anything without the manifest file.
+			$sourcedir = Config::$sourcedir ?? $boarddir . DIRECTORY_SEPARATOR . 'Sources';
+
+			$missing_or_corrupt_files[] = str_replace(
+				Sapi::canonicalPath($sourcedir),
+				basename($sourcedir),
+				__DIR__ . DIRECTORY_SEPARATOR . 'manifest.php',
+			);
+
+			return $missing_or_corrupt_files;
+		}
+
+		// Get the manifest.
+		try {
+			$contents = @file_get_contents(__DIR__ . DIRECTORY_SEPARATOR . 'manifest.php');
+
+			$valid = (
+				$contents !== false
+				// Must start with an opening PHP tag.
+				&& strncasecmp($contents, '<' . '?php', 5) === 0
+				// Must not contain a closing tag.
+				&& !str_contains($contents, '?' . '>')
+				// Does it at least appear to have the expected contents?
+				&& str_contains($contents, "\nreturn ")
+			);
+
+			unset($contents);
+
+			$manifest = !$valid ? false : include __DIR__ . DIRECTORY_SEPARATOR . 'manifest.php';
+		} catch (\Throwable $e) {
+			$manifest = false;
+		}
+
+		// Manifest must be an array.
+		if (!\is_array($manifest)) {
+			$sourcedir = Config::$sourcedir ?? $boarddir . DIRECTORY_SEPARATOR . 'Sources';
+
+			$missing_or_corrupt_files[] = str_replace(
+				Sapi::canonicalPath($sourcedir),
+				basename($sourcedir),
+				__DIR__ . DIRECTORY_SEPARATOR . 'manifest.php',
+			);
+
+			return $missing_or_corrupt_files;
+		}
+
+		// Which sections of the manifest do we care about?
+		$max = preg_replace('/^(\d)\.(\d).*/', '$1.$2', SMF_VERSION);
+		$min = preg_replace('/^(\d)\.(\d).*/', '$1.$2', $start_version);
+
+		$required_versions = array_filter(
+			array_map(
+				fn($v) => preg_replace('/^(\d)\.(\d).*/', '$1.$2', $v),
+				array_keys(Tools\Upgrade::VERSION_MAP),
+			),
+			fn($v) => version_compare($v, $min, '>=') && version_compare($v, $max, '<='),
+		);
+
+		// Verify that each section of the manifest is structured correctly.
+		foreach ($required_versions as $version) {
+			if (
+				// $manifest[$version] must exist.
+				!\array_key_exists($version, $manifest)
+				// Keys must be strings.
+				|| (
+					array_keys($manifest[$version]) !== array_map(
+						'strval',
+						array_keys($manifest[$version]),
+					)
+				)
+				// Values must be strings or bools.
+				|| (
+					$manifest[$version] !== array_filter(
+						$manifest[$version],
+						fn($v) => \is_bool($v) || \is_string($v),
+					)
+				)
+			) {
+				$sourcedir = Config::$sourcedir ?? $boarddir . DIRECTORY_SEPARATOR . 'Sources';
+
+				$missing_or_corrupt_files[] = str_replace(
+					Sapi::canonicalPath($sourcedir),
+					basename($sourcedir),
+					__DIR__ . DIRECTORY_SEPARATOR . 'manifest.php',
+				);
+
+				return $missing_or_corrupt_files;
+			}
+		}
+
+		// Do all the files in the manifest exist and have the expected content?
+		foreach ($required_versions as $version) {
+			foreach ($manifest[$version] as $path => $checksum) {
+				$is_valid = false;
+				$possible_paths = [];
+
+				// Check for special directories that could have been moved.
+				switch (strstr($path, '/', true)) {
+					case 'Languages':
+						if (isset(Config::$languagesdir)) {
+							$possible_paths[] = Sapi::canonicalPath(Config::$languagesdir . strstr($path, '/'));
+						}
+						break;
+
+					case 'Packages':
+						if (isset(Config::$packagesdir)) {
+							$possible_paths[] = Sapi::canonicalPath(Config::$packagesdir . strstr($path, '/'));
+						}
+						break;
+
+					case 'Sources':
+						if (isset(Config::$sourcedir)) {
+							$possible_paths[] = Sapi::canonicalPath(Config::$sourcedir . strstr($path, '/'));
+						}
+						break;
+
+					case 'vendor':
+						if (isset(Config::$vendordir)) {
+							$possible_paths[] = Sapi::canonicalPath(Config::$vendordir . strstr($path, '/'));
+						}
+						break;
+				}
+
+				// Standard path.
+				$possible_paths[] = Sapi::canonicalPath($boarddir . '/' . $path);
+
+				// Check each possible path.
+				foreach (array_unique($possible_paths) as $possible_path) {
+					$is_valid = (
+						file_exists($possible_path)
+						&& (
+							!$check_content
+							|| $checksum === true
+							|| (
+								is_file($possible_path)
+								&& $checksum === @md5_file($possible_path)
+							)
+						)
+					);
+
+					if ($is_valid) {
+						break;
+					}
+				}
+
+				if (!$is_valid) {
+					$missing_or_corrupt_files[] = $path;
+				}
+			}
+		}
+
+		return $missing_or_corrupt_files;
 	}
 
 	/**
@@ -482,7 +690,7 @@ class Maintenance
 	/**
 	 * Set our current start. This is public as our tool needs to update this.
 	 *
-	 * @param null|int $substep The starting position we on.  If null is passed, we will auto increment from the current.
+	 * @param null|int $start The starting position we on.  If null is passed, we will auto increment from the current.
 	 */
 	public static function setCurrentStart(?int $start = null): void
 	{
@@ -675,9 +883,9 @@ class Maintenance
 		Db::$db->free_result($request);
 
 		if (!empty($row)) {
-			list($id_member, $name, $password, $id_group, $addGroups, $user_language) = $row;
+			list($id_member, $name, $passwd, $id_group, $additional_groups, $user_language) = $row;
 
-			$groups = explode(',', $addGroups);
+			$groups = explode(',', $additional_groups);
 			$groups[] = (int) $id_group;
 
 			foreach ($groups as $k => $v) {
@@ -686,16 +894,16 @@ class Maintenance
 
 			if (
 				// SMF 3.0+
-				Security::hashVerifyPassword($_REQUEST['passwrd'], $password)
+				Security::hashVerifyPassword($password, $passwd)
 				// SMF 2.1 prepended the username to the password.
-				|| Security::hashVerifyPassword(Utils::strtolower($name) . $_REQUEST['passwrd'], $password)
+				|| Security::hashVerifyPassword(Utils::strtolower($name) . $password, $passwd)
 				// SMF 2.0 used sha1
-				|| ($use_old_hashing && $password === sha1(strtolower($name) . $_REQUEST['passwrd']))
+				|| ($use_old_hashing && hash_equals($passwd, sha1(strtolower($name) . $password)))
 			) {
 				$id = (int) $id_member;
 			}
 
-			// We have a valid login.
+			// We have a valid login, but are they really an admin?
 			if ($id > 0 && !\in_array(1, $groups)) {
 				$request = Db::$db->query(
 					'SELECT permission
@@ -734,7 +942,7 @@ class Maintenance
 		#[\SensitiveParameter]
 		string $password,
 	): bool {
-		return Config::$db_passwd === $password;
+		return hash_equals(Config::$db_passwd, $password);
 	}
 
 	/**
@@ -744,12 +952,17 @@ class Maintenance
 	 */
 	public static function getTimeElapsed(): string
 	{
-		// How long have we been running this?
-		$elapsed = time() - (int) self::$context['started'];
-		$mins = (int) ($elapsed / 60);
-		$seconds = $elapsed - $mins * 60;
+		$duration = (new \DateTime('@' . Utils::$context['started']))->diff(new \DateTime());
 
-		return Lang::getTxt('maintenance_time_elasped_ms', ['m' => $mins, 's' => $seconds]);
+		if ((int) $duration->format('%a') > 0) {
+			return \strval((int) $duration->format('%h') + ((int) $duration->format('%a') * 24)) . $duration->format(':%I:%S');
+		}
+
+		if ((int) $duration->format('%h') > 0) {
+			return $duration->format('%h:%I:%S');
+		}
+
+		return $duration->format('%i:%S');
 	}
 
 	/**
@@ -762,7 +975,7 @@ class Maintenance
 	public static function isOutOfTime(): bool
 	{
 		if (Sapi::isCLI()) {
-			if (time() - self::$context['started'] > 1 && !self::$tool->isDebug()) {
+			if (time() - Utils::$context['started'] > 1 && !self::$tool->isDebug()) {
 				echo '.';
 			}
 
@@ -799,6 +1012,56 @@ class Maintenance
 	 */
 	public static function exit(bool $fallthrough = false): void
 	{
+		// On the command line there is no template to render, so everything the
+		// tool wanted to tell us has nowhere to go: a scripted install that died
+		// on step three looks exactly like one that finished. Put the problems on
+		// stderr and leave a non-zero status behind instead.
+		//
+		// A step that simply needs more input sets neither of these, so pausing
+		// part way through is still a success -- the installer is meant to be
+		// called more than once.
+		if ($fallthrough && Sapi::isCLI()) {
+			foreach (self::$warnings as $warning) {
+				fwrite(STDERR, 'warning: ' . self::plainText($warning) . "\n");
+			}
+
+			$problems = self::$errors;
+
+			if (self::$fatal_error !== '') {
+				array_unshift($problems, self::$fatal_error);
+			}
+
+			if ($problems !== []) {
+				foreach ($problems as $problem) {
+					fwrite(STDERR, 'error: ' . self::plainText($problem) . "\n");
+				}
+
+				exit(1);
+			}
+
+			// Nothing went wrong, but we may not be finished either: a step can
+			// stop because it wanted input it was not given. Say which one, so
+			// a script that has to be run more than once can tell where it got
+			// to. The step numbers its own id from one, which is what every
+			// other line of output uses.
+			//
+			// The last step is excluded on purpose. Tools end by returning false
+			// from it so that the web flow stops and renders its "all done"
+			// template, which means reaching it is success, not a pause.
+			$steps = isset(self::$tool) ? self::$tool->getSteps() : [];
+
+			if (isset($steps[self::getCurrentStep()]) && self::getCurrentStep() < \count($steps) - 1) {
+				$stopped = $steps[self::getCurrentStep()];
+
+				fwrite(
+					STDERR,
+					'stopped at step ' . $stopped->getId()
+					. ' of ' . \count($steps)
+					. ' (' . $stopped->getName() . ")\n",
+				);
+			}
+		}
+
 		// We usually dump our templates out.
 		if (!$fallthrough) {
 			// Send character set.
@@ -813,7 +1076,7 @@ class Maintenance
 
 			// Call the template.
 			if (self::$sub_template !== '') {
-				self::$context['form_url'] = self::getSelf() . '?step=' . self::getCurrentStep();
+				Utils::$context['form_url'] = self::getSelf() . '?step=' . self::getCurrentStep();
 
 				\call_user_func([self::$template, self::$sub_template]);
 			}
@@ -844,7 +1107,10 @@ class Maintenance
 			return;
 		}
 
-		ob_end_clean();
+		if (ob_get_level() > 0) {
+			ob_end_clean();
+		}
+
 		header('content-type: text/json; charset=UTF-8');
 
 		// TODO: Improve this, move debug to the root.
@@ -910,5 +1176,21 @@ class Maintenance
 	private static function setCurrentStep(?int $step = null): void
 	{
 		$_GET['step'] = $step ?? (self::getCurrentStep() + 1);
+	}
+
+	/**
+	 * Flattens one of our messages into something worth reading in a terminal.
+	 *
+	 * The steps build these for a browser, so they arrive carrying markup: the
+	 * database errors in particular wrap the driver's own message in a div.
+	 *
+	 * @param string $message The message, as the step wrote it.
+	 * @return string The same message, without the markup.
+	 */
+	private static function plainText(string $message): string
+	{
+		$message = preg_replace('~<br\s*/?>~i', "\n", $message) ?? $message;
+
+		return trim(html_entity_decode(strip_tags($message), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 	}
 }

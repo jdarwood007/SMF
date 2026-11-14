@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; Maintenance
+// Version: 3.0 Alpha 5-dev; Maintenance
 
 // This should be the same as the one in General.language.php.
 $txt['lang_rtl'] = '0';
@@ -46,6 +46,7 @@ $txt['log_upgrade_complete'] = 'Upgrade complete!';
 $txt['critical_error'] = 'Critical Error!';
 $txt['warning'] = 'Warning!';
 $txt['error_php_too_low'] = 'You do not appear to have a version of PHP installed on your webserver that meets SMF’s minimum installation requirement.<br><br>Please ask your host to upgrade to at least PHP {min_version}.';
+$txt['error_php_32_bit'] = 'Warning! The installed build of PHP does not support 64-bit numbers.<br><br>Please ask your host to upgrade.';
 $txt['error_db_too_low'] = 'Your {name} version does not meet SMF’s minimum installation requirement.<br><br>Please ask your host to upgrade to at least {name} {min_version}.';
 $txt['error_db_connect'] = 'Cannot connect to the database server with the supplied data.<br><br>If you are not sure about what to type in, please contact your host.';
 $txt['error_db_privileges'] = 'The {name} user you have set in Settings.php does not have proper privileges.<br><br>Please ask your host to give this user the ALTER, CREATE, and DROP privileges.';
@@ -58,19 +59,15 @@ $txt['error_unknown'] = 'Unknown Error!';
 $txt['query_unsuccessful'] = 'Unsuccessful!';
 $txt['query_failed'] = 'This query: {QUERY_STRING}
 Caused the error: {QUERY_ERROR}';
+$txt['error_missing_files'] = 'Some required files are either missing or have unexpected content.<br><br>Please make sure you uploaded all of the files included in the SMF package and then try again.';
+$txt['error_missing_files_debug'] = 'The following files are either missing or have unexpected content: {missing_files}<br><br>Please make sure you uploaded all of the files included in the SMF package and then try again.';
 
 // Progress bars and steps.
 $txt['maintenance_progress'] = 'Progress';
 $txt['maintenance_step'] = 'Step';
 $txt['maintenance_overall_progress'] = 'Overall Progress';
 $txt['maintenance_substep_progress'] = 'Step Progress';
-$txt['maintenance_time_elasped_ms'] = 'Time Elapsed {m, plural,
-	one {# minute}
-	other {# minutes}
-} and {s, plural,
-	one {# second}
-	other {# seconds}
-}';
+$txt['maintenance_time_elapsed'] = 'Time Elapsed: ';
 
 // File Permissions.
 $txt['chmod_linux_info'] = 'If you have a shell account, the following command can automatically correct permissions on these files';
@@ -129,8 +126,8 @@ $txt['error_script_outdated'] = 'This install script is out of date! The current
 	It is recommended that you visit the <a href="https://www.simplemachines.org">Simple Machines</a> website to ensure you are installing the latest version.';
 $txt['error_already_installed'] = 'The installer has detected that you already have SMF installed. It is strongly advised that you do <strong>not</strong> try to overwrite an existing installation, continuing with installation <strong>may result in the loss or corruption of existing data</strong>.<br><br>If you wish to upgrade please visit the <a href="https://www.simplemachines.org">Simple Machines Website</a> and download the latest <em>upgrade</em> package.<br><br>If you wish to overwrite your existing installation, including all data, it is recommended that you delete the existing database tables and replace Settings.php and try again.';
 $txt['error_db_missing'] = 'The installer was unable to detect any database support in PHP. Please ask your host to ensure that PHP was compiled with the desired database, or that the proper extension is being loaded.';
+$txt['error_db_type_unknown'] = '“{db_type}” is not a database type this server supports. Supported types: {supported}.';
 $txt['error_session_missing'] = 'The installer was unable to detect sessions support in your server’s installation of PHP. Please ask your host to ensure that PHP was compiled with session support (which in fact is the PHP default, meaning your host currently has explicitly disabled it).';
-$txt['error_missing_files'] = 'Unable to find crucial installation files in the directory of this script!<br><br>Please make sure you uploaded the entire installation package, including the sql file, and then try again.';
 $txt['error_session_save_path'] = 'Please inform your host that the <strong>session.save_path specified in php.ini</strong> is not valid!  It needs to be changed to a directory that <strong>exists</strong> and is <strong>writable</strong> by the user PHP is running under.<br>';
 $txt['error_mod_security'] = 'The installer has detected the mod_security module is installed on your web server. Mod_security will block submitted forms even before SMF gets a say in anything. SMF has a built-in security scanner that will work more effectively than mod_security and that will not block submitted forms.<br><br><a href="https://www.simplemachines.org/redirect/mod_security">More information about disabling mod_security</a>';
 $txt['error_mod_security_no_write'] = 'The installer has detected the mod_security module is installed on your web server. Mod_security will block submitted forms even before SMF gets a say in anything. SMF has a built-in security scanner that will work more effectively than mod_security and that will not block submitted forms.<br><br><a href="https://www.simplemachines.org/redirect/mod_security">More information about disabling mod_security</a><br><br>Alternatively, you may wish to use your ftp client to chmod .htaccess in the forum directory to be writable (777), and then refresh this page.';
@@ -155,8 +152,9 @@ $txt['db_settings_username_info'] = 'Fill in the username you need to connect to
 $txt['db_settings_password'] = 'Password';
 $txt['db_settings_password_info'] = 'Put the password you need to connect to your database here.<br>If you do not know this, you should try the password to your ftp account.';
 $txt['db_settings_database'] = 'Database name';
-$txt['db_settings_database_info'] = 'Fill in the name of the database you want to use for SMF to store its data in.';
+$txt['db_settings_database_info'] = 'Fill in the name of the database you want to use for SMF to store its data in. Valid name should only contain Alphanumeric, underscores and dashes.';
 $txt['db_settings_database_info_note'] = 'If this database does not exist, this installer will try to create it.';
+$txt['db_settings_database_invalid'] = 'Database name should only contain Alphanumeric, underscores and dashes';
 $txt['db_settings_prefix'] = 'Table prefix';
 $txt['db_settings_prefix_info'] = 'The prefix for every table in the database. <strong>Do not install two forums with the same prefix!</strong><br>This key allows for multiple installations in one database.';
 
@@ -408,6 +406,8 @@ $txt['upgrade_continue_step'] = 'Continue from step reached during last executio
 // Upgrade options
 $txt['upgrade_areyouready'] = 'Before the upgrade gets underway, please review the options below and press &quot;Continue&quot; when you are ready to begin.';
 $txt['upgrade_backup_table'] = 'Backup SMF tables in your database using the prefix <span class="bbc_tt">{0}</span>';
+$txt['upgrade_recommended'] = 'Strongly recommended!';
+$txt['upgrade_backup_already_exists'] = 'Backup already exists. If you enable this option, the existing backup will be replaced with a new one.';
 $txt['upgrade_maintenance'] = 'Put the forum into maintenance mode during upgrade.';
 $txt['upgrade_maintenance_title'] = 'Maintenance Title:';
 $txt['upgrade_maintenance_message'] = 'Maintenance Message:';
@@ -449,7 +449,7 @@ $txt['upgrade_completed_time_s'] = 'Upgrade completed in {s, plural,
 }';
 
 // Upgrade error messages
-$txt['error_upgrade_files_missing'] = 'The upgrader was unable to find some crucial files.<br><br>Please make sure you uploaded all of the files included in the package, including the Themes, Sources, and other directories.';
+$txt['upgrade_unsuccessful'] = 'Unsuccessful!';
 $txt['error_upgrade_old_files'] = 'The upgrader found some old or outdated files.<br><br>Please make certain you uploaded the new versions of all the files included in the package.';
 $txt['error_cache_not_found'] = 'The cache directory could not be found.<br><br>Please make sure you have a directory called &quot;cache&quot; in your forum directory before continuing.';
 $txt['error_agreement_not_writable'] = 'The upgrader was unable to obtain write access to agreement.txt.<br><br>If you are using a linux or unix based server, please ensure that the file is chmod’d to 777, or if it does not exist that the directory this upgrader is in is 777.<br>If your server is running Windows, please ensure that the internet guest account has the proper permissions on it or its directory.';

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -28,10 +28,12 @@ use SMF\Lang;
 use SMF\Logging;
 use SMF\Mail;
 use SMF\Msg;
+use SMF\Parser;
 use SMF\Routable;
 use SMF\Security;
 use SMF\Topic;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -104,7 +106,7 @@ class TopicMove2 implements ActionInterface, Routable
 
 		// Make sure they can see the board they are trying to move to (and get whether posts count in the target board).
 		$request = Db::$db->query(
-			'SELECT b.count_posts, b.name, m.subject
+			'SELECT b.posts_count, b.name, m.subject
 			FROM {db_prefix}boards AS b
 				INNER JOIN {db_prefix}topics AS t ON (t.id_topic = {int:current_topic})
 				INNER JOIN {db_prefix}messages AS m ON (m.id_msg = t.id_first_msg)
@@ -142,10 +144,10 @@ class TopicMove2 implements ActionInterface, Routable
 				if (isset($_POST['enforce_subject'])) {
 					// Get a response prefix, but in the forum's default language.
 					if (!isset(Utils::$context['response_prefix'])) {
-						if (Lang::$default === User::$me->language) {
+						if (Config::$language === User::$me->language) {
 							Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General');
 						} elseif (!(Utils::$context['response_prefix'] = CacheApi::get('response_prefix', 600))) {
-							Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Lang::$default);
+							Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Config::$language);
 							CacheApi::put('response_prefix', Utils::$context['response_prefix'], 600);
 						}
 					}
@@ -186,13 +188,12 @@ class TopicMove2 implements ActionInterface, Routable
 			];
 
 			// Make sure we catch both languages in the reason.
-			if (User::$me->language != Lang::$default) {
-				$reason_replacements[Lang::getTxt('movetopic_auto_board', file: 'General', lang: Lang::$default)] = '[url=&quot;' . Config::$scripturl . '?board=' . $_POST['toboard'] . '.0&quot;]' . $board_name . '[/url]';
-				$reason_replacements[Lang::getTxt('movetopic_auto_topic', file: 'General', lang: Lang::$default)] = '[iurl]' . Config::$scripturl . '?topic=' . Topic::$topic_id . '.0[/iurl]';
+			if (User::$me->language != Config::$language) {
+				$reason_replacements[Lang::getTxt('movetopic_auto_board', file: 'General', lang: Config::$language)] = '[url=&quot;' . Config::$scripturl . '?board=' . $_POST['toboard'] . '.0&quot;]' . $board_name . '[/url]';
+				$reason_replacements[Lang::getTxt('movetopic_auto_topic', file: 'General', lang: Config::$language)] = '[iurl]' . Config::$scripturl . '?topic=' . Topic::$topic_id . '.0[/iurl]';
 			}
 
-			$_POST['reason'] = Utils::htmlspecialchars($_POST['reason'], ENT_QUOTES);
-			Msg::preparsecode($_POST['reason'], false, !empty(Config::$modSettings['autoLinkUrls']));
+			$_POST['reason'] = Parser::sanitize(Utils::htmlspecialchars($_POST['reason'], ENT_QUOTES), autolink: !empty(Config::$modSettings['autoLinkUrls']));
 
 			// Insert real links into the reason.
 			$_POST['reason'] = strtr($_POST['reason'], $reason_replacements);
@@ -204,10 +205,12 @@ class TopicMove2 implements ActionInterface, Routable
 			$redirect_topic = isset($_POST['redirect_topic']) ? Topic::$topic_id : 0;
 
 			$msgOptions = [
-				'subject' => Lang::getTxt('moved', ['subject' => $subject], file: 'General', lang: Lang::$default),
+				'subject' => Lang::getTxt('moved', ['subject' => $subject], file: 'General', lang: Config::$language),
 				'body' => $_POST['reason'],
 				'icon' => 'moved',
 				'smileys_enabled' => 1,
+				// It only points at the topic, whose watchers hear about the move.
+				'send_notifications' => false,
 			];
 
 			$topicOptions = [
@@ -220,25 +223,14 @@ class TopicMove2 implements ActionInterface, Routable
 
 			$posterOptions = [
 				'id' => User::$me->id,
-				'update_post_count' => empty($pcounter),
+				'update_post_count' => (bool) Board::$info->posts_count,
 			];
 
 			Msg::create($msgOptions, $topicOptions, $posterOptions);
 		}
 
-		$request = Db::$db->query(
-			'SELECT count_posts
-			FROM {db_prefix}boards
-			WHERE id_board = {int:current_board}
-			LIMIT 1',
-			[
-				'current_board' => Board::$info->id,
-			],
-		);
-		list($pcounter_from) = Db::$db->fetch_row($request);
-		Db::$db->free_result($request);
-
-		if ($pcounter_from != $pcounter) {
+		// If one of the boards counts posts and the other doesn't, we have more work to do.
+		if (Board::$info->posts_count != $pcounter) {
 			$posters = [];
 
 			$request = Db::$db->query(
@@ -257,20 +249,29 @@ class TopicMove2 implements ActionInterface, Routable
 					$posters[$row['id_member']] = 0;
 				}
 
-				$posters[$row['id_member']]++;
-			}
-			Db::$db->free_result($request);
-
-			foreach ($posters as $id_member => $posts) {
 				// The board we're moving from counted posts, but not to.
-				if (empty($pcounter_from)) {
-					User::updateMemberData($id_member, ['posts' => 'posts - ' . $posts]);
+				if (Board::$info->posts_count) {
+					$posters[$row['id_member']]--;
 				}
 				// The reverse: from didn't, to did.
 				else {
-					User::updateMemberData($id_member, ['posts' => 'posts + ' . $posts]);
+					$posters[$row['id_member']]++;
 				}
 			}
+
+			Db::$db->free_result($request);
+
+			foreach ($posters as $id => $post_adj) {
+				$posters[$id] = current(User::load($id, dataset: UserDataset::Minimal));
+
+				if ($posters[$id] instanceof User) {
+					$posters[$id]->posts += $post_adj;
+				} else {
+					unset($posters[$id]);
+				}
+			}
+
+			User::saveBatch($posters);
 		}
 
 		// Do the move (includes statistics update needed for the redirect topic).

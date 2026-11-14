@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF\Actions\Moderation;
@@ -18,6 +18,7 @@ use SMF\Actions\Groups as ViewGroups;
 use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\Group;
 use SMF\IntegrationHook;
@@ -25,6 +26,7 @@ use SMF\ItemList;
 use SMF\Lang;
 use SMF\Menu;
 use SMF\SecurityToken;
+use SMF\Tasks\GroupAct_Notify;
 use SMF\Theme;
 use SMF\Time;
 use SMF\User;
@@ -302,7 +304,7 @@ class Groups extends ViewGroups
 
 						$result = false;
 
-						/** @var \SMF\Group $group */
+						/** @var Group $group */
 						if ($groups != [] && ($group = $groups[$group_id]) && $group instanceof Group) {
 							$result = $group->addMembers($members);
 						}
@@ -313,33 +315,37 @@ class Groups extends ViewGroups
 					}
 				}
 
-				// Add a background task to handle notifying people of this request
-				$data = Utils::jsonEncode([
-					'member_id' => User::$me->id,
-					'member_ip' => User::$me->ip,
-					'request_list' => $request_list,
-					'status' => $_POST['req_action'],
-					'reason' => $_POST['groupreason'] ?? '',
-					'time' => time(),
-				]);
+				// Add a background task to handle notifying people of this request,
+				// if any of them were still open. Another moderator may have got
+				// there first, or the form may have been sent twice.
+				if (!empty($request_list)) {
+					$data = Utils::jsonEncode([
+						'member_id' => User::$me->id,
+						'member_ip' => User::$me->ip,
+						'request_list' => $request_list,
+						'status' => $_POST['req_action'],
+						'reason' => $_POST['groupreason'] ?? '',
+						'time' => time(),
+					]);
 
-				Db::$db->insert(
-					'insert',
-					'{db_prefix}background_tasks',
-					[
-						'task_class' => 'string-255',
-						'task_data' => 'string',
-						'claimed_time' => 'int',
-					],
-					[
+					Db::$db->insert(
+						InsertType::Insert,
+						'{db_prefix}background_tasks',
 						[
-							'SMF\\Tasks\\GroupAct_Notify',
-							$data,
-							0,
+							'task_class' => 'string-255',
+							'task_data' => 'string',
+							'claimed_time' => 'int',
 						],
-					],
-					[],
-				);
+						[
+							[
+								GroupAct_Notify::class,
+								$data,
+								0,
+							],
+						],
+						[],
+					);
+				}
 
 				// Some changes to log?
 				if (!empty($log_changes)) {

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,6 +16,7 @@ declare(strict_types=1);
 namespace SMF;
 
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 
 /**
  * Represents one of the choices a user can vote for in a poll.
@@ -125,7 +126,7 @@ class PollChoice implements \ArrayAccess
 	public function add(): void
 	{
 		Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}poll_choices',
 			[
 				'id_poll' => 'int',
@@ -136,7 +137,7 @@ class PollChoice implements \ArrayAccess
 				[
 					$this->poll,
 					$this->id,
-					$this->label,
+					Parser::sanitize($this->label),
 				],
 			],
 			[],
@@ -156,7 +157,7 @@ class PollChoice implements \ArrayAccess
 			[
 				'id_poll' => $this->poll,
 				'id_choice' => $this->id,
-				'label' => $this->label,
+				'label' => Parser::sanitize($this->label),
 				'votes' => $this->votes,
 			],
 		);

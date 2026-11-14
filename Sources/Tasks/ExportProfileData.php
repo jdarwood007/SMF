@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -27,6 +27,7 @@ use SMF\Sapi;
 use SMF\TaskRunner;
 use SMF\Theme;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 use XSLTProcessor;
 
@@ -134,7 +135,7 @@ class ExportProfileData extends BackgroundTask
 						</head>
 						<body>
 							<div id="footerfix">
-								<div id="header">
+								<header id="header" class="content_wrapper">
 									<h1 class="forumtitle">
 										<a id="top">
 											<xsl:attribute name="href">
@@ -143,22 +144,18 @@ class ExportProfileData extends BackgroundTask
 											<xsl:value-of select="@forum-name"/>
 										</a>
 									</h1>
-								</div>
-								<div id="wrapper">
-									<div id="upper_section">
-										<div id="inner_section">
-											<div id="inner_wrap">
-												<div class="user">
-													<time>
-														<xsl:attribute name="datetime">
-															<xsl:value-of select="@generated-date-UTC"/>
-														</xsl:attribute>
-														<xsl:value-of select="@generated-date-localized"/>
-													</time>
-												</div>
-												<hr class="clear"/>
-											</div>
+								</header>
+								<div id="wrapper" class="content_wrapper">
+									<div id="inner_wrap">
+										<div class="user">
+											<time>
+												<xsl:attribute name="datetime">
+													<xsl:value-of select="@generated-date-UTC"/>
+												</xsl:attribute>
+												<xsl:value-of select="@generated-date-localized"/>
+											</time>
 										</div>
+										<hr class="clear"/>
 									</div>
 
 									<xsl:call-template name="content_section"/>
@@ -166,30 +163,28 @@ class ExportProfileData extends BackgroundTask
 								</div>
 							</div>
 							<div id="footer">
-								<div class="inner_wrap">
+								<div class="content_wrapper">
 									<ul>
-										<li class="floatright">
+										<li class="copyright">
+											<xsl:value-of select="$forum_copyright" disable-output-escaping="yes"/>
+										</li>
+										<li class="helplinks">
 											<a>
 												<xsl:attribute name="href">
 													<xsl:value-of select="concat($scripturl, '?action=help')"/>
 												</xsl:attribute>
 												<xsl:value-of select="$txt_help"/>
 											</a>
-											<xsl:text> | </xsl:text>
 											<a>
 												<xsl:attribute name="href">
 													<xsl:value-of select="concat($scripturl, '?action=help;sa=rules')"/>
 												</xsl:attribute>
 												<xsl:value-of select="$txt_terms_rules"/>
 											</a>
-											<xsl:text> | </xsl:text>
 											<a href="#top">
 												<xsl:value-of select="$txt_go_up"/>
 												<xsl:text> &#9650;</xsl:text>
 											</a>
-										</li>
-										<li class="copyright">
-											<xsl:value-of select="$forum_copyright" disable-output-escaping="yes"/>
 										</li>
 									</ul>
 								</div>
@@ -932,7 +927,7 @@ class ExportProfileData extends BackgroundTask
 		}
 
 		// Load the specifed member. Abort on failure.
-		if (User::load($this->_details['uid'], User::LOAD_BY_ID, 'profile') === []) {
+		if (User::load($this->_details['uid'], User::LOAD_BY_ID, UserDataset::Profile) === []) {
 			// Delete any existing export files.
 			$idhash_ext = hash_hmac('sha1', $this->_details['uid'], Config::getAuthSecret()) . '.' . $this->_details['format_settings']['extension'];
 
@@ -966,7 +961,6 @@ class ExportProfileData extends BackgroundTask
 			'parser_cache' => 'parser_cache',
 			'pre_parsebbc' => \in_array($this->_details['format'], ['HTML', 'XML_XSLT']) ? 'pre_parsebbc_html' : 'pre_parsebbc_xml',
 			'post_parsebbc' => 'post_parsebbc',
-			'bbc_codes' => 'bbc_codes',
 			'post_parseAttachBBC' => 'post_parseAttachBBC',
 			'attach_bbc_validate' => 'attach_bbc_validate',
 		];
@@ -1078,19 +1072,6 @@ class ExportProfileData extends BackgroundTask
 		foreach (['disabledBBC', 'smileys_url', 'attachmentThumbnails'] as $var) {
 			if (isset(self::$real_modSettings[$var])) {
 				Config::$modSettings[$var] = self::$real_modSettings[$var];
-			}
-		}
-	}
-
-	/**
-	 * Adjusts certain BBCodes for the special case of exports.
-	 */
-	public static function bbc_codes(array &$codes, array &$no_autolink_tags): void
-	{
-		foreach ($codes as &$code) {
-			// To make the "Select" link work we'd need to embed a bunch more JS. Not worth it.
-			if ($code['tag'] === 'code') {
-				$code['content'] = preg_replace('~<a class="codeoperation\b.*?</a>~', '', $code['content']);
 			}
 		}
 	}
@@ -1247,7 +1228,7 @@ class ExportProfileData extends BackgroundTask
 			)),
 			'author' => Config::$mbname,
 			'source' => Config::$scripturl . '?action=profile;u=' . $uid,
-			'language' => !empty(Lang::getTxt('lang_locale', file: 'General')) ? str_replace('_', '-', substr(Lang::getTxt('lang_locale', file: 'General'), 0, strcspn(Lang::getTxt('lang_locale', file: 'General'), '.'))) : 'en',
+			'language' => str_replace('_', '-', substr(Lang::getLocale(), 0, strcspn(Lang::getLocale(), '.'))),
 			'self' => '', // Unused, but can't be null.
 			'page' => &$filenum,
 		];
@@ -1647,7 +1628,7 @@ class ExportProfileData extends BackgroundTask
 				$this->_details['format'] = 'XML_XSLT';
 			}
 
-			require_once Config::canonicalPath(Config::$sourcedir . '/Actions/Profile/Export.php');
+			require_once Sapi::canonicalPath(Config::$sourcedir . '/Actions/Profile/Export.php');
 			$export_formats = Export::getFormats();
 
 			/* Notes:

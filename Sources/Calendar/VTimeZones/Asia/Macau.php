@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Macau
  */
-class Macau extends \SMF\Calendar\VTimeZone
+class Macau extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Macau extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Macau';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1999-12-19T16:00:00+0000',
+			'metazone' => 'China',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19420430T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=30;UNTIL=19430430T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=30;UNTIL=19430430T140000Z',
 			'TZNAME' => 'UTC+10',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+1000',
@@ -128,7 +146,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19490402T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SA;UNTIL=19500401T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SA;UNTIL=19500401T150000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -136,7 +154,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19491030T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SA;UNTIL=19501028T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SA;UNTIL=19501028T140000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -158,7 +176,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19520405T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SA;UNTIL=19530404T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SA;UNTIL=19530404T150000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -173,7 +191,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19531101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SA;UNTIL=19541030T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SA;UNTIL=19541030T140000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -181,7 +199,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19540320T230000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SA;BYMONTHDAY=17,18,19,20,21,22,23;UNTIL=19560317T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SA;BYMONTHDAY=17,18,19,20,21,22,23;UNTIL=19560317T150000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -196,7 +214,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19561104T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=19641101T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYDAY=1SU;UNTIL=19641031T183000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -204,7 +222,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19570324T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=18,19,20,21,22,23,24;UNTIL=19640322T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=18,19,20,21,22,23,24;UNTIL=19640321T193000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -212,7 +230,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		23 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19650418T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19730422T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19730421T193000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -220,7 +238,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19651017T023000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19661016T023000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19661015T173000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -228,7 +246,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		25 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19671022T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19761017T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19761016T183000Z',
 			'TZNAME' => 'CST',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -243,7 +261,7 @@ class Macau extends \SMF\Calendar\VTimeZone
 		27 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19750420T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19760418T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19760417T193000Z',
 			'TZNAME' => 'CDT',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Hovd
  */
-class Hovd extends \SMF\Calendar\VTimeZone
+class Hovd extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Hovd extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Hovd';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Hovd',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19830401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19840331T170000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0800',
@@ -72,7 +90,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19840930T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19980927T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19980926T160000Z',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0700',
@@ -80,7 +98,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19850331T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19980329T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19980328T170000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0800',
@@ -95,7 +113,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20010929T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SA;UNTIL=20060930T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SA;UNTIL=20060929T180000Z',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0700',
@@ -103,7 +121,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20020330T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SA;UNTIL=20060325T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SA;UNTIL=20060324T190000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0800',
@@ -111,7 +129,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20150328T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SA;UNTIL=20160326T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SA;UNTIL=20160325T190000Z',
 			'TZNAME' => 'UTC+08',
 			'TZOFFSETFROM' => '+0700',
 			'TZOFFSETTO' => '+0800',
@@ -119,7 +137,7 @@ class Hovd extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20150926T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SA;UNTIL=20160924T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SA;UNTIL=20160923T160000Z',
 			'TZNAME' => 'UTC+07',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0700',

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,14 +18,16 @@ namespace SMF\Actions;
 use SMF\ActionInterface;
 use SMF\ActionRouter;
 use SMF\ActionTrait;
-use SMF\CacheApi;
+use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Lang;
 use SMF\Routable;
 use SMF\SecurityToken;
 use SMF\Theme;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -93,13 +95,25 @@ class ThemeChooser implements ActionInterface, Routable
 			}
 			// 0 means we are resetting everyone's theme.
 			elseif ($_REQUEST['u'] === 0) {
-				User::updateMemberData(null, ['id_theme' => $id_theme]);
+				Db::$db->query(
+					'UPDATE {db_prefix}members
+					SET id_theme = {int:theme}',
+					[
+						'theme' => $id_theme,
+					],
+				);
+
 				Utils::redirectexit('action=admin;area=theme;sa=admin;' . Utils::$context['session_var'] . '=' . Utils::$context['session_id']);
 			}
 			// Setting a particular user's theme.
-			elseif ($this->canChooseTheme($_REQUEST['u'], $id_theme)) {
-				// An identifier of zero means that the user wants the forum default theme.
-				User::updateMemberData($_REQUEST['u'], ['id_theme' => $id_theme]);
+			elseif (
+				// Can the current user do this?
+				$this->canChooseTheme($_REQUEST['u'], $id_theme)
+				// Can we successfully load the specified user?
+				&& ($member = current(User::load((int) $_REQUEST['u'], dataset: UserDataset::Minimal)))
+			) {
+				$member->theme = $id_theme;
+				$member->save();
 
 				if (!empty($variant)) {
 					// Set the identifier to the forum default.
@@ -108,7 +122,7 @@ class ThemeChooser implements ActionInterface, Routable
 					}
 
 					Db::$db->insert(
-						'replace',
+						InsertType::Replace,
 						'{db_prefix}themes',
 						[
 							'id_theme' => 'int',
@@ -281,6 +295,10 @@ class ThemeChooser implements ActionInterface, Routable
 					eval(($matches[1] === '$' ? 'global $settings; ' : 'use SMF\\Theme; ') . $matches[0]);
 
 					if (!empty(Theme::$current->settings['theme_variants'])) {
+						// Theme::loadVariant() offers a variant named 'default' alongside
+						// whatever the theme declares, so it belongs in this list too.
+						Theme::$current->settings['theme_variants'] = array_unique(array_merge(['default'], Theme::$current->settings['theme_variants']));
+
 						foreach (Theme::$current->settings['theme_variants'] as $variant) {
 							Utils::$context['available_themes'][$id_theme]['variants'][$variant] = [
 								'label' => Lang::txtExists('variant_' . $variant) ? Lang::getTxt('variant_' . $variant) : $variant,

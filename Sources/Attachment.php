@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,8 @@ namespace SMF;
 
 use SMF\Actions\Admin\ACP;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\Graphics\Image;
 
 /**
@@ -501,10 +503,18 @@ class Attachment implements \ArrayAccess
 				'a.*',
 				'COALESCE (m.id_topic, 0) AS id_topic',
 				'COALESCE (m.id_board, 0) AS id_board',
+				'COALESCE (m.id_member, 0) AS id_member',
+				'COALESCE (m.approved, 0) AS approved',
+				'COALESCE (m.poster_time, 0) AS poster_time',
+				'COALESCE (t.locked, 0) AS is_locked',
+				'COALESCE (t.id_member_started, 0) AS id_member_started',
 			];
 
 			$from = '{db_prefix}attachments AS a';
-			$joins = ['LEFT JOIN {db_prefix}messages AS m ON (a.id_msg = m.id_msg)'];
+			$joins = [
+				'LEFT JOIN {db_prefix}messages AS m ON (a.id_msg = m.id_msg)',
+				'LEFT JOIN {db_prefix}topics AS t ON (t.id_topic = m.id_topic)',
+			];
 			$where = ['a.id_attach IN ({array_int:ids})'];
 			$order = [];
 			$limit = 0;
@@ -1397,12 +1407,12 @@ class Attachment implements \ArrayAccess
 
 		// Create the attachment in the database.
 		$attachmentOptions['id'] = Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}attachments',
 			$attachmentColumns,
 			[$attachmentValues],
 			['id_attach'],
-			Db::INSERT_RETURN_MODE_SINGLE,
+			ReturnMode::SingleRow,
 		);
 
 		// Attachment couldn't be created.
@@ -1419,7 +1429,7 @@ class Attachment implements \ArrayAccess
 		// If it's not approved then add to the approval queue.
 		if (!$attachmentOptions['approved']) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}approval_queue',
 				[
 					'id_attach' => 'int',
@@ -1436,7 +1446,7 @@ class Attachment implements \ArrayAccess
 
 			// Queue background notification task.
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -1445,7 +1455,7 @@ class Attachment implements \ArrayAccess
 				],
 				[
 					[
-						'SMF\\Tasks\\CreateAttachment_Notify',
+						Tasks\CreateAttachment_Notify::class,
 						Utils::jsonEncode(['id' => $attachmentOptions['id']]),
 						0,
 					],
@@ -1497,7 +1507,7 @@ class Attachment implements \ArrayAccess
 
 				// To the database we go!
 				$attachmentOptions['thumb'] = Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}attachments',
 					[
 						'id_folder' => 'int',
@@ -1528,7 +1538,7 @@ class Attachment implements \ArrayAccess
 						],
 					],
 					['id_attach'],
-					Db::INSERT_RETURN_MODE_SINGLE,
+					ReturnMode::SingleRow,
 				);
 
 				if (!empty($attachmentOptions['thumb'])) {
@@ -2094,7 +2104,7 @@ class Attachment implements \ArrayAccess
 
 							// Add this beauty to the database.
 							$attachment['id_thumb'] = Db::$db->insert(
-								'',
+								InsertType::Insert,
 								'{db_prefix}attachments',
 								[
 									'id_folder' => 'int',
@@ -2123,7 +2133,7 @@ class Attachment implements \ArrayAccess
 									],
 								],
 								['id_attach'],
-								Db::INSERT_RETURN_MODE_SINGLE,
+								ReturnMode::SingleRow,
 							);
 
 							if (!empty($attachment['id_thumb'])) {

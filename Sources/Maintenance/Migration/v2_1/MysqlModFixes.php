@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -69,14 +69,14 @@ class MysqlModFixes extends MigrationBase
 			);
 
 			while ($row = Db::$db->fetch_assoc($request)) {
-					$this->query(
-						'ALTER TABLE {db_prefix}members
+				$this->query(
+					'ALTER TABLE {db_prefix}members
 						MODIFY {raw:col_name} {raw:col_type} NULL',
-						[
-							'col_name' => $row['COLUMN_NAME'],
-							'col_type' => $row['COLUMN_TYPE'],
-						],
-					);
+					[
+						'col_name' => $row['COLUMN_NAME'],
+						'col_type' => $row['COLUMN_TYPE'],
+					],
+				);
 			}
 
 			$this->handleTimeout(++$start);
@@ -101,14 +101,14 @@ class MysqlModFixes extends MigrationBase
 			);
 
 			while ($row = Db::$db->fetch_assoc($request)) {
-					$this->query(
-						'ALTER TABLE {db_prefix}boards
+				$this->query(
+					'ALTER TABLE {db_prefix}boards
 						MODIFY {raw:col_name} {raw:col_type} NULL',
-						[
-							'col_name' => $row['COLUMN_NAME'],
-							'col_type' => $row['COLUMN_TYPE'],
-						],
-					);
+					[
+						'col_name' => $row['COLUMN_NAME'],
+						'col_type' => $row['COLUMN_TYPE'],
+					],
+				);
 			}
 
 			$this->handleTimeout(++$start);
@@ -131,14 +131,14 @@ class MysqlModFixes extends MigrationBase
 			);
 
 			while ($row = Db::$db->fetch_assoc($request)) {
-					$this->query(
-						'ALTER TABLE {db_prefix}topics
+				$this->query(
+					'ALTER TABLE {db_prefix}topics
 						MODIFY {raw:col_name} {raw:col_type} NULL',
-						[
-							'col_name' => $row['COLUMN_NAME'],
-							'col_type' => $row['COLUMN_TYPE'],
-						],
-					);
+					[
+						'col_name' => $row['COLUMN_NAME'],
+						'col_type' => $row['COLUMN_TYPE'],
+					],
+				);
 			}
 
 			$this->handleTimeout(++$start);

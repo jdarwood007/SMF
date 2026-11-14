@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -50,7 +50,7 @@ class EditHistory extends MigrationBase
 		}
 
 		// Populate edit_history.
-		$request = Db::$db->query(
+		$request = $this->query(
 			'SELECT id_msg, body, modified_time, modified_name, modified_reason, edit_history
 			FROM {db_prefix}messages
 			WHERE id_msg > {int:start}
@@ -77,7 +77,7 @@ class EditHistory extends MigrationBase
 				$row['modified_reason'],
 			]]);
 
-			Db::$db->query(
+			$this->query(
 				'UPDATE {db_prefix}messages
 				SET edit_history = {string:edit_history}
 				WHERE id_msg = {int:id_msg}',

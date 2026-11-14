@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Australia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Australia/Melbourne
  */
-class Melbourne extends \SMF\Calendar\VTimeZone
+class Melbourne extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Australia/Melbourne';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Australia_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -85,7 +103,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19430328T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440326T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19440325T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -100,7 +118,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19711031T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851027T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19851026T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -115,7 +133,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19730304T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850303T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19850302T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -123,7 +141,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860316T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19900318T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=3SU;UNTIL=19900317T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -131,7 +149,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19861019T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19871018T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19871017T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -139,7 +157,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19881030T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=19991030T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -147,7 +165,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19910303T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19940306T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=1SU;UNTIL=19940305T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -155,7 +173,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19950326T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050327T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20050326T150000Z',
 			'TZNAME' => 'AEST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',
@@ -170,7 +188,7 @@ class Melbourne extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20011028T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071028T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20071027T160000Z',
 			'TZNAME' => 'AEDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',

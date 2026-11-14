@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; ManageSettings
+// Version: 3.0 Alpha 5-dev; ManageSettings
 
 // argument(s): theme_id, session_id, session_var, Config::$scripturl
 $txt['modSettings_desc'] = 'This page allows you to change the settings of features and basic options in your forum. Please see the <a href="{scripturl}?action=admin;area=theme;sa=list;th={theme_id};{session_var}={session_id}">theme settings</a> for more options. Click the help icons for more information about a setting.';
@@ -73,13 +73,16 @@ $txt['alerts_auto_purge_90'] = 'After 3 months';
 $txt['alerts_auto_purge_0'] = 'Never';
 $txt['alerts_per_page'] = 'Alerts Per Page';
 $txt['jquery_source'] = 'Source for the jQuery Library';
-$txt['jquery_custom_label'] = 'Custom';
 $txt['jquery_custom'] = 'Custom URL to the jQuery Library';
-$txt['jquery_local'] = 'Local';
-$txt['jquery_cloudflare_cdn'] = 'Cloudflare CDN (cdnjs)';
-$txt['jquery_google_cdn'] = 'Google CDN';
-$txt['jquery_jquery_cdn'] = 'jQuery CDN';
-$txt['jquery_microsoft_cdn'] = 'Microsoft CDN';
+$txt['fontawesome_source'] = 'Source for the FontAwesome Library';
+$txt['fontawesome_custom'] = 'Custom URL to the FontAwesome Library';
+$txt['cdn_custom_label'] = 'Custom';
+$txt['local_cdn'] = 'Local';
+$txt['google_cdn'] = 'Google CDN';
+$txt['jquery_cdn'] = 'jQuery CDN';
+$txt['microsoft_cdn'] = 'Microsoft CDN';
+$txt['cloudflare_cdn'] = 'Cloudflare CDN';
+$txt['fontawesome_cdn'] = 'FontAwesome CDN';
 $txt['minimize_files'] = 'Minimize CSS and JavaScript files';
 $txt['queryless_urls'] = 'Use friendly URLs';
 $txt['queryless_urls_note'] = 'Supported on Apache, Lighttpd, and LiteSpeed only';
@@ -106,6 +109,8 @@ $txt['defaultMaxMembers'] = 'Members per page in member list';
 $txt['timeLoadPageEnable'] = 'Display time taken to create every page';
 $txt['disableHostnameLookup'] = 'Disable hostname lookups';
 $txt['who_enabled'] = 'Enable who’s online list';
+$txt['no_guest_logging'] = 'Do not include guests or bots in Users Online stats';
+$txt['no_guest_views'] = 'Disable counting views for guests and bots';
 $txt['settings_error'] = 'Warning: Updating of Settings.php failed, the settings cannot be saved.';
 $txt['image_proxy_enabled'] = 'Enable Image Proxy';
 $txt['image_proxy_secret'] = 'Image Proxy Secret';
@@ -152,6 +157,8 @@ $txt['cache_sqlite_settings'] = 'SQLite3 database caching settings';
 $txt['cache_memcached_settings'] = 'Memcache/Memcached settings';
 $txt['cache_memcached_servers'] = 'Memcache/Memcached servers';
 $txt['cache_memcached_servers_subtext'] = 'Example: 127.0.0.1:11211,127.0.0.2';
+$txt['cache_sqlite_wal'] = 'Enable SQLite3 WAL';
+$txt['cache_sqlite_wal_subtext'] = 'Read <a href="https://www.sqlite.org/wal.html">Write-Ahead Logging</a> documentation prior to using. If you enable then disable this setting, the database will become readonly.';
 
 $txt['loadavg_warning'] = 'Please note: the settings below are to be edited with care. Setting any of them too low may render your forum <strong>unusable</strong>!';
 $txt['loadavg_enable'] = 'Enable load balancing by load averages';

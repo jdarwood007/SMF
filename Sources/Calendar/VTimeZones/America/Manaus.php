@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Manaus
  */
-class Manaus extends \SMF\Calendar\VTimeZone
+class Manaus extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Manaus extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Manaus';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Amazon',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Manaus extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19320401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19330401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=31;UNTIL=19330401T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -72,7 +90,7 @@ class Manaus extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19491201T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=1;UNTIL=19521201T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=1;UNTIL=19521201T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
@@ -87,7 +105,7 @@ class Manaus extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19510401T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYMONTHDAY=1;UNTIL=19520401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=31;UNTIL=19520401T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -122,7 +140,7 @@ class Manaus extends \SMF\Calendar\VTimeZone
 		],
 		11 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19650331T000000',
+			'DTSTART' => '19650401T000000',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -136,8 +154,7 @@ class Manaus extends \SMF\Calendar\VTimeZone
 		],
 		13 => [
 			'type' => 'STANDARD',
-			'DTSTART' => '19660301T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19680301T000000',
+			'DTSTART' => '19660301T010000',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
@@ -145,65 +162,73 @@ class Manaus extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19661101T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19671101T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=11;BYMONTHDAY=1;UNTIL=19671101T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
 		],
 		15 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19670301T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=1;UNTIL=19680301T030000Z',
+			'TZNAME' => 'UTC-04',
+			'TZOFFSETFROM' => '-0300',
+			'TZOFFSETTO' => '-0400',
+		],
+		16 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19851102T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
 		],
-		16 => [
+		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860315T000000',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
 		],
-		17 => [
+		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19861025T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
 		],
-		18 => [
+		19 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19870214T000000',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
 		],
-		19 => [
+		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19871025T000000',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
 		],
-		20 => [
+		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19880207T000000',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',
 		],
-		21 => [
+		22 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19931017T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=11,12,13,14,15,16,17;UNTIL=19951015T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=11,12,13,14,15,16,17;UNTIL=19951015T040000Z',
 			'TZNAME' => 'UTC-03',
 			'TZOFFSETFROM' => '-0400',
 			'TZOFFSETTO' => '-0300',
 		],
-		22 => [
+		23 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19940220T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=3SU;UNTIL=19950219T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=2;BYDAY=3SU;UNTIL=19950219T030000Z',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0300',
 			'TZOFFSETTO' => '-0400',

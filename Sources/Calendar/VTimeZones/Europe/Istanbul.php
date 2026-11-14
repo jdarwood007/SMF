@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Istanbul
  */
-class Istanbul extends \SMF\Calendar\VTimeZone
+class Istanbul extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,34 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Istanbul';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+		1 => [
+			'ts' => '1978-06-28T21:00:00+0000',
+			'metazone' => 'Turkey',
+		],
+		2 => [
+			'ts' => '1984-10-31T23:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+		3 => [
+			'ts' => '2016-09-06T21:00:00+0000',
+			'metazone' => 'Turkey',
+		],
+	];
 
 	/**
 	 * @var array
@@ -113,7 +143,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19241001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19251001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19250930T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -184,7 +214,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19470420T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19480418T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19480417T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -192,7 +222,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19471005T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=2,3,4,5,6,7,8;UNTIL=19511007T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=2,3,4,5,6,7,8;UNTIL=19511006T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -256,7 +286,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		30 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19731104T020000',
-			'RRULE' => 'FREQ=YEARLY;BYDAY=SU;BYYEARDAY=-62,-61,-60,-59,-58,-57,-56;BYSETPOS=1;UNTIL=19761031T020000',
+			'RRULE' => 'FREQ=YEARLY;BYDAY=SU;BYYEARDAY=-62,-61,-60,-59,-58,-57,-56;BYSETPOS=1;UNTIL=19761030T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -285,7 +315,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		34 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19770403T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19780402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19780402T000000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -293,7 +323,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		35 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19771016T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19781015T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=3SU;UNTIL=19781014T230000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -343,7 +373,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		42 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19860330T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19930328T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=19930327T230000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -351,7 +381,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		43 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19860928T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T220000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -366,7 +396,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		45 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19950326T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20060326T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20060325T230000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -374,7 +404,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		46 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19961027T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061029T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20061028T220000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -382,7 +412,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		47 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19820123T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20100328T010000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -390,7 +420,7 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 		48 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19970823T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20101031T010000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -403,20 +433,60 @@ class Istanbul extends \SMF\Calendar\VTimeZone
 			'TZOFFSETTO' => '+0300',
 		],
 		50 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19970823T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20131027T010000Z',
+			'TZNAME' => 'EET',
+			'TZOFFSETFROM' => '+0300',
+			'TZOFFSETTO' => '+0200',
+		],
+		51 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19820123T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20130331T010000Z',
+			'TZNAME' => 'EEST',
+			'TZOFFSETFROM' => '+0200',
+			'TZOFFSETTO' => '+0300',
+		],
+		52 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20140331T030000',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
 		],
-		51 => [
+		53 => [
+			'type' => 'STANDARD',
+			'DTSTART' => '19970823T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU;UNTIL=20141026T010000Z',
+			'TZNAME' => 'EET',
+			'TZOFFSETFROM' => '+0300',
+			'TZOFFSETTO' => '+0200',
+		],
+		54 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19820123T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20150329T010000Z',
+			'TZNAME' => 'EEST',
+			'TZOFFSETFROM' => '+0200',
+			'TZOFFSETTO' => '+0300',
+		],
+		55 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20151108T040000',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
 		],
-		52 => [
+		56 => [
+			'type' => 'DAYLIGHT',
+			'DTSTART' => '19820123T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU;UNTIL=20160327T010000Z',
+			'TZNAME' => 'EEST',
+			'TZOFFSETFROM' => '+0200',
+			'TZOFFSETTO' => '+0300',
+		],
+		57 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20160907T000000',
 			'TZNAME' => 'UTC+03',

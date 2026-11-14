@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -29,7 +29,7 @@ use SMF\User;
 use SMF\Utils;
 
 /**
- * Rename here and in the exportStatic call at the end of the file.
+ * Class StatPanel
  */
 class StatPanel implements ActionInterface
 {
@@ -112,14 +112,14 @@ class StatPanel implements ActionInterface
 			FROM {db_prefix}messages AS m
 				INNER JOIN {db_prefix}boards AS b ON (b.id_board = m.id_board)
 			WHERE m.id_member = {int:current_member}
-				AND b.count_posts = {int:count_enabled}
+				AND b.posts_count = {int:count_enabled}
 				AND {query_see_board}
 			GROUP BY b.id_board
 			ORDER BY message_count DESC
 			LIMIT 10',
 			[
 				'current_member' => Profile::$member->id,
-				'count_enabled' => 0,
+				'count_enabled' => 1,
 			],
 		);
 
@@ -274,7 +274,7 @@ class StatPanel implements ActionInterface
 	protected function __construct()
 	{
 		if (!isset(Profile::$member)) {
-			Profile::load();
+			Profile::loadMember();
 		}
 	}
 }

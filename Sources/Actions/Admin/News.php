@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,10 +18,10 @@ namespace SMF\Actions\Admin;
 use SMF\ActionInterface;
 use SMF\Actions\Notify;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
 use SMF\Editor;
+use SMF\EmailAddress;
 use SMF\Group;
 use SMF\IntegrationHook;
 use SMF\ItemList;
@@ -29,7 +29,6 @@ use SMF\Lang;
 use SMF\Logging;
 use SMF\Mail;
 use SMF\Menu;
-use SMF\Msg;
 use SMF\Parser;
 use SMF\PersonalMessage\PM;
 use SMF\SecurityToken;
@@ -44,7 +43,6 @@ use SMF\Utils;
 class News implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -305,12 +303,15 @@ class News implements ActionInterface
 			User::$me->checkSession();
 
 			foreach ($_POST['news'] as $i => $news) {
-				if (trim($news) == '') {
+				$news = Utils::htmlTrim($news);
+
+				if ($news == '') {
 					unset($_POST['news'][$i]);
 				} else {
-					$_POST['news'][$i] = Utils::htmlspecialchars($_POST['news'][$i], ENT_QUOTES);
-
-					Msg::preparsecode($_POST['news'][$i], false, !empty(Config::$modSettings['autoLinkUrls']));
+					$_POST['news'][$i] = Parser::sanitize(
+						Utils::htmlspecialchars($news, ENT_QUOTES),
+						autolink: !empty(Config::$modSettings['autoLinkUrls']),
+					);
 				}
 			}
 
@@ -467,7 +468,7 @@ class News implements ActionInterface
 				}
 
 				// Find the members
-				$_POST[$type] = implode(',', array_keys(User::find($_POST[$type])));
+				$_POST[$type] = implode(',', User::find($_POST[$type], ids_only: true));
 			}
 		}
 
@@ -534,7 +535,7 @@ class News implements ActionInterface
 		);
 
 		while ($row = Db::$db->fetch_assoc($request)) {
-			$condition_array[] = '{string:email_' . $count . '}';
+			$condition_array[] = 'email_address_ci LIKE {string:email_' . $count . '}';
 			$condition_array_params['email_' . $count++] = $row['email_address'];
 		}
 		Db::$db->free_result($request);
@@ -543,7 +544,7 @@ class News implements ActionInterface
 			$request = Db::$db->query(
 				'SELECT id_member
 				FROM {db_prefix}members
-				WHERE email_address IN (' . implode(', ', $condition_array) . ')',
+				WHERE (' . implode(' OR ', $condition_array) . ')',
 				$condition_array_params,
 			);
 
@@ -720,13 +721,13 @@ class News implements ActionInterface
 
 		// Finally - emails!
 		if (!empty($_POST['emails'])) {
-			$addressed = array_unique(explode(';', strtr($_POST['emails'], ["\n" => ';', "\r" => ';', ',' => ';'])));
+			$emails = array_unique(explode(';', strtr($_POST['emails'], ["\n" => ';', "\r" => ';', ',' => ';'])));
 
-			foreach ($addressed as $curmem) {
-				$curmem = trim($curmem);
+			foreach ($emails as $email) {
+				$email = new EmailAddress($email, true);
 
-				if ($curmem != '' && filter_var($curmem, FILTER_VALIDATE_EMAIL)) {
-					Utils::$context['recipients']['emails'][$curmem] = $curmem;
+				if ($email->isValid()) {
+					Utils::$context['recipients']['emails'][$email->sendable()] = $email->sendable();
 				}
 			}
 		}
@@ -969,7 +970,7 @@ class News implements ActionInterface
 				if (!empty($include_unsubscribe)) {
 					$token = Notify::createUnsubscribeToken((int) $row['id_member'], $row['email_address'], 'announcements');
 
-					$unsubscribe_link = Lang::getTxt('unsubscribe_announcements_' . (!empty($_POST['send_html']) ? 'html' : 'plain'), ['url' => Config::$scripturl . '?action=notifyannouncements;u=' . $row['id_member'] . ';token=' . $token], file: 'General');
+					$unsubscribe_link = Lang::getTxt('unsubscribe_announcements_' . (!empty($_POST['send_html']) ? 'html' : 'plain'), ['url' => Config::$scripturl . '?action=notifyannouncements;sa=off;u=' . $row['id_member'] . ';token=' . $token], file: 'General');
 				} else {
 					$unsubscribe_link = '';
 				}
@@ -1121,7 +1122,7 @@ class News implements ActionInterface
 		foreach (explode("\n", Config::$modSettings['news']) as $id => $line) {
 			$admin_current_news[$id] = [
 				'id' => $id,
-				'unparsed' => Msg::un_preparsecode($line),
+				'unparsed' => Parser::getEditableString($line),
 				'parsed' => preg_replace('~<([/]?)form[^>]*?[>]*>~i', '<em class="smalltext">&lt;$1form&gt;</em>', Parser::transform($line)),
 			];
 		}
@@ -1202,7 +1203,7 @@ class News implements ActionInterface
 				continue;
 			}
 
-			Msg::preparsecode(Utils::$context[$key], false, !empty(Config::$modSettings['autoLinkUrls']));
+			Utils::$context[$key] = Parser::sanitize(Utils::$context[$key], autolink: !empty(Config::$modSettings['autoLinkUrls']));
 
 			if (!empty(Utils::$context['send_html'])) {
 				$enablePostHTML = Config::$modSettings['enablePostHTML'];

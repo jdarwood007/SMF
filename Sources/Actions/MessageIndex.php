@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,10 +18,11 @@ namespace SMF\Actions;
 use SMF\ActionInterface;
 use SMF\ActionRouter;
 use SMF\ActionTrait;
+use SMF\Avatar;
 use SMF\Board;
-use SMF\Category;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
@@ -188,16 +189,16 @@ class MessageIndex implements ActionInterface, Routable
 		}
 
 		$where = [];
-		$where_parameters = [];
+		$params = [];
 
 		if (isset($boardListOptions['excluded_boards'])) {
 			$where[] = 'b.id_board NOT IN ({array_int:excluded_boards})';
-			$where_parameters['excluded_boards'] = $boardListOptions['excluded_boards'];
+			$params['excluded_boards'] = $boardListOptions['excluded_boards'];
 		}
 
 		if (isset($boardListOptions['included_boards'])) {
 			$where[] = 'b.id_board IN ({array_int:included_boards})';
-			$where_parameters['included_boards'] = $boardListOptions['included_boards'];
+			$params['included_boards'] = $boardListOptions['included_boards'];
 		}
 
 		if (!empty($boardListOptions['ignore_boards'])) {
@@ -208,43 +209,52 @@ class MessageIndex implements ActionInterface, Routable
 
 		if (!empty($boardListOptions['not_redirection'])) {
 			$where[] = 'b.redirect = {string:blank_redirect}';
-			$where_parameters['blank_redirect'] = '';
+			$params['blank_redirect'] = '';
 		}
 
-		$request = Db::$db->query(
-			'SELECT c.name AS cat_name, c.id_cat, b.id_board, b.name AS board_name, b.child_level, b.redirect
-			FROM {db_prefix}boards AS b
-				LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)' . (empty($where) ? '' : '
-			WHERE ' . implode('
-				AND ', $where)),
-			$where_parameters,
-			identifier: 'order_by_board_order',
-		);
+		$selects = [
+			'c.name AS cat_name',
+			'c.id_cat',
+			'b.id_board',
+			'b.name AS board_name',
+			'b.child_level',
+			'b.redirect',
+		];
+
+		$joins = [
+			'LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)',
+		];
+
+		$order = [
+			'b.board_order',
+		];
 
 		$return_value = [];
+		$selected = null;
 
-		if (Db::$db->num_rows($request) !== 0) {
-			while ($row = Db::$db->fetch_assoc($request)) {
-				if (!isset($return_value[$row['id_cat']])) {
-					$return_value[$row['id_cat']] = [
-						'id' => $row['id_cat'],
-						'name' => $row['cat_name'],
-						'boards' => [],
-					];
-				}
+		if (isset($boardListOptions['selected_boards']) && \is_array($boardListOptions['selected_boards'])) {
+			$selected = array_flip($boardListOptions['selected_boards']);
+		} elseif (isset($boardListOptions['selected_board'])) {
+			$selected = [$boardListOptions['selected_board'] => true];
+		}
 
-				$return_value[$row['id_cat']]['boards'][$row['id_board']] = [
-					'id' => $row['id_board'],
-					'name' => $row['board_name'],
-					'child_level' => $row['child_level'],
-					'redirect' => $row['redirect'],
-					'selected' => isset($boardListOptions['selected_board']) && $boardListOptions['selected_board'] == $row['id_board'],
+		foreach (Board::queryData($selects, $params, $joins, $where, $order) as $row) {
+			if (!isset($return_value[$row['id_cat']])) {
+				$return_value[$row['id_cat']] = [
+					'id' => $row['id_cat'],
+					'name' => $row['cat_name'],
+					'boards' => [],
 				];
 			}
-		}
-		Db::$db->free_result($request);
 
-		Category::sort($return_value);
+			$return_value[$row['id_cat']]['boards'][$row['id_board']] = [
+				'id' => $row['id_board'],
+				'name' => $row['board_name'],
+				'child_level' => $row['child_level'],
+				'redirect' => $row['redirect'],
+				'selected' => $selected !== null && isset($selected[$row['id_board']]),
+			];
+		}
 
 		return $return_value;
 	}
@@ -445,18 +455,24 @@ class MessageIndex implements ActionInterface, Routable
 
 		if (!empty(Theme::$current->settings['avatars_on_indexes'])) {
 			// Last post member avatar
-			Utils::$context['topics'][$row['id_topic']]['last_post']['member']['avatar'] = User::setAvatarData([
-				'avatar' => $row['avatar'],
-				'email' => $row['email_address'],
-				'filename' => !empty($row['last_member_filename']) ? $row['last_member_filename'] : '',
-			]);
+			Utils::$context['topics'][$row['id_topic']]['last_post']['member']['avatar'] = new Avatar(
+				original_url: $row['avatar'],
+				filename: $row['last_member_filename'] ?? '',
+				id_attach: (int) $row['last_member_id_attach'],
+				attachment_type: (int) $row['last_member_attach_type'],
+				email: $row['email_address'],
+				id_member: (int) $row['last_id_member'],
+			);
 
 			// First post member avatar
-			Utils::$context['topics'][$row['id_topic']]['first_post']['member']['avatar'] = User::setAvatarData([
-				'avatar' => $row['first_member_avatar'],
-				'email' => $row['first_member_mail'],
-				'filename' => !empty($row['first_member_filename']) ? $row['first_member_filename'] : '',
-			]);
+			Utils::$context['topics'][$row['id_topic']]['first_post']['member']['avatar'] = new Avatar(
+				original_url: $row['first_member_avatar'],
+				filename: $row['first_member_filename'] ?? '',
+				id_attach: (int) $row['first_member_id_attach'],
+				attachment_type: (int) $row['first_member_attach_type'],
+				email: $row['first_member_mail'],
+				id_member: (int) $row['first_id_member'],
+			);
 		}
 	}
 
@@ -735,7 +751,7 @@ class MessageIndex implements ActionInterface, Routable
 	{
 		if (!User::$me->is_guest) {
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}log_boards',
 				[
 					'id_msg' => 'int',
@@ -862,7 +878,7 @@ class MessageIndex implements ActionInterface, Routable
 					$link = '<a href="' . Config::$scripturl . '?action=profile;u=' . $row['id_member'] . '">' . $row['real_name'] . '</a>';
 				}
 
-				$is_buddy = \in_array($row['id_member'], User::$me->buddies);
+				$is_buddy = !empty(Config::$modSettings['enable_buddylist']) && \in_array($row['id_member'], User::$me->buddies);
 
 				if ($is_buddy) {
 					$link = '<strong>' . $link . '</strong>';
@@ -922,7 +938,7 @@ class MessageIndex implements ActionInterface, Routable
 
 		// Now we tack the info onto the end of the linktree
 		if (!empty(Utils::$context['link_moderators'])) {
-			Utils::$context['linktree'][\count(Utils::$context['linktree']) - 1]['extra_after'] = '<span class="board_moderators">(' . Lang::getTxt('moderators_list', ['num' => \count(Utils::$context['link_moderators'])], file: 'General') . ': ' . implode(', ', Utils::$context['link_moderators']) . ')</span>';
+			Utils::$context['linktree'][\count(Utils::$context['linktree']) - 1]['extra_after'] = '<span class="board_moderators">(' . Lang::getTxt('moderators_list', ['num' => \count(Utils::$context['link_moderators']), 'list' => Lang::sentenceList(Utils::$context['link_moderators'])], file: 'General') . ')</span>';
 		}
 	}
 
@@ -933,15 +949,14 @@ class MessageIndex implements ActionInterface, Routable
 	{
 		// If we can view unapproved messages and there are some build up a list.
 		if (User::$me->allowedTo('approve_posts') && (Board::$info->unapproved_topics || Board::$info->unapproved_posts)) {
-			$untopics = Board::$info->unapproved_topics ? '<a href="' . Config::$scripturl . '?action=moderate;area=postmod;sa=topics;brd=' . Board::$info->id . '">' . Board::$info->unapproved_topics . '</a>' : 0;
-
-			$unposts = Board::$info->unapproved_posts ? '<a href="' . Config::$scripturl . '?action=moderate;area=postmod;sa=posts;brd=' . Board::$info->id . '">' . (Board::$info->unapproved_posts - Board::$info->unapproved_topics) . '</a>' : 0;
-
+			// Both of these are plural arguments in the string, so they have to
+			// arrive as numbers. Wrapping them in a link first gets them read as
+			// zero, and the string already carries a link of its own.
 			Utils::$context['unapproved_posts_message'] = Lang::getTxt(
 				'there_are_unapproved_topics',
 				[
-					'topics' => $untopics,
-					'posts' => $unposts,
+					'topics' => Board::$info->unapproved_topics,
+					'posts' => Board::$info->unapproved_posts - Board::$info->unapproved_topics,
 					'url' => Config::$scripturl . '?action=moderate;area=postmod;sa=' . (Board::$info->unapproved_topics ? 'topics' : 'posts') . ';brd=' . Board::$info->id,
 				],
 				file: 'General',
@@ -958,6 +973,9 @@ class MessageIndex implements ActionInterface, Routable
 	 */
 	protected function setupTemplate(): void
 	{
+		// The child board rows here are drawn by the same template_bi_*
+		// helpers the board index uses, so that file has to come along.
+		Theme::loadTemplate('BoardIndex');
 		Theme::loadTemplate('MessageIndex');
 
 		// Javascript for inline editing.
@@ -982,7 +1000,7 @@ class MessageIndex implements ActionInterface, Routable
 		Utils::$context['can_post_new'] = User::$me->allowedTo('post_new') || (Config::$modSettings['postmod_active'] && User::$me->allowedTo('post_unapproved_topics'));
 		Utils::$context['can_post_poll'] = Config::$modSettings['pollMode'] == '1' && User::$me->allowedTo('poll_post') && Utils::$context['can_post_new'];
 		Utils::$context['can_moderate_forum'] = User::$me->allowedTo('moderate_forum');
-		Utils::$context['can_approve_posts'] = User::$me->allowedTo('approve_posts');
+		Utils::$context['can_approve_posts'] = User::$me->allowedTo('approve_posts', Board::$info->id);
 
 		Utils::$context['jump_to'] = [
 			'label' => addslashes(Utils::htmlspecialcharsDecode(Lang::getTxt('jump_to', file: 'General'))),
@@ -1019,7 +1037,7 @@ class MessageIndex implements ActionInterface, Routable
 	{
 		// Is Quick Moderation active/needed?
 		if (!empty(Theme::$current->options['display_quick_mod']) && !empty(Utils::$context['topics'])) {
-			Utils::$context['can_markread'] = User::$me->is_logged;
+			Utils::$context['can_markread'] = !User::$me->is_guest;
 			Utils::$context['can_lock'] = User::$me->allowedTo('lock_any');
 			Utils::$context['can_sticky'] = User::$me->allowedTo('make_sticky');
 			Utils::$context['can_move'] = User::$me->allowedTo('move_any');
@@ -1058,7 +1076,7 @@ class MessageIndex implements ActionInterface, Routable
 
 			// Can we use quick moderation checkboxes?
 			if (Theme::$current->options['display_quick_mod'] == 1) {
-				Utils::$context['can_quick_mod'] = User::$me->is_logged || Utils::$context['can_approve'] || Utils::$context['can_remove'] || Utils::$context['can_lock'] || Utils::$context['can_sticky'] || Utils::$context['can_move'] || Utils::$context['can_merge'] || Utils::$context['can_restore'];
+				Utils::$context['can_quick_mod'] = !User::$me->is_guest || Utils::$context['can_approve'] || Utils::$context['can_remove'] || Utils::$context['can_lock'] || Utils::$context['can_sticky'] || Utils::$context['can_move'] || Utils::$context['can_merge'] || Utils::$context['can_restore'];
 			}
 			// Or the icons?
 			else {
@@ -1088,7 +1106,7 @@ class MessageIndex implements ActionInterface, Routable
 			Utils::$context['normal_buttons']['post_poll'] = ['text' => 'new_poll', 'image' => 'new_poll.png', 'lang' => true, 'url' => Config::$scripturl . '?action=post;board=' . Utils::$context['current_board'] . '.0;poll'];
 		}
 
-		if (User::$me->is_logged) {
+		if (!User::$me->is_guest) {
 			Utils::$context['normal_buttons']['markread'] = ['text' => 'mark_read_short', 'image' => 'markread.png', 'lang' => true, 'custom' => 'data-confirm="' . Lang::getTxt('are_sure_mark_read', file: 'General') . '"', 'class' => 'you_sure', 'url' => Config::$scripturl . '?action=markasread;sa=board;board=' . Utils::$context['current_board'] . '.0;' . Utils::$context['session_var'] . '=' . Utils::$context['session_id']];
 		}
 

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Pacific;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Pacific/Apia
  */
-class Apia extends \SMF\Calendar\VTimeZone
+class Apia extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Apia extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Pacific/Apia';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Apia',
+		],
+	];
 
 	/**
 	 * @var array
@@ -85,7 +103,7 @@ class Apia extends \SMF\Calendar\VTimeZone
 		6 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20120401T040000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20210404T040000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=20210403T140000Z',
 			'TZNAME' => 'UTC+13',
 			'TZOFFSETFROM' => '+1400',
 			'TZOFFSETTO' => '+1300',
@@ -93,7 +111,7 @@ class Apia extends \SMF\Calendar\VTimeZone
 		7 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20120930T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=20200927T030000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=20200926T140000Z',
 			'TZNAME' => 'UTC+14',
 			'TZOFFSETFROM' => '+1300',
 			'TZOFFSETTO' => '+1400',

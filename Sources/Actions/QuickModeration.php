@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -21,12 +21,14 @@ use SMF\ActionTrait;
 use SMF\Board;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\IntegrationHook;
 use SMF\Logging;
 use SMF\Mail;
 use SMF\Routable;
 use SMF\Topic;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -511,7 +513,7 @@ class QuickModeration implements ActionInterface, Routable
 		}
 
 		Db::$db->insert(
-			'replace',
+			InsertType::Replace,
 			'{db_prefix}log_topics',
 			['id_msg' => 'int', 'id_member' => 'int', 'id_topic' => 'int', 'unwatched' => 'int'],
 			$markreadArray,
@@ -670,7 +672,7 @@ class QuickModeration implements ActionInterface, Routable
 		$countPosts = [];
 
 		$request = Db::$db->query(
-			'SELECT t.id_topic, t.id_board, b.count_posts
+			'SELECT t.id_topic, t.id_board, b.posts_count
 			FROM {db_prefix}topics AS t
 				LEFT JOIN {db_prefix}boards AS b ON (t.id_board = b.id_board)
 			WHERE t.id_topic IN ({array_int:move_topic_ids})' . (!empty(Board::$info->id) && !User::$me->allowedTo('move_any') ? '
@@ -691,7 +693,7 @@ class QuickModeration implements ActionInterface, Routable
 			}
 
 			// Does this topic's board count the posts or not?
-			$countPosts[(int) $row['id_topic']] = empty($row['count_posts']);
+			$countPosts[(int) $row['id_topic']] = !empty($row['posts_count']);
 
 			if (!isset($moveTos[$to])) {
 				$moveTos[$to] = [];
@@ -711,11 +713,11 @@ class QuickModeration implements ActionInterface, Routable
 			Topic::move($topics, $to);
 		}
 
-		// Does the post counts need to be updated?
+		// Do the post counts need to be updated?
 		if (!empty($moveTos)) {
 			$topicRecounts = [];
 			$request = Db::$db->query(
-				'SELECT id_board, count_posts
+				'SELECT id_board, posts_count
 				FROM {db_prefix}boards
 				WHERE id_board IN ({array_int:move_boards})',
 				[
@@ -724,7 +726,7 @@ class QuickModeration implements ActionInterface, Routable
 			);
 
 			while ($row = Db::$db->fetch_assoc($request)) {
-				$cp = empty($row['count_posts']);
+				$cp = !empty($row['posts_count']);
 
 				// Go through all the topics that are being moved to this board.
 				foreach ($moveTos[(int) $row['id_board']] as $topic) {
@@ -739,37 +741,46 @@ class QuickModeration implements ActionInterface, Routable
 			Db::$db->free_result($request);
 
 			if (!empty($topicRecounts)) {
-				$members = [];
+				$adjustments = [];
 
 				// Get all the members who have posted in the moved topics.
 				$request = Db::$db->query(
 					'SELECT id_member, id_topic
 					FROM {db_prefix}messages
-					WHERE id_topic IN ({array_int:moved_topic_ids})',
+					WHERE id_topic IN ({array_int:moved_topic_ids})
+						AND id_member > 0',
 					[
 						'moved_topic_ids' => array_keys($topicRecounts),
 					],
 				);
 
 				while ($row = Db::$db->fetch_assoc($request)) {
-					if (!isset($members[$row['id_member']])) {
-						$members[(int) $row['id_member']] = 0;
+					if (!isset($adjustments[$row['id_member']])) {
+						$adjustments[(int) $row['id_member']] = 0;
 					}
 
 					if ($topicRecounts[(int) $row['id_topic']] === '+') {
-						$members[(int) $row['id_member']]++;
+						$adjustments[(int) $row['id_member']]++;
 					} else {
-						$members[(int) $row['id_member']]--;
+						$adjustments[(int) $row['id_member']]--;
 					}
-
-					$members[(int) $row['id_member']] = max(0, $members[(int) $row['id_member']]);
 				}
 				Db::$db->free_result($request);
 
-				// And now update them member's post counts
-				foreach ($members as $id_member => $post_adj) {
-					User::updateMemberData($id_member, ['posts' => 'posts + ' . $post_adj]);
+				// And now update the member's post counts.
+				$members = [];
+
+				foreach ($adjustments as $id => $post_adj) {
+					$members[$id] = current(User::load($id, dataset: UserDataset::Minimal));
+
+					if ($members[$id] instanceof User) {
+						$members[$id]->posts += $post_adj;
+					} else {
+						unset($members[$id]);
+					}
 				}
+
+				User::saveBatch($members);
 			}
 		}
 

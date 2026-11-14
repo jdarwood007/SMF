@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -497,7 +497,7 @@ class QueryString
 
 		IntegrationHook::call('integrate_build_route', [&$route_base, $params]);
 
-		if (\is_string(self::getRouteParser($route_base))) {
+		if (isset($route_base) && \is_string(self::getRouteParser($route_base))) {
 			// This call to extract will set new values of $route and $params.
 			extract(\call_user_func(self::getRouteParser($route_base) . '::buildRoute', $params));
 		}
@@ -639,6 +639,7 @@ class QueryString
 			&& !Sapi::httpsOn()
 			&& str_starts_with($_SERVER['REQUEST_URL'] ?? '', 'http://')
 			&& SMF != 'SSI'
+			&& !\defined('SMF_INSTALLING')
 		) {
 			if (isset($_GET['sslRedirect'])) {
 				ErrorHandler::fatalLang('login_ssl_required', false);
@@ -654,7 +655,7 @@ class QueryString
 	 */
 	protected static function wwwRedirect(): void
 	{
-		if (SMF == 'SSI') {
+		if (SMF == 'SSI' || \defined('SMF_INSTALLING')) {
 			return;
 		}
 
@@ -678,7 +679,7 @@ class QueryString
 	 */
 	protected static function fixUrl(): void
 	{
-		if (SMF == 'SSI') {
+		if (SMF == 'SSI' || \defined('SMF_INSTALLING')) {
 			return;
 		}
 
@@ -747,7 +748,7 @@ class QueryString
 			!isset($new_url)
 			&& (
 				$requested_url->host === 'localhost'
-				|| IP::create($requested_url->host)->isValid()
+				|| IP::create($requested_url->host)->isPrivate()
 			)
 		) {
 			$new_url = strtr(Config::$boardurl, [$canonical_url->host => $requested_url->host]);

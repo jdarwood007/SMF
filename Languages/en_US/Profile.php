@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; Profile
+// Version: 3.0 Alpha 5-dev; Profile
 
 // Some of the things from the popup need their own descriptions
 $txt['popup_forumprofile'] = 'Profile Details';
@@ -644,6 +644,8 @@ $txt['theme_opt_display'] = 'Board and Topic display';
 $txt['theme_opt_posting'] = 'Posting';
 $txt['theme_opt_moderation'] = 'Moderation';
 $txt['theme_opt_personal_messages'] = 'Personal Messages';
+$txt['theme_opt_colormode'] = 'Theme Color Mode';
+$txt['theme_opt_variant'] = 'Theme Variant';
 
 $txt['export_profile_data'] = 'Download profile data';
 $txt['export_profile_data_desc'] = 'This section allows you to export a copy of your forum profile data to a downloadable file, optionally including your posts and personal messages.<br>Please note:<ul class="bbc_list">{list}</ul>';

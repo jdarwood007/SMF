@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -332,7 +332,7 @@ class ItemList implements \ArrayAccess
 			$this->total_num_items = $this->options['get_count']['value'];
 		} else {
 			if (isset($this->options['get_count']['file'])) {
-				require_once Config::canonicalPath($this->options['get_count']['file']);
+				require_once Sapi::canonicalPath($this->options['get_count']['file']);
 			}
 
 			$call = Utils::getCallable($this->options['get_count']['function']);
@@ -416,11 +416,11 @@ class ItemList implements \ArrayAccess
 				// These are probably the most readable way of injecting complex data.
 				elseif (isset($data['sprintf']) || isset($data['format_text']) || isset($data['get_txt'])) {
 					$params = isset($data['sprintf']) ? [] : $list_item;
-					$call = 'SMF\Lang::formatText';
+					$call = Lang::class . '::formatText';
 					$format = isset($data['format_text']) ? 'format_text' : 'sprintf';
 
 					if (isset($data['get_txt'])) {
-						$call = 'SMF\Lang::getTxt';
+						$call = Lang::class . '::getTxt';
 						$format = 'get_txt';
 					}
 
@@ -483,7 +483,7 @@ class ItemList implements \ArrayAccess
 		} else {
 			// Get the file with the function for the item list.
 			if (isset($this->options['get_items']['file'])) {
-				require_once Config::canonicalPath($this->options['get_items']['file']);
+				require_once Sapi::canonicalPath($this->options['get_items']['file']);
 			}
 
 			$call = Utils::getCallable($this->options['get_items']['function']);

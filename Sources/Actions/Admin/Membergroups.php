@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -16,10 +16,11 @@ declare(strict_types=1);
 namespace SMF\Actions\Admin;
 
 use SMF\ActionInterface;
+use SMF\Actions\Groups;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\Group;
 use SMF\IntegrationHook;
@@ -31,6 +32,7 @@ use SMF\Permissions\Permission;
 use SMF\SecurityToken;
 use SMF\Theme;
 use SMF\User;
+use SMF\UserDataset;
 use SMF\Utils;
 
 /**
@@ -39,7 +41,6 @@ use SMF\Utils;
 class Membergroups implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -71,7 +72,7 @@ class Membergroups implements ActionInterface
 		'settings' => ['settings', 'admin_forum'],
 
 		// This subaction is handled by the Groups action.
-		'members' => ['SMF\\Actions\\Groups::call', 'manage_membergroups'],
+		'members' => [Groups::class . '::call', 'manage_membergroups'],
 	];
 
 	/****************
@@ -122,7 +123,7 @@ class Membergroups implements ActionInterface
 			'base_href' => Config::$scripturl . '?action=admin;area=membergroups' . (isset($_REQUEST['sort2']) ? ';sort2=' . urlencode($_REQUEST['sort2']) : ''),
 			'default_sort_col' => 'name',
 			'get_items' => [
-				'function' => '\\SMF\\Actions\\Groups::list_getMembergroups',
+				'function' => Groups::class . '::list_getMembergroups',
 				'params' => [
 					'regular',
 				],
@@ -228,7 +229,7 @@ class Membergroups implements ActionInterface
 				'desc' => 'desc2',
 			],
 			'get_items' => [
-				'function' => '\\SMF\\Actions\\Groups::list_getMembergroups',
+				'function' => Groups::class . '::list_getMembergroups',
 				'params' => [
 					'post_count',
 				],
@@ -413,7 +414,7 @@ class Membergroups implements ActionInterface
 					}
 
 					Db::$db->insert(
-						'insert',
+						InsertType::Insert,
 						'{db_prefix}board_permissions_view',
 						['id_group' => 'int', 'id_board' => 'int', 'deny' => 'int'],
 						$insert,
@@ -526,7 +527,7 @@ class Membergroups implements ActionInterface
 
 		$groups = Group::load((int) $_REQUEST['group']);
 
-		/** @var \SMF\Group $group */
+		/** @var Group $group */
 		$group = array_shift($groups);
 
 		if (!isset($group) || !($group instanceof Group)) {
@@ -564,6 +565,9 @@ class Membergroups implements ActionInterface
 
 		// The delete this membergroup button was pressed.
 		if (isset($_POST['delete'])) {
+			User::$me->checkSession();
+			SecurityToken::validate('admin-mmg');
+
 			$result = $group->delete();
 
 			// Need to throw a warning if it went wrong, but this is the only one we have a message for...
@@ -575,6 +579,9 @@ class Membergroups implements ActionInterface
 		}
 		// A form was submitted with the new membergroup settings.
 		elseif (isset($_POST['save'])) {
+			User::$me->checkSession();
+			SecurityToken::validate('admin-mmg');
+
 			// Can they really inherit from this group?
 			if ($group->id > Group::ADMIN && $group->id != Group::MOD && isset($_POST['group_inherit']) && $_POST['group_inherit'] != Group::NONE && !User::$me->allowedTo('admin_forum')) {
 				$_POST['group_inherit'] = (int) $_POST['group_inherit'];
@@ -618,7 +625,7 @@ class Membergroups implements ActionInterface
 
 					// Get the IDs of the named members.
 					if (!empty($moderators)) {
-						foreach (User::load($moderators, User::LOAD_BY_NAME, 'minimal') as $moderator) {
+						foreach (User::load($moderators, User::LOAD_BY_NAME, UserDataset::Minimal) as $moderator) {
 							$group->moderator_ids[] = $moderator->id;
 						}
 					}
@@ -628,7 +635,7 @@ class Membergroups implements ActionInterface
 					$moderators = array_filter(array_map('intval', $_POST['moderator_list']));
 
 					if (!empty($moderators)) {
-						foreach (User::load($moderators, User::LOAD_BY_ID, 'minimal') as $moderator) {
+						foreach (User::load($moderators, User::LOAD_BY_ID, UserDataset::Minimal) as $moderator) {
 							$group->moderator_ids[] = $moderator->id;
 						}
 					}

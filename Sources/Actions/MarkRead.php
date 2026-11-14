@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -21,6 +21,7 @@ use SMF\ActionTrait;
 use SMF\Board;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\Routable;
 use SMF\Topic;
 use SMF\User;
@@ -155,7 +156,7 @@ class MarkRead implements ActionInterface, Routable
 		}
 
 		Db::$db->insert(
-			'replace',
+			InsertType::Replace,
 			'{db_prefix}log_topics',
 			[
 				'id_msg' => 'int',
@@ -248,7 +249,7 @@ class MarkRead implements ActionInterface, Routable
 
 		// Blam, unread!
 		Db::$db->insert(
-			'replace',
+			InsertType::Replace,
 			'{db_prefix}log_topics',
 			[
 				'id_msg' => 'int',
@@ -366,7 +367,7 @@ class MarkRead implements ActionInterface, Routable
 
 		foreach ($boards as $b) {
 			if (isset($_SESSION['topicseen_cache'][$b])) {
-				$_SESSION['topicseen_cache'][$b] = [];
+				unset($_SESSION['topicseen_cache'][$b]);
 			}
 		}
 
@@ -390,7 +391,7 @@ class MarkRead implements ActionInterface, Routable
 				}
 
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}log_boards',
 					[
 						'id_msg' => 'int',
@@ -462,7 +463,17 @@ class MarkRead implements ActionInterface, Routable
 	{
 		$params = array_merge($params, self::parseActionRoute($route));
 
-		$params['sa'] = $params['sa'] ?? isset($params['topic']) ? 'topic' : (isset($params['board']) ? 'board' : null);
+		// buildRoute() drops the sub-action when it is implied by the topic or
+		// the board that the route is hanging off, so put it back. Anything
+		// else, such as 'all' or 'unreadreplies', is its own sub-action and the
+		// route said so already.
+		if (!isset($params['sa'])) {
+			if (isset($params['topic'])) {
+				$params['sa'] = 'topic';
+			} elseif (isset($params['board'])) {
+				$params['sa'] = 'board';
+			}
+		}
 
 		return $params;
 	}

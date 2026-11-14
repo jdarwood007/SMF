@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Pacific;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Pacific/Guam
  */
-class Guam extends \SMF\Calendar\VTimeZone
+class Guam extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Guam extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Pacific/Guam';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '2000-12-22T14:00:00+0000',
+			'metazone' => 'Chamorro',
+		],
+	];
 
 	/**
 	 * @var array
@@ -106,7 +124,7 @@ class Guam extends \SMF\Calendar\VTimeZone
 		9 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19700426T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19710425T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=-1SU;UNTIL=19710424T160000Z',
 			'TZNAME' => 'GDT',
 			'TZOFFSETFROM' => '+1000',
 			'TZOFFSETTO' => '+1100',
@@ -114,7 +132,7 @@ class Guam extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19700906T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19710905T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=1SU;UNTIL=19710904T150000Z',
 			'TZNAME' => 'GST',
 			'TZOFFSETFROM' => '+1100',
 			'TZOFFSETTO' => '+1000',

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Hong_Kong
  */
-class Hong_Kong extends \SMF\Calendar\VTimeZone
+class Hong_Kong extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Hong_Kong';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Hong_Kong',
+		],
+	];
 
 	/**
 	 * @var array
@@ -113,7 +131,7 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19481031T043000',
-			'RRULE' => 'FREQ=YEARLY;BYDAY=SU;BYYEARDAY=-64,-63,-62,-61,-60,-59,-58;BYSETPOS=1;UNTIL=19521102T033000',
+			'RRULE' => 'FREQ=YEARLY;BYDAY=SU;BYYEARDAY=-64,-63,-62,-61,-60,-59,-58;BYSETPOS=1;UNTIL=19521101T183000Z',
 			'TZNAME' => 'HKT',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -121,7 +139,7 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19490403T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19530405T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19530404T193000Z',
 			'TZNAME' => 'HKST',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -129,7 +147,7 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19531101T033000',
-			'RRULE' => 'FREQ=YEARLY;BYDAY=SU;BYYEARDAY=-62,-61,-60,-59,-58,-57,-56;BYSETPOS=1;UNTIL=19641101T033000',
+			'RRULE' => 'FREQ=YEARLY;BYDAY=SU;BYYEARDAY=-62,-61,-60,-59,-58,-57,-56;BYSETPOS=1;UNTIL=19641031T183000Z',
 			'TZNAME' => 'HKT',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',
@@ -137,7 +155,7 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 		13 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19540321T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=18,19,20,21,22,23,24;UNTIL=19640322T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=SU;BYMONTHDAY=18,19,20,21,22,23,24;UNTIL=19640321T193000Z',
 			'TZNAME' => 'HKST',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -145,7 +163,7 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19650418T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19760418T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19760417T193000Z',
 			'TZNAME' => 'HKST',
 			'TZOFFSETFROM' => '+0800',
 			'TZOFFSETTO' => '+0900',
@@ -153,7 +171,7 @@ class Hong_Kong extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19651017T033000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19761017T033000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=16,17,18,19,20,21,22;UNTIL=19761016T183000Z',
 			'TZNAME' => 'HKT',
 			'TZOFFSETFROM' => '+0900',
 			'TZOFFSETTO' => '+0800',

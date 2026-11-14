@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Tehran
  */
-class Tehran extends \SMF\Calendar\VTimeZone
+class Tehran extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Tehran extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Tehran';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Iran',
+		],
+	];
 
 	/**
 	 * @var array
@@ -84,7 +102,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		],
 		6 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19790527T000000',
+			'DTSTART' => '19790526T000000',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -120,7 +138,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19910922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=19950922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=19950921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',
@@ -128,7 +146,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		12 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19920322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=19950322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=19950321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -150,7 +168,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		15 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19970322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=19990322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=19990321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -158,7 +176,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		16 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19970922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=19990922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=19990921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',
@@ -180,7 +198,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		19 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20010322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20030322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20030321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -188,7 +206,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20010922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20030922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20030921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',
@@ -238,7 +256,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		27 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20090322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20110322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20110321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -246,7 +264,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		28 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20090922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20110922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20110921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',
@@ -268,7 +286,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		31 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20130322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20150322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20150321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -276,7 +294,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		32 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20130922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20150922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20150921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',
@@ -298,7 +316,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		35 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20170322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20190322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20190321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -306,7 +324,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		36 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20170922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20190922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20190921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',
@@ -328,7 +346,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20210322T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20220322T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=21;UNTIL=20220321T203000Z',
 			'TZNAME' => 'UTC+0430',
 			'TZOFFSETFROM' => '+0330',
 			'TZOFFSETTO' => '+0430',
@@ -336,7 +354,7 @@ class Tehran extends \SMF\Calendar\VTimeZone
 		40 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20210922T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20220922T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=21;UNTIL=20220921T193000Z',
 			'TZNAME' => 'UTC+0330',
 			'TZOFFSETFROM' => '+0430',
 			'TZOFFSETTO' => '+0330',

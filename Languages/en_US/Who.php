@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; Who
+// Version: 3.0 Alpha 5-dev; Who
 
 $txt['who_hidden'] = 'Nothing, or nothing you can see...';
 $txt['who_admin'] = 'Viewing the Administration Center';
@@ -18,7 +18,6 @@ $txt['who_show_all'] = 'Everyone';
 $txt['who_no_online_spiders'] = 'There are currently no robots online.';
 $txt['who_no_online_guests'] = 'There are currently no guests online.';
 $txt['who_no_online_members'] = 'There are currently no members online.';
-$txt['who_guest_login'] = 'User has been taken to the login page.';
 
 $txt['whospider_login'] = 'Viewing the login page.';
 $txt['whospider_register'] = 'Viewing the registration page.';

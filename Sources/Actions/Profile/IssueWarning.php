@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -19,10 +19,11 @@ use SMF\ActionInterface;
 use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\ErrorHandler;
 use SMF\ItemList;
 use SMF\Lang;
-use SMF\Msg;
 use SMF\OutputTypeInterface;
 use SMF\OutputTypes;
 use SMF\Parser;
@@ -34,7 +35,7 @@ use SMF\User;
 use SMF\Utils;
 
 /**
- * Rename here and in the exportStatic call at the end of the file.
+ * Class IssueWarning
  */
 class IssueWarning implements ActionInterface
 {
@@ -71,7 +72,7 @@ class IssueWarning implements ActionInterface
 	public function execute(): void
 	{
 		// Doesn't hurt to be overly cautious.
-		if (empty(Config::$modSettings['warning_enable']) || (User::$me->is_owner && !Profile::$member->warning) || !User::$me->allowedTo('issue_warning')) {
+		if (empty(Config::$modSettings['warning_enable']) || (Profile::$member->is_me && !Profile::$member->warning) || !User::$me->allowedTo('issue_warning')) {
 			ErrorHandler::fatalLang('no_access', false);
 		}
 
@@ -396,7 +397,7 @@ class IssueWarning implements ActionInterface
 	protected function __construct()
 	{
 		if (!isset(Profile::$member)) {
-			Profile::load();
+			Profile::loadMember();
 		}
 
 		// Get all the actual settings.
@@ -417,7 +418,7 @@ class IssueWarning implements ActionInterface
 		// This cannot be empty!
 		$_POST['warn_reason'] = isset($_POST['warn_reason']) ? trim($_POST['warn_reason']) : '';
 
-		if ($_POST['warn_reason'] == '' && !User::$me->is_owner) {
+		if ($_POST['warn_reason'] == '' && !Profile::$member->is_me) {
 			$this->issueErrors[] = 'warning_no_reason';
 		}
 
@@ -456,7 +457,7 @@ class IssueWarning implements ActionInterface
 
 				// Log the notice!
 				$id_notice = Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}log_member_notices',
 					[
 						'subject' => 'string-255',
@@ -469,7 +470,7 @@ class IssueWarning implements ActionInterface
 						],
 					],
 					['id_notice'],
-					Db::INSERT_RETURN_MODE_SINGLE,
+					ReturnMode::SingleRow,
 				);
 			}
 		}
@@ -480,9 +481,9 @@ class IssueWarning implements ActionInterface
 		// No errors? Proceed! Only log if you're not the owner.
 		if (empty($this->issueErrors)) {
 			// Log what we've done!
-			if (!User::$me->is_owner) {
+			if (!Profile::$member->is_me) {
 				Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}log_comments',
 					[
 						'id_member' => 'int',
@@ -513,10 +514,11 @@ class IssueWarning implements ActionInterface
 			}
 
 			// Make the change.
-			User::updateMemberData(Profile::$member->id, ['warning' => $_POST['warning_level']]);
+			Profile::$member->warning = $_POST['warning_level'];
+			Profile::$member->save();
 
 			// Leave a lovely message.
-			Utils::$context['profile_updated'] = Lang::getTxt(User::$me->is_owner ? 'profile_updated_own' : 'profile_warning_success', file: 'Profile');
+			Utils::$context['profile_updated'] = Lang::getTxt(Profile::$member->is_me ? 'profile_updated_own' : 'profile_warning_success', file: 'Profile');
 		} else {
 			// Try to remember some bits.
 			Utils::$context['warning_data'] = [
@@ -546,8 +548,7 @@ class IssueWarning implements ActionInterface
 		}
 
 		if (!empty($_POST['warn_body'])) {
-			Msg::preparsecode($warning_body, false, !empty(Config::$modSettings['autoLinkUrls']));
-			$warning_body = Parser::transform($warning_body);
+			$warning_body = Parser::transform(Parser::sanitize($warning_body, autolink: !empty(Config::$modSettings['autoLinkUrls'])));
 		}
 
 		// Try to remember some bits.

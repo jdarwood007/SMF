@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -64,8 +64,8 @@ class Popup
 			$count_unread = \count($pms);
 
 			if ($count_unread != User::$me->unread_messages) {
-				User::updateMemberData(User::$me->id, ['unread_messages' => $count_unread]);
-				User::$me->unread_messages = \count($pms);
+				User::$me->unread_messages = $count_unread;
+				User::$me->save();
 			}
 
 			// Now, actually fetch me some PMs.

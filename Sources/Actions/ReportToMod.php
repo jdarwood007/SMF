@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -20,11 +20,16 @@ use SMF\ActionRouter;
 use SMF\ActionTrait;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\Db\ReturnMode;
 use SMF\ErrorHandler;
 use SMF\Lang;
 use SMF\Msg;
+use SMF\Parser;
 use SMF\Routable;
 use SMF\Security;
+use SMF\Tasks\MemberReport_Notify;
+use SMF\Tasks\MsgReport_Notify;
 use SMF\Theme;
 use SMF\Topic;
 use SMF\User;
@@ -324,8 +329,7 @@ class ReportToMod implements ActionInterface, Routable
 	protected function setPreview(): void
 	{
 		// Set up the preview message.
-		Utils::$context['preview_message'] = Utils::htmlspecialchars($this->comment, ENT_QUOTES);
-		Msg::preparsecode(Utils::$context['preview_message']);
+		Utils::$context['preview_message'] = Parser::sanitize(Utils::htmlspecialchars($this->comment, ENT_QUOTES));
 
 		// We censor for your protection...
 		Lang::censorText(Utils::$context['preview_message']);
@@ -401,7 +405,7 @@ class ReportToMod implements ActionInterface, Routable
 			}
 
 			$id_report = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_reported',
 				[
 					'id_msg' => 'int',
@@ -432,14 +436,14 @@ class ReportToMod implements ActionInterface, Routable
 					],
 				],
 				['id_report'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 		}
 
 		// Now just add our report...
 		if ($id_report) {
 			$id_comment = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_reported_comments',
 				[
 					'id_report' => 'int',
@@ -460,12 +464,12 @@ class ReportToMod implements ActionInterface, Routable
 					],
 				],
 				['id_comment'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 
 			// And get ready to notify people.
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -474,7 +478,7 @@ class ReportToMod implements ActionInterface, Routable
 				],
 				[
 					[
-						'SMF\\Tasks\\MsgReport_Notify',
+						MsgReport_Notify::class,
 						Utils::jsonEncode([
 							'report_id' => $id_report,
 							'msg_id' => $msg,
@@ -524,7 +528,19 @@ class ReportToMod implements ActionInterface, Routable
 		$user = Db::$db->fetch_assoc($request);
 		Db::$db->free_result($request);
 
-		$user_name = Utils::htmlspecialcharsDecode($user['real_name']) . ($user['real_name'] != $user['member_name'] ? ' (' . $user['member_name'] . ')' : '');
+		$user_name = $user['real_name'];
+
+		if ($user['real_name'] != $user['member_name']) {
+			$with_username = $user['real_name'] . ' (' . $user['member_name'] . ')';
+
+			// Both names arrive from the database already entity encoded, and
+			// membername holds 255 characters, so the username goes on the end
+			// only when there is room for it. A display name is entitled to the
+			// space on its own.
+			if (mb_strlen($with_username) <= 255) {
+				$user_name = $with_username;
+			}
+		}
 
 		$request = Db::$db->query(
 			'SELECT id_report, ignore_all
@@ -567,7 +583,7 @@ class ReportToMod implements ActionInterface, Routable
 		// Otherwise, we shall make one!
 		else {
 			$id_report = Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_reported',
 				[
 					'id_msg' => 'int',
@@ -598,14 +614,14 @@ class ReportToMod implements ActionInterface, Routable
 					],
 				],
 				['id_report'],
-				Db::INSERT_RETURN_MODE_SINGLE,
+				ReturnMode::SingleRow,
 			);
 		}
 
 		// Now just add our report...
 		if ($id_report) {
 			Db::$db->insert(
-				'',
+				InsertType::Insert,
 				'{db_prefix}log_reported_comments',
 				[
 					'id_report' => 'int',
@@ -630,7 +646,7 @@ class ReportToMod implements ActionInterface, Routable
 
 			// And get ready to notify people.
 			Db::$db->insert(
-				'insert',
+				InsertType::Insert,
 				'{db_prefix}background_tasks',
 				[
 					'task_class' => 'string',
@@ -639,7 +655,7 @@ class ReportToMod implements ActionInterface, Routable
 				],
 				[
 					[
-						'SMF\\Tasks\\MemberReport_Notify',
+						MemberReport_Notify::class,
 						Utils::jsonEncode([
 							'report_id' => $id_report,
 							'user_id' => $user['id_member'],

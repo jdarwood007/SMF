@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -18,9 +18,9 @@ namespace SMF\Actions\Admin;
 use SMF\ActionInterface;
 use SMF\Actions\Profile\Notification;
 use SMF\ActionTrait;
-use SMF\BackwardCompatibility;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\Graphics\Image;
 use SMF\IntegrationHook;
@@ -43,7 +43,6 @@ use SMF\Utils;
 class Features implements ActionInterface
 {
 	use ActionTrait;
-	use BackwardCompatibility;
 
 	/*******************
 	 * Public properties
@@ -1313,7 +1312,7 @@ class Features implements ActionInterface
 				$new_order = $order_count > 1 ? ($order_count + 1) : 1;
 
 				Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}custom_fields',
 					[
 						'col_name' => 'string',
@@ -1501,7 +1500,6 @@ class Features implements ActionInterface
 	public function alerts(): void
 	{
 		// Dummy settings for the template...
-		User::$me->is_owner = false;
 		Utils::$context['member'] = [];
 		Utils::$context['id_member'] = 0;
 		Utils::$context['menu_item_selected'] = 'alerts';
@@ -1512,7 +1510,7 @@ class Features implements ActionInterface
 
 		Theme::loadTemplate('Profile');
 
-		Profile::load(0);
+		Profile::loadMember(0);
 		Notification::call();
 
 		Utils::$context['page_title'] = Lang::getTxt('notify_settings', file: 'Admin');
@@ -1538,6 +1536,8 @@ class Features implements ActionInterface
 		$disabled_fields = isset(Config::$modSettings['disabled_profile_fields']) ? explode(',', Config::$modSettings['disabled_profile_fields']) : [];
 		$reg_fields = isset(Config::$modSettings['registration_fields']) ? explode(',', Config::$modSettings['registration_fields']) : [];
 		$can_personal_text = !\in_array('personal_text', $disabled_fields) && !\in_array('personal_text', $reg_fields);
+
+		Theme::loadTemplate('TimeZoneSelect');
 
 		$config_vars = [
 			// Big Options... polls, sticky, bbc....
@@ -1572,11 +1572,11 @@ class Features implements ActionInterface
 				'select',
 				'jquery_source',
 				[
-					'cdn' => Lang::getTxt('jquery_google_cdn', file: 'ManageSettings'),
-					'cloudflare_cdn' => Lang::getTxt('jquery_cloudflare_cdn', file: 'ManageSettings'),
-					'jquery_cdn' => Lang::getTxt('jquery_jquery_cdn', file: 'ManageSettings'),
-					'microsoft_cdn' => Lang::getTxt('jquery_microsoft_cdn', file: 'ManageSettings'),
-					'local' => Lang::getTxt('jquery_local', file: 'ManageSettings'),
+					'cdn' => Lang::getTxt('google_cdn', file: 'ManageSettings'),
+					'cloudflare_cdn' => Lang::getTxt('cloudflare_cdn', file: 'ManageSettings'),
+					'jquery_cdn' => Lang::getTxt('jquery_cdn', file: 'ManageSettings'),
+					'microsoft_cdn' => Lang::getTxt('microsoft_cdn', file: 'ManageSettings'),
+					'local' => Lang::getTxt('local_cdn', file: 'ManageSettings'),
 					'custom' => Lang::getTxt('jquery_custom', file: 'ManageSettings'),
 				],
 				'onchange' => 'if (this.value == \'custom\'){document.getElementById(\'jquery_custom\').disabled = false; } else {document.getElementById(\'jquery_custom\').disabled = true;}',
@@ -1585,6 +1585,24 @@ class Features implements ActionInterface
 				'text',
 				'jquery_custom',
 				'disabled' => !isset(Config::$modSettings['jquery_source']) || (isset(Config::$modSettings['jquery_source']) && Config::$modSettings['jquery_source'] != 'custom'), 'size' => 75,
+			],
+
+			// FontAwesome source
+			[
+				'select',
+				'fontawesome_source',
+				[
+					'cdn' => Lang::getTxt('cloudflare_cdn', file: 'ManageSettings'),
+					'fontawesome_cdn' => Lang::getTxt('fontawesome_cdn', file: 'ManageSettings'),
+					'local' => Lang::getTxt('local_cdn', file: 'ManageSettings'),
+					'custom' => Lang::getTxt('fontawesome_custom', file: 'ManageSettings'),
+				],
+				'onchange' => 'if (this.value == \'custom\'){document.getElementById(\'fontawesome_custom\').disabled = false; } else {document.getElementById(\'fontawesome_custom\').disabled = true;}',
+			],
+			[
+				'text',
+				'fontawesome_custom',
+				'disabled' => !isset(Config::$modSettings['fontawesome_source']) || (isset(Config::$modSettings['fontawesome_source']) && Config::$modSettings['fontawesome_source'] != 'custom'), 'size' => 75,
 			],
 			'',
 
@@ -1611,7 +1629,7 @@ class Features implements ActionInterface
 
 			// Time zone and formatting.
 			['text', 'time_format'],
-			['select', 'default_timezone', array_filter(TimeZone::list(), 'is_string', ARRAY_FILTER_USE_KEY)],
+			['select', 'default_timezone'],
 			[
 				'text',
 				'timezone_priority_countries',
@@ -1632,6 +1650,11 @@ class Features implements ActionInterface
 			// Statistics.
 			['check', 'trackStats'],
 			['check', 'hitStats'],
+			'',
+
+			// Guest stats.
+			['check', 'no_guest_logging'],
+			['check', 'no_guest_views'],
 			'',
 
 			// Option-ish things... miscellaneous sorta.
@@ -1948,7 +1971,7 @@ class Features implements ActionInterface
 	protected function init()
 	{
 		Utils::$context['page_title'] = Lang::getTxt('modSettings_title', file: 'General');
-		Utils::$context['show_privacy_policy_warning'] = empty(Config::$modSettings['policy_' . Lang::$default]);
+		Utils::$context['show_privacy_policy_warning'] = empty(Config::$modSettings['policy_' . Config::$language]);
 
 		// Load up all the tabs...
 		Menu::$loaded['admin']->tab_data = [

@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Europe;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Europe/Brussels
  */
-class Brussels extends \SMF\Calendar\VTimeZone
+class Brussels extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Brussels extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Europe/Brussels';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Central',
+		],
+	];
 
 	/**
 	 * @var array
@@ -71,7 +89,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		4 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19170416T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=3MO;UNTIL=19180415T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=3MO;UNTIL=19180415T010000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -79,7 +97,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		5 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19170917T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=3MO;UNTIL=19180916T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=3MO;UNTIL=19180916T000000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',
@@ -101,7 +119,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		8 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19181006T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19191004T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19191004T220000Z',
 			'TZNAME' => 'WET',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0000',
@@ -144,7 +162,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		14 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19221008T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19271001T230000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1SA;UNTIL=19271001T220000Z',
 			'TZNAME' => 'WET',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0000',
@@ -194,7 +212,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		21 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19281007T030000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=2,3,4,5,6,7,8;UNTIL=19381002T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=SU;BYMONTHDAY=2,3,4,5,6,7,8;UNTIL=19381002T010000Z',
 			'TZNAME' => 'WET',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0000',
@@ -321,7 +339,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		39 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19440403T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T020000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1MO;UNTIL=19450402T010000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -364,7 +382,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		45 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19770831T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1SU;UNTIL=19800406T000000Z',
 			'TZNAME' => 'CEST',
 			'TZOFFSETFROM' => '+0100',
 			'TZOFFSETTO' => '+0200',
@@ -386,7 +404,7 @@ class Brussels extends \SMF\Calendar\VTimeZone
 		48 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19800227T020000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950924T010000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1SU;UNTIL=19950923T230000Z',
 			'TZNAME' => 'CET',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0100',

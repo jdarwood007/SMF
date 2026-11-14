@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -17,6 +17,7 @@ namespace SMF\Permissions;
 
 use SMF\ArrayAccessHelper;
 use SMF\Config;
+use SMF\Db\DatabaseApi as Db;
 use SMF\ErrorHandler;
 use SMF\Group;
 use SMF\IntegrationHook;
@@ -356,6 +357,17 @@ class Permission implements \ArrayAccess
 			'scope' => 'global',
 			'group_level' => self::GROUP_LEVEL_MODERATOR,
 			'never_guests' => true,
+		],
+		// Deprecated, but retained in case the admin kept the karma data during
+		// an upgrade. If a modification wants to restore the karma feature, it
+		// should use the integrate_permissions_list hook to set the 'hidden'
+		// property of this permission to false.
+		'karma_edit' => [
+			'view_group' => 'profile',
+			'scope' => 'global',
+			'hidden' => true,
+			'never_guests' => true,
+			'never_banned' => true,
 		],
 		'likes_like' => [
 			'view_group' => 'likes',
@@ -1309,6 +1321,9 @@ class Permission implements \ArrayAccess
 			self::$permissions[$name]['name'] = $name;
 		}
 
+		// Did any old mods add custom permissions to the tables?
+		self::includeOrphanPermissions();
+
 		// Important: do the ones with prerequisites last.
 		uasort(
 			self::$permissions,
@@ -1382,11 +1397,7 @@ class Permission implements \ArrayAccess
 	public static function getNonGuestPermissions(): array
 	{
 		if (empty(self::$non_guest_permissions)) {
-			self::getAll();
-
-			self::$non_guest_permissions = [];
-
-			foreach (self::$permissions as $perm) {
+			foreach (self::getAll() as $perm) {
 				if ($perm->never_guests) {
 					self::$non_guest_permissions[] = $perm->name;
 					self::$non_guest_permissions[] = $perm->generic_name;
@@ -1405,6 +1416,54 @@ class Permission implements \ArrayAccess
 	/*************************
 	 * Internal static methods
 	 *************************/
+
+	/**
+	 * Checks the permissions tables for any unknown permissions added by old
+	 * mods and ensures that they are included in the list of known permissions.
+	 *
+	 * MOD AUTHORS: Please update your code to use integrate_permissions_list
+	 * to add any custom permissions.
+	 *
+	 * @deprecated 3.0
+	 */
+	protected static function includeOrphanPermissions(): void
+	{
+		// Only do this when backward compatibility mode is enabled.
+		if (empty(Config::$backward_compatibility)) {
+			return;
+		}
+
+		foreach (['global' => 'permissions', 'board' => 'board_permissions'] as $scope => $tbl) {
+			$request = Db::$db->query(
+				'SELECT DISTINCT permission
+				FROM {db_prefix}{raw:tbl}
+				WHERE permission NOT IN ({array_string:known_permissions})',
+				[
+					'tbl' => $tbl,
+					'known_permissions' => array_keys(self::$permissions),
+				],
+			);
+
+			while ($row = Db::$db->fetch_assoc($request)) {
+				self::$permissions[$row['permission']] = [
+					'name' => $row['permission'],
+					'scope' => $scope,
+					'view_group' => 'general',
+				];
+
+				if (
+					str_ends_with($row['permission'], '_own')
+					|| str_ends_with($row['permission'], '_any')
+				) {
+					self::$permissions[$row['permission']]['generic_name'] = substr($row['permission'], 0, -4);
+					self::$permissions[$row['permission']]['own_any'] = substr($row['permission'], -3);
+				}
+			}
+
+			Db::$db->free_result($request);
+
+		}
+	}
 
 	/**
 	 * Calls the deprecated integrate_heavy_permissions_session hook.
@@ -1454,13 +1513,13 @@ class Permission implements \ArrayAccess
 		Utils::$context['non_guest_permissions'] = self::$non_guest_permissions;
 
 		// Track whether the hook makes any changes.
-		$temp = Utils::jsonEncode(Utils::$context['non_guest_permissions']);
+		$temp = Utils::$context['non_guest_permissions'];
 
 		// Give mods access to this list.
 		IntegrationHook::call('integrate_load_illegal_guest_permissions');
 
 		// If the hook changed anything, sync that back to our master list.
-		if ($temp != Utils::jsonEncode(Utils::$context['non_guest_permissions'])) {
+		if ($temp != Utils::$context['non_guest_permissions']) {
 			// Did the hook add a permission to Utils::$context['non_guest_permissions']?
 			foreach (Utils::$context['non_guest_permissions'] as $permission) {
 				foreach (['', '_own', '_any'] as $suffix) {
@@ -1478,7 +1537,9 @@ class Permission implements \ArrayAccess
 			}
 
 			// Now rebuild the list.
-			foreach (self::$permissions as $perm) {
+			self::$non_guest_permissions = [];
+
+			foreach (self::getAll() as $perm) {
 				if ($perm->never_guests) {
 					self::$non_guest_permissions[] = $perm->name;
 					self::$non_guest_permissions[] = $perm->generic_name;
@@ -1507,24 +1568,48 @@ class Permission implements \ArrayAccess
 			return;
 		}
 
+		// Don't bother if the current user can't manage permissions,
+		// since that makes everything unassignable.
+		if (!User::$me->allowedTo('manage_permissions')) {
+			return;
+		}
+
 		// This context variable exists only for the sake of the hook.
-		Utils::$context['illegal_permissions'] = self::$unassignable;
+		Utils::$context['illegal_permissions'] = array_values(array_intersect(
+			// These were the only permissions in the illegal_permissions array in SMF 2.1.
+			[
+				'admin_forum',
+				'bbc_html',
+				'manage_membergroups',
+				'manage_permissions',
+			],
+			self::$unassignable,
+		));
 
 		// Track whether the hook makes any changes.
-		$temp = Utils::jsonEncode(self::$unassignable);
+		$temp = Utils::$context['illegal_permissions'];
 
 		// Give mods access to this list.
 		IntegrationHook::call('integrate_load_illegal_permissions');
 
-		// If the hook added anything, sync that back to our master list.
-		// Because this hook can't tell us what the prerequisites are, we assume
-		// that the permission can only be granted by admins.
-		if ($temp != Utils::jsonEncode(self::$unassignable)) {
+		// If the hook made any changes, sync them back to our master list.
+		if ($temp != Utils::$context['illegal_permissions']) {
+			// Anything added?
 			foreach (Utils::$context['illegal_permissions'] as $permission) {
 				foreach (['', '_own', '_any'] as $suffix) {
-					if (isset(self::$permissions[$permission . $suffix])) {
-						self::$permissions[$permission . $suffix]->assigner_prerequisites[] = 'admin_forum';
+					if (
+						isset(self::$permissions[$permission . $suffix])
+						&& self::$permissions[$permission . $suffix]->canAssign()
+					) {
+						self::$permissions[$permission . $suffix]->can_assign = false;
 					}
+				}
+			}
+
+			// Anything removed?
+			foreach ($temp as $permission) {
+				if (!\in_array($permission, Utils::$context['illegal_permissions'])) {
+					self::$permissions[$permission]->can_assign = true;
 				}
 			}
 
@@ -1532,7 +1617,7 @@ class Permission implements \ArrayAccess
 			self::$unassignable = [];
 
 			foreach (self::getAll() as $perm) {
-				if (!empty($perm->assigner_prerequisites) && !User::$me->allowedTo($perm->assigner_prerequisites)) {
+				if (!$perm->canAssign()) {
 					self::$unassignable[] = $perm->name;
 					self::$unassignable[] = $perm->generic_name;
 				}

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -97,7 +97,7 @@ class Spoiler1 extends BBCode
 	 * In particular, if this spoiler tag contains multiple paragraphs, this
 	 * validate method will cause it to be rendered like a details tag.
 	 *
-	 * @param BBCodeInterface &$bbc This BBCode definition.
+	 * @param BBCodeInterface|BBCode &$bbc This BBCode definition.
 	 *    Passed in as an argument for historical reasons.
 	 * @param array|string &$data The data extracted from the particular
 	 *    occurrence of the BBCode in the text.
@@ -123,7 +123,7 @@ class Spoiler1 extends BBCode
 			$bbc->before = Lang::formatText(
 				BBCodeParser::insertTxt($details->before),
 				[
-					'summary' => $params['{text}'] ?? Lang::getTxt('spoiler', var: 'editortxt'),
+					'summary' => $params['{text}'] ?: Lang::getTxt('spoiler', var: 'editortxt', file: 'Editor'),
 				],
 			);
 

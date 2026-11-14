@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\America;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * America/Bogota
  */
-class Bogota extends \SMF\Calendar\VTimeZone
+class Bogota extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Bogota extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'America/Bogota';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Colombia',
+		],
+	];
 
 	/**
 	 * @var array
@@ -49,7 +67,7 @@ class Bogota extends \SMF\Calendar\VTimeZone
 		],
 		1 => [
 			'type' => 'DAYLIGHT',
-			'DTSTART' => '19920503T000000',
+			'DTSTART' => '19920502T000000',
 			'TZNAME' => 'UTC-04',
 			'TZOFFSETFROM' => '-0500',
 			'TZOFFSETTO' => '-0400',

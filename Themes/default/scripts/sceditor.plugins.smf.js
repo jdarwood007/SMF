@@ -3,10 +3,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 3
+ * @version 3.0 Alpha 5-dev
  */
 
 (sceditor => {
@@ -292,25 +292,65 @@
 				}
 			}
 
-			// Copy variables from variants into ifrane.
+			/*
+			 * Copy variables from variants into the iframe.
+			 *
+			 * What you type into is a document of its own, so nothing the page
+			 * declares reaches it. The tokens are copied in here, and the dark
+			 * ones have to come with them or the editing surface stays white on
+			 * a dark forum.
+			 */
 			const iframe = editor.getContentAreaContainer();
 			const el = iframe.contentDocument.createElement('style');
 			el.type = 'text/css';
 			let css = '';
+
+			// The colour mode blocks are ':root[data-mode="dark"]' and friends,
+			// so matching ':root' alone walks straight past them.
+			const wantedRoot = selector => selector === ':root' || selector?.startsWith(':root[data-mode');
+
 			for (const sheet of document.styleSheets) {
 				if (sheet.href?.includes('/index_') || sheet.href?.includes('/variables')) {
 					for (const rule of sheet.cssRules) {
 						css += rule.cssText;
 					}
-				} else if (sheet.href?.includes('/minified_')) {
+				} else if (sheet.href?.includes('/minified_') || sheet.href?.includes('/dark')) {
 					for (const rule of sheet.cssRules) {
-						if (rule.selectorText == ':root') {
+						if (wantedRoot(rule.selectorText)) {
 							css += rule.cssText;
 						}
 					}
 				}
 			}
 			el.innerHTML = css;
+
+			/*
+			 * Tell the iframe which mode it is in.
+			 *
+			 * 'system' is resolved to the mode it currently means rather than
+			 * passed through: outside, the browser is asked by a media
+			 * attribute on the stylesheet, and there is no such attribute on
+			 * anything in here. Left as 'system' the rules would match whatever
+			 * the reader's own setting is, so the editor would go dark on a
+			 * forum deliberately kept light.
+			 */
+			const setMode = () => {
+				const mode = document.documentElement.dataset.mode;
+
+				if (!mode) {
+					return;
+				}
+
+				iframe.contentDocument.documentElement.dataset.mode = mode !== 'system' ? mode :
+					(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			};
+
+			setMode();
+
+			// A reader on 'system' can change their mind while the editor is open.
+			if (document.documentElement.dataset.mode === 'system') {
+				window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setMode);
+			}
 			iframe.contentDocument.head.appendChild(el);
 
 			// Override these functions in order to convince SCEditor not to
@@ -810,11 +850,31 @@ sceditor.command.set(
 sceditor.command.set(
 	'youtube', {
 		exec: function (caller) {
-			var editor = this;
+			const editor = this;
 
-			editor.commands.youtube._dropDown(editor, caller, function (id, time) {
-				editor.wysiwygEditorInsertHtml('<div class="videocontainer"><div><iframe frameborder="0" allowfullscreen src="https://www.youtube-nocookie.com/embed/' + id + '?wmode=opaque&start=' + time + '" data-youtube-id="' + id + '" loading="lazy"></iframe></div></div>');
+			editor.commands.youtube._dropDown(editor, caller, function (id, start) {
+				if (typeof start !== "undefined" && start > 0) {
+					editor.wysiwygEditorInsertHtml('<div class="videocontainer"><div><iframe frameborder="0" allowfullscreen src="https://www.youtube-nocookie.com/embed/' + id + '?wmode=opaque&start=' + start + '" data-youtube-id="' + id + '" data-start="' + start + '" loading="lazy"></iframe></div></div>');
+				} else {
+					editor.wysiwygEditorInsertHtml('<div class="videocontainer"><div><iframe frameborder="0" allowfullscreen src="https://www.youtube-nocookie.com/embed/' + id + '?wmode=opaque" data-youtube-id="' + id + '" loading="lazy"></iframe></div></div>');
+				}
 			});
+		},
+		txtExec: function (caller) {
+			const editor = this;
+
+			editor.commands.youtube._dropDown(
+				editor,
+				caller,
+				function (id, start) {
+					if (typeof start !== "undefined" && start > 0) {
+						editor.insertText('[youtube start=' + start + ']' + id + '[/youtube]');
+					} else {
+						editor.insertText('[youtube]' + id + '[/youtube]');
+					}
+
+				}
+			);
 		}
 	}
 ).set(
@@ -1139,10 +1199,21 @@ sceditor.formats.bbcode.set(
 		html: '<ul>{0}</ul>',
 		format(element, content) {
 			const type = element.getAttribute('type') || element.style.listStyleType;
-			if (type == 'disc')
+			if (!type) {
+				type = 'disc';
+			}
+
+			// Detect whether this list is nested inside another list.
+			const parent = element.parentNode;
+			const parentIsList = parent && parent.nodeName &&
+				(parent.nodeName === 'UL' || parent.nodeName === 'OL');
+
+			// Emit plain [list] only for top-level lists that have the default 'disc' type.
+			if (type === 'disc' && !parentIsList) {
 				return '[list]' + content + '[/list]';
-			else
-				return '[list type=' + type + ']' + content + '[/list]';
+			}
+
+			return '[list type=' + type + ']' + content + '[/list]';
 		}
 	}
 ).set(
@@ -1155,8 +1226,19 @@ sceditor.formats.bbcode.set(
 		html: '<ol>{0}</ol>',
 		format(element, content) {
 			const type = element.getAttribute('type') || element.style.listStyleType;
-			if (type == 'none')
+			if (!type || type === 'none') {
 				type = 'decimal';
+			}
+
+			// Detect whether this list is nested inside another list.
+			const parent = element.parentNode;
+			const parentIsList = parent && parent.nodeName &&
+				(parent.nodeName === 'UL' || parent.nodeName === 'OL');
+
+			// Emit plain [list] only for top-level ordered lists with default 'decimal' type.
+			if (type === 'decimal' && !parentIsList) {
+				return '[list]' + content + '[/list]';
+			}
 
 			return '[list type=' + type + ']' + content + '[/list]';
 		}
@@ -1509,23 +1591,28 @@ sceditor.formats.bbcode.set(
 sceditor.formats.bbcode.set(
 	'code', {
 		tags: {
-			code: null
+			code: null,
+			pre: {
+				class: 'bbc_code'
+			}
 		},
 		isInline: false,
 		allowedChildren: ['#', '#newline'],
 		format: function (element, content) {
-			var
-				dom = sceditor.dom,
-				attr = dom.attr,
-				title = attr(element, 'data-title'),
-				from = title ?' =' + title : '';
+			// The <pre> is only a wrapper; the inner <code> carries the title.
+			if (element.tagName === 'PRE')
+				return content;
 
-			return '[code' + from + ']' + "\n" + content.replace('&#91;', '[') + "\n" + '[/code]';
+			const title = sceditor.dom.attr(element, 'data-title');
+			const from = title ? ' =' + title : '';
+
+			return '[code' + from + ']' + content.replace('&#91;', '[') + '[/code]';
 		},
 		html(element, {defaultattr}, content) {
 			const from = defaultattr ? ' data-title="' + defaultattr + '"'  : '';
 
-			return '<code data-name="' + this.opts.txtVars.code + '"' + from + '>' + content.replace('[', '&#91;').replaceAll(/\[tab\]/, '<span style="white-space: pre;" class="tab">\t</span>').replace(/^<br[^>]*>/, '').replace(/<br[^>]*>$/, '') + '</code>'
+			// A <pre> preserves the whitespace itself, so the line breaks no longer need trimming.
+			return '<pre class="bbc_code"><code data-name="' + this.opts.txtVars.code + '"' + from + '>' + content.replace('[', '&#91;').replaceAll(/\[tab\]/, '<span style="white-space: pre;" class="tab">\t</span>') + '</code></pre>';
 		}
 	}
 ).set(
@@ -1669,14 +1756,41 @@ sceditor.formats.bbcode.set(
 		isInline: false,
 		skipLastLineBreak: true,
 		format: function (element, content) {
-			youtube_id = $(element).find('iframe').data('youtube-id');
+			const
+				iframe = $(element).find('iframe'),
+				youtube_id = iframe.data('youtube-id');
+			let attribs = '';
+
+			if (iframe.attr('data-start')) {
+				attribs += " start=" + iframe.attr('data-start');
+			}
 
 			if (typeof youtube_id !== "undefined")
-				return '[youtube]' + youtube_id + '[/youtube]';
+				return '[youtube' + attribs + ']' + youtube_id + '[/youtube]';
 			else
 				return content;
 		},
-		html: '<div class="videocontainer"><div><iframe frameborder="0" src="https://www.youtube-nocookie.com/embed/{0}?wmode=opaque" data-youtube-id="{0}" loading="lazy" allowfullscreen></iframe></div></div>'
+		html: function (token, attrs, content) {
+			const
+				id_match = /^[a-zA-Z0-9_\-]{11}$/g,
+				start = typeof attrs.start !== "undefined" ? attrs.start : 0;
+			let attribs = '';
+
+			if (content.match(id_match) === null || (start.length > 0 && !$.isNumeric(start) || Math.floor(start) != +start || +start <= 0)) {
+				if (attrs.start !== "undefined") {
+					attribs += " start=" + attrs.start;
+				}
+
+				return '[youtube' + attribs + ']' + content + '[/youtube]';
+			}
+
+			if (attrs.start !== "undefined") {
+				return '<div class="videocontainer"><div><iframe frameborder="0" src="https://www.youtube-nocookie.com/embed/{0}?wmode=opaque&start=' + attrs.start + '" data-youtube-id="' + content + '" data-start="' + attrs.start + '" loading="lazy" allowfullscreen></iframe></div></div>'
+			}
+			else {
+				return '<div class="videocontainer"><div><iframe frameborder="0" src="https://www.youtube-nocookie.com/embed/{0}?wmode=opaque" data-youtube-id="' + content + '" loading="lazy" allowfullscreen></iframe></div></div>'
+			}
+		}
 	}
 );
 

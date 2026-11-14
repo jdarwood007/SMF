@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 use SMF\Calendar\Event;
@@ -263,18 +263,13 @@ function template_event_new()
 							</dt>
 							<dd id="tz_dd">';
 
-	// Setting max-width on selects inside floating elements can be flaky,
-	// so we need to calculate the width value manually.
-	echo '
-								<select name="tz" id="tz"', !empty(Utils::$context['event']->allday) || !empty(Utils::$context['event']->special_rrule) ? ' disabled' : '', !empty(Utils::$context['event']->special_rrule) ? ' data-force-disabled' : '', ' style="width:min(', max(array_map(fn ($tzname) => Utils::entityStrlen($tzname), Utils::$context['all_timezones'])) * 0.9, 'ch, 100%)">';
-
-	foreach (Utils::$context['all_timezones'] as $tz => $tzname) {
-		echo '
-									<option', is_numeric($tz) ? ' value="" disabled' : ' value="' . $tz . '"', $tz === Utils::$context['event']->selected_occurrence->tz ? ' selected' : '', '>', $tzname, '</option>';
-	}
+	template_timezone_select(
+		'tz',
+		Utils::$context['event']->selected_occurrence->tzid,
+		!empty(Utils::$context['event']->special_rrule) ? 2 : (int) Utils::$context['event']->allday,
+	);
 
 	echo '
-								</select>
 							</dd>
 						</dl>';
 

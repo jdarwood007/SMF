@@ -5,20 +5,22 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
 
 namespace SMF\Calendar\VTimeZones\Asia;
 
+use SMF\Calendar\VTimeZone;
+
 /**
  * Asia/Amman
  */
-class Amman extends \SMF\Calendar\VTimeZone
+class Amman extends VTimeZone
 {
 	/*******************
 	 * Public properties
@@ -30,6 +32,22 @@ class Amman extends \SMF\Calendar\VTimeZone
 	 * Time zone identifier.
 	 */
 	public string $tzid = 'Asia/Amman';
+
+	/**
+	 * @var array
+	 *
+	 * Data about which metazone label to use for this time zone at any given
+	 * date and time.
+	 *
+	 * Developers: Do not update the data in this array manually. Instead,
+	 * run "php -f other/update_timezones.php" on the command line.
+	 */
+	public array $metazones = [
+		0 => [
+			'ts' => '1970-01-01T00:00:00+0000',
+			'metazone' => 'Europe_Eastern',
+		],
+	];
 
 	/**
 	 * @var array
@@ -57,7 +75,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		2 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19731001T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19751001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYMONTHDAY=1;UNTIL=19750930T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -65,7 +83,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		3 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19740501T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19770501T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=1;UNTIL=19770430T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -115,7 +133,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		10 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19860404T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1FR;UNTIL=19880401T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1FR;UNTIL=19880331T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -123,7 +141,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		11 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19861003T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1FR;UNTIL=19901005T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1FR;UNTIL=19901004T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -166,7 +184,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		17 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19921002T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1FR;UNTIL=19931001T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=1FR;UNTIL=19930930T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -174,7 +192,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		18 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '19930402T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1FR;UNTIL=19980403T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=4;BYDAY=1FR;UNTIL=19980402T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -189,7 +207,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		20 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19950915T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=3FR;UNTIL=19980918T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=3FR;UNTIL=19980917T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -204,7 +222,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		22 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '19990924T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1FR;UNTIL=20020927T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=9;BYDAY=-1FR;UNTIL=20020926T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -212,7 +230,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		23 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20000330T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1TH;UNTIL=20010329T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1TH;UNTIL=20010328T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -220,7 +238,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		24 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20020329T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1TH;UNTIL=20120330T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1TH;UNTIL=20120329T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -249,7 +267,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		28 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20061027T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1FR;UNTIL=20111028T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1FR;UNTIL=20111027T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',
@@ -264,7 +282,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		30 => [
 			'type' => 'DAYLIGHT',
 			'DTSTART' => '20140328T000000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1TH;UNTIL=20210326T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=3;BYDAY=-1TH;UNTIL=20210325T220000Z',
 			'TZNAME' => 'EEST',
 			'TZOFFSETFROM' => '+0200',
 			'TZOFFSETTO' => '+0300',
@@ -272,7 +290,7 @@ class Amman extends \SMF\Calendar\VTimeZone
 		31 => [
 			'type' => 'STANDARD',
 			'DTSTART' => '20141031T010000',
-			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1FR;UNTIL=20221028T000000',
+			'RRULE' => 'FREQ=YEARLY;BYMONTH=10;BYDAY=-1FR;UNTIL=20221027T210000Z',
 			'TZNAME' => 'EET',
 			'TZOFFSETFROM' => '+0300',
 			'TZOFFSETTO' => '+0200',

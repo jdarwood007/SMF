@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -112,7 +112,7 @@ abstract class WebFetchApi implements WebFetchApiInterface
 	 * - If $post_data is supplied, the value and length is posted to the given
 	 *   URL as form data.
 	 *
-	 * @param \SMF\Url|string $url An HTTP or FTP URL.
+	 * @param Url|string $url An HTTP or FTP URL.
 	 * @param string|array $post_data The data to post to the given URL.
 	 *    Not applicable to FTP requests.
 	 * @param bool $keep_alive Whether to keep the connection alive for further
@@ -122,13 +122,17 @@ abstract class WebFetchApi implements WebFetchApiInterface
 	public static function fetch(Url|string $url, string|array $post_data = [], bool $keep_alive = false): string|false
 	{
 		if (!($url instanceof Url)) {
-			$url = Url::create($url, true)->validate()->toAscii();
+			$url = Url::create($url, true)->validate();
 		}
 
-		// No scheme? No data for you!
-		if (empty($url->scheme) || !isset(self::$scheme_handlers[$url->scheme])) {
+		$url->normalize()->toAscii();
+
+		// SSRF guard: refuse loopback/private/link-local/reserved targets and
+		// non-fetchable schemes before any connection is attempted.
+		if (!$url->isFetchSafe(array_keys(self::$scheme_handlers))) {
 			trigger_error(Lang::getTxt('fetch_web_data_bad_url', [__METHOD__], file: 'Errors'), E_USER_NOTICE);
-			$data = false;
+
+			return false;
 		}
 
 		if (isset(self::$still_alive[(string) $url])) {

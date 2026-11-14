@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -150,7 +150,7 @@ class JavaScriptModify implements ActionInterface, Routable
 					$post_errors[] = 'links_malformed';
 				}
 
-				Msg::preparsecode($_POST['message']);
+				$_POST['message'] = Parser::sanitize($_POST['message']);
 
 				$temp = Parser::transform(
 					string: $row['body'],
@@ -266,10 +266,10 @@ class JavaScriptModify implements ActionInterface, Routable
 			if (isset($_POST['subject'], $_REQUEST['change_all_subjects']) && $row['id_first_msg'] == $row['id_msg'] && !empty($row['num_replies']) && (User::$me->allowedTo('modify_any') || ($row['id_member_started'] == User::$me->id && User::$me->allowedTo('modify_replies')))) {
 				// Get the proper (default language) response prefix first.
 				if (!isset(Utils::$context['response_prefix'])) {
-					if (Lang::$default === User::$me->language) {
+					if (Config::$language === User::$me->language) {
 						Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General');
 					} elseif (!(Utils::$context['response_prefix'] = CacheApi::get('response_prefix', 600))) {
-						Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Lang::$default);
+						Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Config::$language);
 						CacheApi::put('response_prefix', Utils::$context['response_prefix'], 600);
 					}
 				}

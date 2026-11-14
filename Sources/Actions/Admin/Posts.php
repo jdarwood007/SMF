@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -23,7 +23,7 @@ use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
 use SMF\Menu;
-use SMF\Msg;
+use SMF\Parser;
 use SMF\SecurityToken;
 use SMF\TaskRunner;
 use SMF\User;
@@ -165,9 +165,7 @@ class Posts implements ActionInterface
 		}
 
 		if (isset($_POST['censortest'])) {
-			$censorText = Utils::htmlspecialchars($_POST['censortest'], ENT_QUOTES);
-			Msg::preparsecode($censorText);
-			Utils::$context['censor_test'] = strtr(Lang::censorText($censorText), ['"' => '&quot;']);
+			Utils::$context['censor_test'] = strtr(Lang::censorText(Parser::sanitize(Utils::htmlspecialchars($_POST['censortest'], ENT_QUOTES))), ['"' => '&quot;']);
 		}
 
 		// Set everything up for the template to do its thang.

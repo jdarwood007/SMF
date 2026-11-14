@@ -1,6 +1,6 @@
 <?php
 
-// Version: 3.0 Alpha 4; ManageMaintenance
+// Version: 3.0 Alpha 5-dev; ManageMaintenance
 
 $txt['repair_zero_ids'] = 'Found topics and/or messages with topic or message IDs of 0.';
 $txt['repair_missing_topics'] = 'Message #{0, number, integer} is in non-existent topic #{1, number, integer}.';
@@ -162,8 +162,8 @@ $txt['errortype_login_desc'] = 'Errors caused by failed login attempts or brute 
 
 $txt['maintain_recount'] = 'Recount all forum totals and statistics';
 $txt['maintain_recount_info'] = 'Should the total replies of a topic or the number of PMs in your inbox be incorrect: this function will recount all saved counts and statistics for you.';
-$txt['maintain_errors'] = 'Find and repair any errors';
-$txt['maintain_errors_info'] = 'If, for example, posts or topics are missing after a server crash, this function may help in finding them again.';
+$txt['maintain_repair'] = 'Find and repair any errors';
+$txt['maintain_repair_info'] = 'If, for example, posts or topics are missing after a server crash, this function may help in finding them again.';
 $txt['maintain_logs'] = 'Empty out unimportant logs';
 $txt['maintain_logs_info'] = 'This function will empty out all unimportant logs. This should be avoided unless something is wrong, but it does not hurt anything.';
 $txt['maintain_cache'] = 'Empty SMF’s cache';
@@ -211,6 +211,9 @@ $txt['entity_convert_title'] = 'Convert HTML-entities to UTF-8 characters';
 $txt['entity_convert_only_utf8'] = 'The database needs to be in UTF-8 format before HTML-entities can be converted to UTF-8';
 $txt['entity_convert_introduction'] = 'This function will convert all characters that are stored in the database as HTML-entities to UTF-8 characters. This is especially useful when you have just converted your forum from a character set like ISO-8859-1 while non-latin characters were used on the forum. The browser then sends all characters as HTML-entities. For example, the HTML-entity &amp;#945; represents the greek letter &#945; (alpha). Converting entities to UTF-8 will improve searching and sorting of text and reduce storage size.';
 $txt['entity_convert_proceed'] = 'Proceed';
+
+$txt['admininfofiles_title'] = 'Repair Admin Information Files';
+$txt['admininfofiles_introduction'] = 'This task will repair any corrupted or missing admin information files provided by the base install of SMF.';
 
 // Move topics out.
 $txt['move_topics_maintenance'] = 'Move Topics';

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 namespace SMF\PackageManager;
@@ -16,13 +16,14 @@ namespace SMF\PackageManager;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
+use SMF\EmailAddress;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\ItemList;
 use SMF\Lang;
 use SMF\Logging;
 use SMF\Menu;
-use SMF\Msg;
 use SMF\Parser;
 use SMF\Sapi;
 use SMF\Security;
@@ -403,9 +404,7 @@ class PackageManager
 				}
 
 				if (!empty($action['parse_bbc'])) {
-					Utils::$context[$type] = preg_replace('~\[[/]?html\]~i', '', Utils::$context[$type]);
-					Msg::preparsecode(Utils::$context[$type]);
-					Utils::$context[$type] = Parser::transform(Utils::$context[$type]);
+					Utils::$context[$type] = Parser::transform(Parser::sanitize(preg_replace('~\[/?html\]~i', '', Utils::$context[$type])));
 				} else {
 					Utils::$context[$type] = nl2br(Utils::$context[$type]);
 				}
@@ -518,23 +517,23 @@ class PackageManager
 							];
 						} elseif ($mod_action['type'] == 'create-file') {
 							Utils::$context['actions'][$actual_filename] = [
-								'type' => Lang::$txt['package_create_file'],
+								'type' => Lang::getTxt('package_create_file', file: 'Packages'),
 								'action' => Utils::htmlspecialchars(strtr($mod_action['filename'], [Config::$boarddir => '.'])),
-								'description' => $failed ? Lang::$txt['package_action_failure'] : '',
+								'description' => $failed ? Lang::getTxt('package_action_failure', file: 'Packages') : '',
 								'failed' => $failed,
 							];
 						} elseif ($mod_action['type'] == 'move-file') {
 							Utils::$context['actions'][$actual_filename] = [
-								'type' => Lang::$txt['package_move_file'],
+								'type' => Lang::getTxt('package_move_file', file: 'Packages'),
 								'action' => Utils::htmlspecialchars(strtr($mod_action['source'], [Config::$boarddir => '.'])) . ' => ' . Utils::htmlspecialchars(strtr($mod_action['destination'], [Config::$boarddir => '.'])),
-								'description' => $failed ? Lang::$txt['package_action_missing'] : '',
+								'description' => $failed ? Lang::getTxt('package_action_missing', file: 'Packages') : '',
 								'failed' => $failed,
 							];
 						} elseif ($mod_action['type'] == 'remove-file') {
 							Utils::$context['actions'][$actual_filename] = [
-								'type' => Lang::$txt['package_delete_file'],
+								'type' => Lang::getTxt('package_delete_file', file: 'Packages'),
 								'action' => Utils::htmlspecialchars(strtr($mod_action['filename'], [Config::$boarddir => '.'])),
-								'description' => $failed ? Lang::$txt['package_action_missing'] : '',
+								'description' => $failed ? Lang::getTxt('package_action_missing', file: 'Packages') : '',
 								'failed' => $failed,
 							];
 						}
@@ -555,9 +554,9 @@ class PackageManager
 						if (!\in_array($mod_action['type'], ['error', 'result', 'opened', 'saved', 'end', 'missing', 'skipping', 'chmod', 'create-file', 'move-file', 'remove-file'])) {
 							if (!isset(Utils::$context['actions'][$actual_filename])) {
 								Utils::$context['actions'][$actual_filename] = [
-									'type' => Lang::$txt['execute_modification'],
+									'type' => Lang::getTxt('execute_modification', file: 'Packages'),
 									'action' => Utils::htmlspecialchars(strtr($mod_action['filename'], [Config::$boarddir => '.'])),
-									'description' => $failed ? Lang::$txt['package_action_failure'] : Lang::$txt['package_action_success'],
+									'description' => $failed ? Lang::getTxt('package_action_failure', file: 'Packages') : Lang::getTxt('package_action_success', file: 'Packages'),
 									'failed' => $failed,
 								];
 							}
@@ -1135,7 +1134,7 @@ class PackageManager
 							extract($backcompat_globals, EXTR_REFS | EXTR_SKIP);
 						}
 
-						require Config::canonicalPath(Config::$packagesdir . '/temp/' . Utils::$context['base_path'] . $action['filename']);
+						require Sapi::canonicalPath(Config::$packagesdir . '/temp/' . Utils::$context['base_path'] . $action['filename']);
 					}
 				} elseif ($action['type'] == 'credits') {
 					// Time to build the billboard
@@ -1188,7 +1187,7 @@ class PackageManager
 							extract($backcompat_globals, EXTR_REFS | EXTR_SKIP);
 						}
 
-						require Config::canonicalPath(Config::$packagesdir . '/temp/' . Utils::$context['base_path'] . $action['filename']);
+						require Sapi::canonicalPath(Config::$packagesdir . '/temp/' . Utils::$context['base_path'] . $action['filename']);
 					}
 				}
 				// Handle a redirect...
@@ -1198,9 +1197,7 @@ class PackageManager
 					Utils::$context['redirect_timeout'] = empty($action['redirect_timeout']) ? 5 : (int) ceil($action['redirect_timeout'] / 1000);
 
 					if (!empty($action['parse_bbc'])) {
-						Utils::$context['redirect_text'] = preg_replace('~\[[/]?html\]~i', '', Utils::$context['redirect_text']);
-						Msg::preparsecode(Utils::$context['redirect_text']);
-						Utils::$context['redirect_text'] = Parser::transform(Utils::$context['redirect_text']);
+						Utils::$context['redirect_text'] = Parser::transform(Parser::sanitize(preg_replace('~\[/?html\]~i', '', Utils::$context['redirect_text'])));
 					}
 
 					// Parse out a couple of common urls.
@@ -1342,7 +1339,7 @@ class PackageManager
 
 				// Log that we installed it.
 				Db::$db->insert(
-					'',
+					InsertType::Insert,
 					'{db_prefix}log_packages',
 					[
 						'filename' => 'string',
@@ -1418,7 +1415,7 @@ class PackageManager
 
 		foreach (['css_files', 'javascript_files'] as $file_type) {
 			foreach (Utils::$context[$file_type] as $id => $file) {
-				if (isset($file['filePath']) && !file_exists($file['filePath'])) {
+				if (isset($file['filePath']) && !file_exists($file['filePath']) && empty($file['options']['external'])) {
 					unset(Utils::$context[$file_type][$id]);
 				}
 			}
@@ -1462,7 +1459,7 @@ class PackageManager
 		while ($row = Db::$db->fetch_assoc($request)) {
 			$row['smf_version'] = strtr(strtolower($row['smf_version']), ' ', '.');
 
-			if (version_compare($row['smf_version'], $lowest_found_version, '<')) {
+			if (version_compare(Utils::standardizeVersionString($row['smf_version']), Utils::standardizeVersionString($lowest_found_version), '<')) {
 				$lowest_found_version = $row['smf_version'];
 			}
 		}
@@ -1470,7 +1467,7 @@ class PackageManager
 		Db::$db->free_result($request);
 
 		Config::updateSettingsFile([
-			'backward_compatibility' => (int) version_compare($lowest_found_version, $min_version, '<'),
+			'backward_compatibility' => (int) version_compare(Utils::standardizeVersionString($lowest_found_version), Utils::standardizeVersionString($min_version), '<'),
 		]);
 	}
 
@@ -1719,9 +1716,13 @@ class PackageManager
 		Db::$db->free_result($get_versions);
 
 		// Decode the data.
-		$items = Utils::jsonDecode($data['data'], true);
+		// This list is fetched from simplemachines.org and cached in the
+		// database. A forum that has never managed to reach it — a fresh
+		// install, or one with no outbound access — has nothing stored, and
+		// jsonDecode() hands back null rather than a list of versions.
+		$items = Utils::jsonDecode($data['data'] ?? '', true);
 
-		Utils::$context['emulation_versions'] = preg_replace('~^SMF ~', '', $items);
+		Utils::$context['emulation_versions'] = \is_array($items) ? preg_replace('~^SMF ~', '', $items) : [];
 
 		// Current SMF version, which is selected by default
 		Utils::$context['default_version'] = SMF_VERSION;
@@ -2691,7 +2692,7 @@ class PackageManager
 		if ($listing->exists('default-author')) {
 			$default_author = Utils::htmlspecialchars($listing->fetch('default-author'));
 
-			if ($listing->exists('default-author/@email') && filter_var($listing->fetch('default-author/@email'), FILTER_VALIDATE_EMAIL)) {
+			if ($listing->exists('default-author/@email') && EmailAddress::create($listing->fetch('default-author/@email'))->isValid()) {
 				$default_email = Utils::htmlspecialchars($listing->fetch('default-author/@email'));
 			}
 		}
@@ -2814,7 +2815,7 @@ class PackageManager
 					$package['download']['link'] = '<a href="' . $package['download']['href'] . '">' . $package['name'] . '</a>';
 
 					if ($thisPackage->exists('author') || isset($default_author)) {
-						if ($thisPackage->exists('author/@email') && filter_var($thisPackage->fetch('author/@email'), FILTER_VALIDATE_EMAIL)) {
+						if ($thisPackage->exists('author/@email') && EmailAddress::create($thisPackage->fetch('author/@email'))->isValid()) {
 							$package['author']['email'] = $thisPackage->fetch('author/@email');
 						} elseif (isset($default_email)) {
 							$package['author']['email'] = $default_email;
@@ -3154,7 +3155,7 @@ class PackageManager
 		}
 
 		Db::$db->insert(
-			'',
+			InsertType::Insert,
 			'{db_prefix}package_servers',
 			[
 				'name' => 'string-255',
@@ -3466,7 +3467,7 @@ class PackageManager
 				$_REQUEST['sa'] = 'servers';
 			}
 
-			$temp = array_map(function ($sa) {return $this->subactions[$sa];}, $this->packageget_subactions);
+			$temp = array_map(fn($sa) => $this->subactions[$sa], $this->packageget_subactions);
 
 			// MOD AUTHORS: integrate_package_get is deprecated. Use integrate_manage_packages instead.
 			if (!empty(Config::$backward_compatibility)) {

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -73,7 +73,7 @@ class Time1 extends BBCode
 
 		if (preg_match('/^\d+\.?\d*\s+(year|month|week|day|hour|minute|second)s?$/', $sanitized_date)) {
 			try {
-				$duration = TimeInterval::createFromDateInterval(\DateInterval::createFromDateString($sanitized_date));
+				$duration = TimeInterval::createFromDateString($sanitized_date);
 
 				$data = [$text, (string) $duration];
 
@@ -185,12 +185,12 @@ class Time1 extends BBCode
 					// No explicit AM or PM was given.
 					&& !preg_match('/[AaPp]\.?[Mm]\.?/', $when)
 					// The hour was given with a single digit (no preceeding zero).
-					&& !preg_match('/(?<!:)0' . $parsed['hour'] . '\b/', $when)
+					&& !preg_match('/(?<!:)0' . $parsed['hour'] . ':' . \sprintf('%02d', $parsed['minute']) . '/', $when)
 					// The user's time format normally expects 12-hour time.
 					&& preg_match(Time::isStrftimeFormat(Time::getTimeFormat()) ? '/%[Il]/' : '/[gh]/', Time::getTimeFormat())
 				) {
 					// Update $when to add 12 hours.
-					$when = preg_replace('/(?<!:)' . $parsed['hour'] . '\b/', (string) ($parsed['hour'] + 12), $when);
+					$when = preg_replace('/(?<!:)' . $parsed['hour'] . '(?=:' . \sprintf('%02d', $parsed['minute']) . ')/', (string) ($parsed['hour'] + 12), $when);
 
 					// Re-parse.
 					$parsed = date_parse($when);

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  *
  * Original module by Mach8 - We'll never forget you.
  */
@@ -23,6 +23,7 @@ use SMF\Board;
 use SMF\Cache\CacheApi;
 use SMF\Config;
 use SMF\Db\DatabaseApi as Db;
+use SMF\Db\InsertType;
 use SMF\ErrorHandler;
 use SMF\IntegrationHook;
 use SMF\Lang;
@@ -30,6 +31,7 @@ use SMF\Logging;
 use SMF\Mail;
 use SMF\Msg;
 use SMF\PageIndex;
+use SMF\Parser;
 use SMF\Routable;
 use SMF\Search\SearchApi;
 use SMF\Theme;
@@ -205,6 +207,14 @@ class TopicMerge implements ActionInterface, Routable
 	{
 		if (!isset($_GET['from'])) {
 			ErrorHandler::fatalLang('no_access', false);
+		}
+
+		// Everything below looks for the source topic in the current board, and
+		// pages the target list relative to it, so there has to be one.
+		// Board::$info is typed with no default, so reading it without a board
+		// is an uncaught error rather than an empty value.
+		if (!isset(Board::$info)) {
+			ErrorHandler::fatalLang('no_board', false);
 		}
 
 		$_GET['from'] = (int) $_GET['from'];
@@ -593,12 +603,11 @@ class TopicMerge implements ActionInterface, Routable
 			];
 
 			// Make sure we catch both languages in the reason.
-			if (User::$me->language != Lang::$default) {
-				$reason_replacements[Lang::getTxt('movetopic_auto_topic', file: 'General', lang: Lang::$default)] = '[iurl=$quot' . Config::$scripturl . '?topic=' . $id_topic . '.0&quot;]' . $target_subject . '[/iurl]';
+			if (User::$me->language != Config::$language) {
+				$reason_replacements[Lang::getTxt('movetopic_auto_topic', file: 'General', lang: Config::$language)] = '[iurl=$quot' . Config::$scripturl . '?topic=' . $id_topic . '.0&quot;]' . $target_subject . '[/iurl]';
 			}
 
-			$_POST['reason'] = Utils::htmlspecialchars($_POST['reason'], ENT_QUOTES);
-			Msg::preparsecode($_POST['reason'], false, !empty(Config::$modSettings['autoLinkUrls']));
+			$_POST['reason'] = Parser::sanitize(Utils::htmlspecialchars($_POST['reason'], ENT_QUOTES), autolink: !empty(Config::$modSettings['autoLinkUrls']));
 
 			// Add a URL onto the message.
 			$reason = strtr($_POST['reason'], $reason_replacements);
@@ -610,13 +619,15 @@ class TopicMerge implements ActionInterface, Routable
 			$redirect_topic = isset($_POST['redirect_topic']) ? $id_topic : 0;
 
 			foreach ($deleted_topics as $this_old_topic) {
-				$redirect_subject = Lang::getTxt('merged_subject', ['subject' => $this->topic_data[$this_old_topic]['subject']], file: 'General', lang: Lang::$default);
+				$redirect_subject = Lang::getTxt('merged_subject', ['subject' => $this->topic_data[$this_old_topic]['subject']], file: 'General', lang: Config::$language);
 
 				$msgOptions = [
 					'icon' => 'moved',
 					'subject' => $redirect_subject,
 					'body' => $reason,
 					'approved' => 1,
+					// It only points at the merged topic, whose watchers hear about the merge.
+					'send_notifications' => false,
 				];
 
 				$topicOptions = [
@@ -640,10 +651,10 @@ class TopicMerge implements ActionInterface, Routable
 
 		// Grab the response prefix (like 'Re: ') in the default forum language.
 		if (!isset(Utils::$context['response_prefix'])) {
-			if (Lang::$default === User::$me->language) {
+			if (Config::$language === User::$me->language) {
 				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General');
 			} elseif (!(Utils::$context['response_prefix'] = CacheApi::get('response_prefix', 600))) {
-				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Lang::$default);
+				Utils::$context['response_prefix'] = Lang::getTxt('response_prefix', file: 'General', lang: Config::$language);
 				CacheApi::put('response_prefix', Utils::$context['response_prefix'], 600);
 			}
 		}
@@ -725,7 +736,7 @@ class TopicMerge implements ActionInterface, Routable
 			}
 
 			Db::$db->insert(
-				'replace',
+				InsertType::Replace,
 				'{db_prefix}log_topics',
 				['id_member' => 'int', 'id_topic' => 'int', 'id_msg' => 'int', 'unwatched' => 'int'],
 				$replaceEntries,
@@ -767,7 +778,7 @@ class TopicMerge implements ActionInterface, Routable
 				}
 
 				Db::$db->insert(
-					'replace',
+					InsertType::Replace,
 					'{db_prefix}log_notify',
 					['id_member' => 'int', 'id_topic' => 'int', 'id_board' => 'int', 'sent' => 'int'],
 					$replaceEntries,

@@ -5,10 +5,10 @@
  *
  * @package SMF
  * @author Simple Machines https://www.simplemachines.org
- * @copyright 2025 Simple Machines and individual contributors
+ * @copyright 2026 Simple Machines and individual contributors
  * @license https://www.simplemachines.org/about/smf/license.php BSD
  *
- * @version 3.0 Alpha 4
+ * @version 3.0 Alpha 5-dev
  */
 
 declare(strict_types=1);
@@ -64,7 +64,7 @@ class ExportAttachment implements ActionInterface
 	 */
 	public function execute(): void
 	{
-		if (!isset($_GET['t']) || $_GET['t'] !== $this->dltoken) {
+		if (!isset($_GET['t']) || !hash_equals($this->dltoken, $_GET['t'])) {
 			Utils::sendHttpStatus(403);
 
 			exit;
@@ -121,7 +121,7 @@ class ExportAttachment implements ActionInterface
 	protected function __construct()
 	{
 		if (!isset(Profile::$member)) {
-			Profile::load();
+			Profile::loadMember();
 		}
 
 		$this->idhash = hash_hmac('sha1', (string) Profile::$member->id, Config::getAuthSecret());
