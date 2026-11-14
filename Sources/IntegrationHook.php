@@ -168,7 +168,7 @@ class IntegrationHook
 
 			// Special include hooks don't generate callables.
 			if (!str_ends_with($name, '_include')) {
-				$this->callables[$hook['id_hook']] = self::getCallable($hook['function'], $hook['class'], $hook['is_object']);
+				$this->callables[$hook['id_hook']] = self::getCallable($hook['function'], $hook['class'], $hook['is_object'], $this->ignore_errors);
 			}
 		}
 	}
@@ -563,6 +563,10 @@ class IntegrationHook
 			Utils::$context['integration_hooks_temporary'] ??= [];
 			Utils::$context['integration_hooks_temporary'][$name][$function] = true;
 
+			if (!empty($file)) {
+				self::loadFile($file);
+			}
+
 			if (!empty(Config::$backward_compatibility)) {
 				self::updateModSettings($name, $function);
 			}
@@ -605,10 +609,10 @@ class IntegrationHook
 		});
 
 		if ($permanent) {
-			self::unregister($name, self::$hooks[$name][$key]['id_hook']);
+			self::unregister($name, $key['id_hook']);
 		} else {
 			self::$hooks[$name] ??= [];
-			unset(self::$hooks[$name][$key]);
+			unset(self::$hooks[$name][$key['id_hook']]);
 
 			if (!empty(Config::$backward_compatibility)) {
 				self::updateModSettings($name, $function, true);
